@@ -28,8 +28,18 @@ struct FixtureRecord {
 }
 
 fn fixture_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../data/cortex/mnemara-replay-fixtures.json")
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for ancestor in manifest_dir.ancestors() {
+        let candidate = ancestor.join("data/cortex/mnemara-replay-fixtures.json");
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+
+    panic!(
+        "fixture file should exist under a parent data/cortex directory of {}",
+        manifest_dir.display()
+    )
 }
 
 fn load_fixtures() -> ReplayFixtureSet {

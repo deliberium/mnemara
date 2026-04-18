@@ -92,7 +92,7 @@ async fn grpc_service_accepts_tls_clients() {
     let runtime = runtime_for(&store);
     let server_cert = generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
     let server_identity =
-        Identity::from_pem(server_cert.cert.pem(), server_cert.key_pair.serialize_pem());
+        Identity::from_pem(server_cert.cert.pem(), server_cert.signing_key.serialize_pem());
     let tls = ServerTlsConfig::new().identity(server_identity);
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -145,7 +145,7 @@ async fn grpc_service_accepts_mutual_tls_clients() {
     let tls = ServerTlsConfig::new()
         .identity(Identity::from_pem(
             server_cert.cert.pem(),
-            server_cert.key_pair.serialize_pem(),
+            server_cert.signing_key.serialize_pem(),
         ))
         .client_ca_root(Certificate::from_pem(client_cert.cert.pem()));
 
@@ -179,7 +179,7 @@ async fn grpc_service_accepts_mutual_tls_clients() {
                 .ca_certificate(Certificate::from_pem(server_cert.cert.pem()))
                 .identity(Identity::from_pem(
                     client_cert.cert.pem(),
-                    client_cert.key_pair.serialize_pem(),
+                    client_cert.signing_key.serialize_pem(),
                 ))
                 .domain_name("localhost"),
         )

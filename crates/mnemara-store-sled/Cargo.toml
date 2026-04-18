@@ -5,7 +5,12 @@ edition.workspace = true
 license.workspace = true
 description.workspace = true
 repository.workspace = true
-readme.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+documentation = "https://docs.rs/mnemara-store-sled"
 
 [lib]
 name = "mnemara_store_sled"
@@ -22,7 +27,7 @@ sled.workspace = true
 criterion.workspace = true
 mnemara-store-file = { version = "0.1.0", path = "../mnemara-store-file" }
 tokio.workspace = true
-uuid = { version = "1.23.0", features = ["v4"] }
+uuid = { version = "1.23.1", features = ["v4"] }
 
 [[bench]]
 name = "backend_bench"

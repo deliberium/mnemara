@@ -12,10 +12,14 @@ resolver = "3"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 license = "MIT"
 description = "Local-first, explainable AI memory engine for embedded and service-based systems"
 repository = "https://github.com/deliberium/mnemara"
+homepage = "https://github.com/deliberium/mnemara"
 readme = "README.md"
+keywords = ["memory", "retrieval", "rag", "grpc", "ai"]
+categories = ["database", "data-structures", "api-bindings"]
 
 [workspace.dependencies]
 async-trait = "0.1.89"

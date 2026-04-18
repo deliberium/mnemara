@@ -1,14 +1,14 @@
 # Mnemara
 
 <p align="center">
-  <img src="assets/mnemaraLogo.png" alt="Mnemara logo" width="240">
+  <img src="https://raw.githubusercontent.com/deliberium/mnemara/main/assets/mnemaraLogo.png" alt="Mnemara logo" width="240">
 </p>
 
 <p align="center">
   <a href="https://github.com/deliberium/mnemara/actions/workflows/ci.yml">
     <img src="https://github.com/deliberium/mnemara/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="LICENSE.md">
+  <a href="https://github.com/deliberium/mnemara/blob/main/LICENSE.md">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
   </a>
 </p>
@@ -48,28 +48,116 @@ The current release includes:
 - compaction, deletion, snapshot, stats, integrity-check, repair, export, and import operations
 - published evaluation assets covering ranking quality, backend parity, and portability scenarios
 
-Future work beyond the current release remains in [ROADMAP.md](ROADMAP.md).
+Future work beyond the current release remains in [ROADMAP.md](https://github.com/deliberium/mnemara/blob/main/ROADMAP.md).
 
 ## Quick Start
 
 Embedded library usage and daemon-mode deployment are documented here:
 
-- [User Guide](docs/user-guide.md)
-- [Architecture](docs/architecture.md)
-- [Deployment](docs/deployment.md)
-- [JavaScript SDK](sdk/javascript/README.md)
-- [Roadmap](ROADMAP.md)
-- [Benchmark Methodology](docs/benchmark-methodology.md)
-- [Benchmark Results](docs/benchmark-results.md)
-- [Ranking Defaults ADR](docs/decision-records/0001-ranking-defaults.md)
-- [Security Policy](SECURITY.md)
-- [Contributors](CONTRIBUTORS.md)
+- [User Guide](https://github.com/deliberium/mnemara/blob/main/docs/user-guide.md)
+- [Architecture](https://github.com/deliberium/mnemara/blob/main/docs/architecture.md)
+- [Deployment](https://github.com/deliberium/mnemara/blob/main/docs/deployment.md)
+- [JavaScript SDK](https://github.com/deliberium/mnemara/blob/main/sdk/javascript/README.md)
+- [Roadmap](https://github.com/deliberium/mnemara/blob/main/ROADMAP.md)
+- [Benchmark Methodology](https://github.com/deliberium/mnemara/blob/main/docs/benchmark-methodology.md)
+- [Benchmark Results](https://github.com/deliberium/mnemara/blob/main/docs/benchmark-results.md)
+- [Ranking Defaults ADR](https://github.com/deliberium/mnemara/blob/main/docs/decision-records/0001-ranking-defaults.md)
+- [Security Policy](https://github.com/deliberium/mnemara/blob/main/SECURITY.md)
+- [Contributors](https://github.com/deliberium/mnemara/blob/main/CONTRIBUTORS.md)
 
 Run the daemon locally with:
 
 ```bash
 cargo run -p mnemara-server
 ```
+
+## Installation
+
+Mnemara supports two installation paths:
+
+- develop from a checked-out source workspace
+- consume published crates from crates.io
+
+### From a source checkout
+
+Clone the repository and build the workspace:
+
+```bash
+git clone https://github.com/deliberium/mnemara.git
+cd mnemara
+cargo build --workspace
+```
+
+Run the full test suite with:
+
+```bash
+cargo test --workspace
+```
+
+Run the daemon from the checked-out workspace with:
+
+```bash
+cargo run -p mnemara-server
+```
+
+If you want to depend on the facade crate or a backend crate directly from a local checkout, use a path dependency:
+
+```toml
+[dependencies]
+mnemara = { path = "crates/mnemara", features = ["sled"] }
+```
+
+### From published crates
+
+For embedded library usage, add the facade crate to your application:
+
+```bash
+cargo add mnemara --features sled
+```
+
+You can swap `sled` for `file`, `protocol`, or `server`, or enable multiple features as needed.
+
+If you want individual crates instead of the facade, add them directly:
+
+```bash
+cargo add mnemara-core
+cargo add mnemara-store-sled
+```
+
+For the daemon binary, use `cargo install` against the published server crate:
+
+```bash
+cargo install mnemara-server
+```
+
+Then run it with:
+
+```bash
+mnemara-server
+```
+
+`cargo install` is only for binary crates such as `mnemara-server`. The facade crate `mnemara` is a library crate, so applications should consume it with `cargo add` or a `Cargo.toml` dependency entry instead.
+
+## Publishing
+
+If you plan to publish the workspace crates to crates.io, publish them in dependency order:
+
+1. `mnemara-core`
+2. `mnemara-store-file`, `mnemara-store-sled`, and `mnemara-protocol`
+3. `mnemara-server`
+4. `mnemara`
+
+The order matters because `cargo package` and `cargo publish` resolve internal path dependencies through crates.io during verification. Before `mnemara-core` is published, crates such as `mnemara-store-file`, `mnemara-store-sled`, `mnemara-server`, and the facade crate `mnemara` cannot complete a publish verification run.
+
+Recommended release checks:
+
+```bash
+./scripts/release-checklist.sh preflight
+./scripts/release-checklist.sh foundation
+./scripts/release-checklist.sh dry-run-publish foundation
+```
+
+After publishing the lower-level crates, repeat `cargo package` or `cargo publish --dry-run` for the remaining crates in order. The checklist script lives at [scripts/release-checklist.sh](https://github.com/deliberium/mnemara/blob/main/scripts/release-checklist.sh), and the crate README recommendation audit lives at [docs/crates-io-readme-audit.md](https://github.com/deliberium/mnemara/blob/main/docs/crates-io-readme-audit.md).
 
 ## Workspace Layout
 
@@ -114,4 +202,4 @@ Mnemara now ships the extracted core/store/protocol/server workspace, the facade
 
 Mnemara is an open source project, and contributions are welcome.
 
-If you want to contribute, please read [CONTRIBUTORS.md](CONTRIBUTORS.md) for the current contribution areas, project priorities, and release-scope guidance.
+If you want to contribute, please read [CONTRIBUTORS.md](https://github.com/deliberium/mnemara/blob/main/CONTRIBUTORS.md) for the current contribution areas, project priorities, and release-scope guidance.

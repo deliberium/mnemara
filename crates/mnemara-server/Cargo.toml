@@ -5,11 +5,20 @@ edition.workspace = true
 license.workspace = true
 description.workspace = true
 repository.workspace = true
-readme.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+documentation = "https://docs.rs/mnemara-server"
 
 [lib]
 name = "mnemara_server"
 path = "src/lib.rs"
+
+[[bin]]
+name = "mnemara-server"
+path = "src/main.rs"
 
 [dependencies]
 axum.workspace = true
@@ -24,7 +33,7 @@ tokio-stream = { version = "0.1", features = ["net"] }
 
 [dev-dependencies]
 hyper-util = { version = "0.1", features = ["tokio"] }
-rcgen = "0.13"
+rcgen = "0.14"
 sled.workspace = true
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }

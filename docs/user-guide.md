@@ -1,5 +1,83 @@
 # Mnemara User Guide
 
+## Installation
+
+Mnemara can be used either as a Rust library dependency or as a standalone daemon.
+
+### Develop from a checked-out repository
+
+Clone the repository, build it, and run tests from the workspace root:
+
+```bash
+git clone https://github.com/deliberium/mnemara.git
+cd mnemara
+cargo build --workspace
+cargo test --workspace
+```
+
+To run the daemon from source:
+
+```bash
+cargo run -p mnemara-server
+```
+
+To consume the facade crate from the local checkout in another Rust project, point at the workspace path:
+
+```toml
+[dependencies]
+mnemara = { path = "../mnemara/crates/mnemara", features = ["sled"] }
+```
+
+### Use published crates
+
+For embedded usage, depend on the facade crate and enable only the surfaces you need:
+
+```bash
+cargo add mnemara --features sled
+```
+
+Common facade feature choices are:
+
+- `file` for the file-backed store
+- `sled` for the embedded sled-backed store
+- `protocol` for protobuf and gRPC types
+- `server` for the daemon surface and its protocol and sled dependencies
+
+If you prefer direct crate dependencies instead of the facade, add them individually:
+
+```bash
+cargo add mnemara-core
+cargo add mnemara-store-file
+cargo add mnemara-store-sled
+```
+
+For daemon deployments, install the published binary crate:
+
+```bash
+cargo install mnemara-server
+```
+
+Then start the service with:
+
+```bash
+mnemara-server
+```
+
+`cargo install` does not apply to the facade crate `mnemara`, because it is a library crate rather than a binary.
+
+## Publishing the crates
+
+For crates.io publication, release the workspace in dependency order:
+
+1. `mnemara-core`
+2. `mnemara-store-file`, `mnemara-store-sled`, and `mnemara-protocol`
+3. `mnemara-server`
+4. `mnemara`
+
+This is required because Cargo verifies path dependencies against crates.io during packaging. In the current unpublished state, `cargo package -p mnemara-core` and `cargo package -p mnemara-protocol` succeed, while the dependent crates fail verification until their internal dependencies have already been published.
+
+Use `cargo package` or `cargo publish --dry-run` as the final pre-release check for each crate before moving to the next step in the sequence. The scripted version of that flow is in `scripts/release-checklist.sh`, including the staged `dry-run-publish` phase, and the crate landing-page recommendation audit is documented in `docs/crates-io-readme-audit.md`.
+
 ## What Mnemara is for
 
 Mnemara is a memory engine for applications that need durable, scoped recall instead of application-specific orchestration.
