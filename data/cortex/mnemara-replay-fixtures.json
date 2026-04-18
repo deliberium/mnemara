@@ -1,0 +1,97 @@
+{
+  "exact_lookup": [
+    {
+      "id": "exact-1",
+      "timestamp_unix_ms": 1730000000001,
+      "prompt": "How do I set CORTEX_BACKEND in local development?",
+      "answer": "Set CORTEX_BACKEND=sled before startup to force the embedded backend.",
+      "importance_score": 0.86
+    },
+    {
+      "id": "exact-2",
+      "timestamp_unix_ms": 1730000000002,
+      "prompt": "Where is config.rs used during startup?",
+      "answer": "The runtime loader reads src/config.rs before the orchestrator boot path.",
+      "importance_score": 0.86
+    },
+    {
+      "id": "exact-3",
+      "timestamp_unix_ms": 1730000000003,
+      "prompt": "What does initialize_cortex_memory do?",
+      "answer": "initialize_cortex_memory selects the Cortex backend and opens storage.",
+      "importance_score": 0.86
+    }
+  ],
+  "duplicate_heavy": [
+    {
+      "id": "dup-1",
+      "timestamp_unix_ms": 1730000100001,
+      "prompt": "websocket reconnect storm mitigation checklist",
+      "answer": "websocket reconnect storm mitigation checklist for dashboard rollout",
+      "importance_score": 0.86
+    },
+    {
+      "id": "dup-2",
+      "timestamp_unix_ms": 1730000100002,
+      "prompt": "dashboard reconnect storm checklist",
+      "answer": "dashboard rollout websocket reconnect storm mitigation checklist",
+      "importance_score": 0.86
+    },
+    {
+      "id": "dup-3",
+      "timestamp_unix_ms": 1730000100003,
+      "prompt": "websocket heartbeat backoff tuning",
+      "answer": "websocket heartbeat backoff tuning for reconnect alerts",
+      "importance_score": 0.86
+    },
+    {
+      "id": "dup-4",
+      "timestamp_unix_ms": 1730000100004,
+      "prompt": "styling notes",
+      "answer": "use minimal styles for the dashboard shell",
+      "importance_score": 0.86
+    }
+  ],
+  "recent_thread_local": [
+    {
+      "id": "recent-1",
+      "timestamp_unix_ms": 1730000200001,
+      "prompt": "thread local reconnect note",
+      "answer": "thread-a reconnect remediation note from the current conversation",
+      "importance_score": 0.81,
+      "thread_id": "thread-a",
+      "session_id": "session-a"
+    },
+    {
+      "id": "recent-2",
+      "timestamp_unix_ms": 1730000200002,
+      "prompt": "cross thread diversion",
+      "answer": "thread-b diversion note that should not appear in thread-local recent recall",
+      "importance_score": 0.95,
+      "thread_id": "thread-b",
+      "session_id": "session-b"
+    },
+    {
+      "id": "recent-3",
+      "timestamp_unix_ms": 1730000200003,
+      "prompt": "thread local latest remediation",
+      "answer": "latest thread-a remediation note for websocket recovery",
+      "importance_score": 0.88,
+      "thread_id": "thread-a",
+      "session_id": "session-a"
+    }
+  ],
+  "durable_capture": [
+    {
+      "id": "capture-1",
+      "timestamp_unix_ms": 1730000300001,
+      "summary": "Summarized follow-up for reconnect storm mitigation in thread-a",
+      "importance_score": 0.93,
+      "kind": "follow_up",
+      "reason": "age_trim",
+      "thread_id": "thread-a",
+      "session_id": "session-a",
+      "provenance": "voice"
+    }
+  ]
+}
