@@ -1,0 +1,22 @@
+[package]
+name = "mnemara-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description.workspace = true
+repository.workspace = true
+readme.workspace = true
+build = "build.rs"
+
+[lib]
+name = "mnemara_protocol"
+path = "src/lib.rs"
+
+[dependencies]
+prost.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+
+[build-dependencies]
+protoc-bin-vendored = "3.2.0"
+tonic-prost-build.workspace = true

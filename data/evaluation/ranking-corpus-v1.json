@@ -1,0 +1,314 @@
+{
+  "records": [
+    {
+      "id": "websocket-runbook",
+      "scenario": "exact_lookup",
+      "kind": "fact",
+      "content": "Websocket reconnect storm runbook: raise retry jitter, clear stale sessions, and cap reconnect burst size.",
+      "summary": "Runbook for websocket reconnect storms",
+      "importance_score": 0.92,
+      "source": "ops-runbook",
+      "labels": ["websocket", "reconnect", "incident"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000000000,
+      "updated_at_unix_ms": 1700000005000,
+      "metadata": {
+        "topic": "incident-response",
+        "channel": "ops"
+      }
+    },
+    {
+      "id": "websocket-duplicate-a",
+      "scenario": "duplicate_heavy",
+      "kind": "summary",
+      "content": "Reconnect storm summary: retry budget was too low and websocket clients spammed reconnects during the outage.",
+      "summary": "Reconnect storm summary A",
+      "importance_score": 0.66,
+      "source": "incident-retro",
+      "labels": ["websocket", "reconnect", "retro"],
+      "trust_level": "observed",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000010000,
+      "updated_at_unix_ms": 1700000015000,
+      "metadata": {
+        "topic": "incident-response",
+        "channel": "retro"
+      }
+    },
+    {
+      "id": "websocket-duplicate-b",
+      "scenario": "duplicate_heavy",
+      "kind": "summary",
+      "content": "Postmortem note on websocket retry storms and reconnect pressure during client restarts.",
+      "summary": "Reconnect storm summary B",
+      "importance_score": 0.64,
+      "source": "incident-retro",
+      "labels": ["websocket", "retry", "retro"],
+      "trust_level": "observed",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000012000,
+      "updated_at_unix_ms": 1700000017000,
+      "metadata": {
+        "topic": "incident-response",
+        "channel": "retro"
+      }
+    },
+    {
+      "id": "thread-timeout-recent",
+      "scenario": "recent_thread",
+      "kind": "fact",
+      "content": "Current thread resolution: extend the API timeout to 12 seconds and keep the fallback cache enabled for this session.",
+      "summary": "Most recent timeout resolution for the active thread",
+      "importance_score": 0.81,
+      "source": "thread-memory",
+      "labels": ["timeout", "thread", "recent"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000100000,
+      "updated_at_unix_ms": 1700000999000,
+      "metadata": {
+        "conversation": "current-thread",
+        "tier": "hot"
+      }
+    },
+    {
+      "id": "thread-timeout-older",
+      "scenario": "recent_thread",
+      "kind": "fact",
+      "content": "Earlier thread attempt: reduce the API timeout to 6 seconds to keep latency low.",
+      "summary": "Older timeout advice for the same thread",
+      "importance_score": 0.52,
+      "source": "thread-memory",
+      "labels": ["timeout", "thread", "old"],
+      "trust_level": "observed",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000000000,
+      "updated_at_unix_ms": 1700000200000,
+      "metadata": {
+        "conversation": "current-thread",
+        "tier": "warm"
+      }
+    },
+    {
+      "id": "privacy-policy-pinned",
+      "scenario": "durable_high_trust",
+      "kind": "fact",
+      "content": "Portable exports must remain tenant scoped, preserve namespace isolation, and require validation before cross-backend import.",
+      "summary": "Pinned privacy and export policy",
+      "importance_score": 0.97,
+      "source": "policy-manual",
+      "labels": ["privacy", "export", "tenant"],
+      "trust_level": "pinned",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000300000,
+      "updated_at_unix_ms": 1700000305000,
+      "metadata": {
+        "topic": "policy",
+        "durability": "high"
+      }
+    },
+    {
+      "id": "privacy-draft-note",
+      "scenario": "durable_high_trust",
+      "kind": "task",
+      "content": "Draft note: revisit export validation later and maybe scope by namespace when time allows.",
+      "summary": "Low-trust draft note about exports",
+      "importance_score": 0.33,
+      "source": "scratchpad",
+      "labels": ["privacy", "draft"],
+      "trust_level": "observed",
+      "quality_state": "draft",
+      "created_at_unix_ms": 1700000310000,
+      "updated_at_unix_ms": 1700000315000,
+      "metadata": {
+        "topic": "draft"
+      }
+    },
+    {
+      "id": "archive-compaction-guide",
+      "scenario": "archival_cold_tier",
+      "kind": "fact",
+      "content": "Cold archive compaction keeps low-importance records portable while excluding them from default hot-path recall unless explicitly requested.",
+      "summary": "Archived compaction guidance",
+      "importance_score": 0.74,
+      "source": "storage-guide",
+      "labels": ["archive", "compaction", "portable"],
+      "trust_level": "verified",
+      "quality_state": "archived",
+      "created_at_unix_ms": 1699999900000,
+      "updated_at_unix_ms": 1699999950000,
+      "metadata": {
+        "tier": "cold"
+      }
+    },
+    {
+      "id": "hot-tier-cache-guide",
+      "scenario": "archival_cold_tier",
+      "kind": "fact",
+      "content": "Hot tier cache guidance for active conversation recall and low-latency retrieval.",
+      "summary": "Hot tier cache guidance",
+      "importance_score": 0.58,
+      "source": "storage-guide",
+      "labels": ["cache", "hot-tier"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000400000,
+      "updated_at_unix_ms": 1700000405000,
+      "metadata": {
+        "tier": "hot"
+      }
+    },
+    {
+      "id": "support-noise-ticket",
+      "scenario": "noisy_distractor",
+      "kind": "task",
+      "content": "Support ticket noise: customer reports reconnect storm wording but the issue is actually a billing retry email.",
+      "summary": "Distractor ticket with overlapping storm language",
+      "importance_score": 0.29,
+      "source": "support-inbox",
+      "labels": ["support", "noise", "reconnect"],
+      "trust_level": "observed",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000500000,
+      "updated_at_unix_ms": 1700000505000,
+      "metadata": {
+        "channel": "support"
+      }
+    },
+    {
+      "id": "portability-roundtrip",
+      "scenario": "portability_regression",
+      "kind": "fact",
+      "content": "Portable package roundtrip between file and sled backends must preserve records, idempotency keys, and snapshot metadata.",
+      "summary": "Roundtrip portability requirement",
+      "importance_score": 0.86,
+      "source": "release-plan",
+      "labels": ["portability", "export", "import"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000600000,
+      "updated_at_unix_ms": 1700000605000,
+      "metadata": {
+        "compatibility": "cross-backend"
+      }
+    },
+    {
+      "id": "portability-schema-check",
+      "scenario": "portability_regression",
+      "kind": "fact",
+      "content": "Validate portable package version compatibility before import and surface structured failure reports during dry runs.",
+      "summary": "Schema compatibility validation rule",
+      "importance_score": 0.88,
+      "source": "release-plan",
+      "labels": ["portability", "schema", "validate"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000610000,
+      "updated_at_unix_ms": 1700000615000,
+      "metadata": {
+        "compatibility": "schema"
+      }
+    },
+    {
+      "id": "fairness-admission-policy",
+      "scenario": "fairness_runtime",
+      "kind": "fact",
+      "content": "Tenant fairness uses bounded inflight slots, FIFO per-class queues, queue wait telemetry, and reserved admin capacity.",
+      "summary": "Admission fairness runtime policy",
+      "importance_score": 0.91,
+      "source": "runtime-guide",
+      "labels": ["fairness", "admission", "tenant"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000700000,
+      "updated_at_unix_ms": 1700000705000,
+      "metadata": {
+        "policy": "fifo-per-class"
+      }
+    },
+    {
+      "id": "grpc-uds-local-profile",
+      "scenario": "deployment_transport",
+      "kind": "fact",
+      "content": "Local agents should prefer gRPC over Unix domain sockets, while external clients use TLS or mTLS network listeners.",
+      "summary": "UDS and TLS deployment profile guidance",
+      "importance_score": 0.84,
+      "source": "deployment-guide",
+      "labels": ["grpc", "uds", "tls"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000800000,
+      "updated_at_unix_ms": 1700000805000,
+      "metadata": {
+        "transport": "uds"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "exact-lookup-websocket-runbook",
+      "scenario": "exact_lookup",
+      "query_text": "websocket reconnect storm runbook",
+      "relevant_record_ids": ["websocket-runbook"],
+      "max_items": 5
+    },
+    {
+      "name": "duplicate-heavy-reconnect-summaries",
+      "scenario": "duplicate_heavy",
+      "query_text": "reconnect storm retry budget websocket",
+      "relevant_record_ids": ["websocket-runbook", "websocket-duplicate-a", "websocket-duplicate-b"],
+      "max_items": 5
+    },
+    {
+      "name": "recent-thread-timeout-resolution",
+      "scenario": "recent_thread",
+      "query_text": "timeout fix for the current thread session",
+      "relevant_record_ids": ["thread-timeout-recent"],
+      "max_items": 5
+    },
+    {
+      "name": "durable-high-trust-export-policy",
+      "scenario": "durable_high_trust",
+      "query_text": "tenant scoped export privacy validation policy",
+      "relevant_record_ids": ["privacy-policy-pinned"],
+      "max_items": 5
+    },
+    {
+      "name": "archival-cold-tier-recall",
+      "scenario": "archival_cold_tier",
+      "query_text": "cold archive compaction portable records",
+      "relevant_record_ids": ["archive-compaction-guide"],
+      "max_items": 5,
+      "include_archived": true
+    },
+    {
+      "name": "noisy-distractor-reconnect-query",
+      "scenario": "noisy_distractor",
+      "query_text": "support reconnect storm runbook",
+      "relevant_record_ids": ["websocket-runbook"],
+      "max_items": 5
+    },
+    {
+      "name": "portability-schema-validation",
+      "scenario": "portability_regression",
+      "query_text": "portable package schema validate import dry run",
+      "relevant_record_ids": ["portability-schema-check", "portability-roundtrip"],
+      "max_items": 5
+    },
+    {
+      "name": "fairness-runtime-policy",
+      "scenario": "fairness_runtime",
+      "query_text": "tenant fairness admission queue wait telemetry",
+      "relevant_record_ids": ["fairness-admission-policy"],
+      "max_items": 5
+    },
+    {
+      "name": "deployment-transport-guidance",
+      "scenario": "deployment_transport",
+      "query_text": "grpc uds local deployment tls mtls",
+      "relevant_record_ids": ["grpc-uds-local-profile"],
+      "max_items": 5
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+name: Benchmark Report
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "crates/mnemara-core/**"
+      - "crates/mnemara-store-file/**"
+      - "crates/mnemara-store-sled/**"
+      - "data/evaluation/**"
+      - "docs/benchmark-*.md"
+      - "docs/benchmark-artifacts/**"
+      - ".github/workflows/benchmark-report.yml"
+
+jobs:
+  publish-benchmark-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate benchmark artifacts
+        run: |
+          cargo run -p mnemara-store-sled --example publish_benchmarks -- \
+            --output docs/benchmark-artifacts/benchmark-report-v1.json \
+            --summary docs/benchmark-artifacts/benchmark-report-v1.md
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mnemara-benchmark-report
+          path: |
+            docs/benchmark-artifacts/benchmark-report-v1.json
+            docs/benchmark-artifacts/benchmark-report-v1.md

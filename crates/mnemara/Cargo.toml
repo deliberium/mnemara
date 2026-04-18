@@ -1,0 +1,27 @@
+[package]
+name = "mnemara"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[lib]
+name = "mnemara"
+path = "src/lib.rs"
+
+[features]
+default = []
+all = ["file", "sled", "protocol", "server"]
+file = ["dep:mnemara-store-file"]
+sled = ["dep:mnemara-store-sled"]
+protocol = ["dep:mnemara-protocol"]
+server = ["protocol", "sled", "dep:mnemara-server"]
+
+[dependencies]
+mnemara-core = { version = "0.1.0", path = "../mnemara-core" }
+mnemara-store-file = { version = "0.1.0", path = "../mnemara-store-file", optional = true }
+mnemara-store-sled = { version = "0.1.0", path = "../mnemara-store-sled", optional = true }
+mnemara-protocol = { version = "0.1.0", path = "../mnemara-protocol", optional = true }
+mnemara-server = { version = "0.1.0", path = "../mnemara-server", optional = true }

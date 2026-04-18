@@ -1,0 +1,397 @@
+syntax = "proto3";
+
+package mnemara.v1;
+
+enum RecallScorerKind {
+  RECALL_SCORER_KIND_UNSPECIFIED = 0;
+  RECALL_SCORER_KIND_PROFILE = 1;
+  RECALL_SCORER_KIND_CURATED = 2;
+}
+
+enum RecallScoringProfile {
+  RECALL_SCORING_PROFILE_UNSPECIFIED = 0;
+  RECALL_SCORING_PROFILE_BALANCED = 1;
+  RECALL_SCORING_PROFILE_LEXICAL_FIRST = 2;
+  RECALL_SCORING_PROFILE_IMPORTANCE_FIRST = 3;
+}
+
+enum EmbeddingProviderKind {
+  EMBEDDING_PROVIDER_KIND_UNSPECIFIED = 0;
+  EMBEDDING_PROVIDER_KIND_DISABLED = 1;
+  EMBEDDING_PROVIDER_KIND_DETERMINISTIC_LOCAL = 2;
+}
+
+message MemoryScope {
+  string tenant_id = 1;
+  string namespace = 2;
+  string actor_id = 3;
+  optional string conversation_id = 4;
+  optional string session_id = 5;
+  string source = 6;
+  repeated string labels = 7;
+  string trust_level = 8;
+}
+
+message ArtifactPointer {
+  string uri = 1;
+  optional string media_type = 2;
+  optional string checksum = 3;
+}
+
+message MemoryRecord {
+  string id = 1;
+  MemoryScope scope = 2;
+  string kind = 3;
+  string content = 4;
+  optional string summary = 5;
+  map<string, string> metadata = 6;
+  string quality_state = 7;
+  uint64 created_at_unix_ms = 8;
+  uint64 updated_at_unix_ms = 9;
+  optional uint64 expires_at_unix_ms = 10;
+  float importance_score = 11;
+  optional string source_id = 12;
+  optional ArtifactPointer artifact = 13;
+}
+
+message UpsertMemoryRecordRequest {
+  MemoryRecord record = 1;
+  optional string idempotency_key = 2;
+}
+
+message UpsertMemoryRecordReply {
+  string record_id = 1;
+  bool deduplicated = 2;
+  bool summary_refreshed = 3;
+}
+
+message BatchUpsertMemoryRecordsRequest {
+  repeated UpsertMemoryRecordRequest requests = 1;
+}
+
+message BatchUpsertMemoryRecordsReply {
+  repeated UpsertMemoryRecordReply receipts = 1;
+}
+
+message RecallFilters {
+  repeated string kinds = 1;
+  repeated string required_labels = 2;
+  optional string source = 3;
+  optional uint64 from_unix_ms = 4;
+  optional uint64 to_unix_ms = 5;
+  optional float min_importance_score = 6;
+  repeated string trust_levels = 7;
+  repeated string states = 8;
+  bool include_archived = 9;
+}
+
+message RecallRequest {
+  MemoryScope scope = 1;
+  string query_text = 2;
+  uint32 max_items = 3;
+  optional uint32 token_budget = 4;
+  bool include_explanation = 5;
+  optional RecallFilters filters = 6;
+}
+
+message RecallScoreBreakdown {
+  float lexical = 1;
+  float semantic = 2;
+  float graph = 3;
+  float temporal = 4;
+  float policy = 5;
+  float total = 6;
+  float metadata = 7;
+  float curation = 8;
+}
+
+message RecallExplanation {
+  repeated string selected_channels = 1;
+  repeated string policy_notes = 2;
+  optional string trace_id = 3;
+  optional RecallPlanningTrace planning_trace = 4;
+  RecallScorerKind scorer_kind = 5;
+  RecallScoringProfile scoring_profile = 6;
+}
+
+message RecallTraceCandidate {
+  string record_id = 1;
+  string kind = 2;
+  bool selected = 3;
+  repeated string matched_terms = 4;
+  string decision_reason = 5;
+  RecallScoreBreakdown breakdown = 6;
+  optional uint32 selection_rank = 7;
+  repeated string selected_channels = 8;
+  repeated string filter_reasons = 9;
+}
+
+message RecallPlanningTrace {
+  string trace_id = 1;
+  bool token_budget_applied = 2;
+  repeated RecallTraceCandidate candidates = 3;
+}
+
+message RecallHit {
+  MemoryRecord record = 1;
+  RecallScoreBreakdown breakdown = 2;
+  repeated string selected_channels = 3;
+  repeated string policy_notes = 4;
+  optional RecallExplanation explanation = 5;
+}
+
+message RecallReply {
+  repeated RecallHit hits = 1;
+  uint32 total_candidates_examined = 2;
+  optional RecallExplanation explanation = 3;
+}
+
+message CompactRequest {
+  string tenant_id = 1;
+  optional string namespace = 2;
+  bool dry_run = 3;
+  string reason = 4;
+}
+
+message CompactReply {
+  uint64 deduplicated_records = 1;
+  uint64 archived_records = 2;
+  uint64 summarized_clusters = 3;
+  uint64 pruned_graph_edges = 4;
+  bool dry_run = 5;
+}
+
+message SnapshotRequest {}
+
+message SnapshotReply {
+  string snapshot_id = 1;
+  uint64 created_at_unix_ms = 2;
+  repeated string namespaces = 3;
+  uint64 record_count = 4;
+  uint64 storage_bytes = 5;
+  EngineTuningInfo engine = 6;
+}
+
+message DeleteRequest {
+  string tenant_id = 1;
+  string namespace = 2;
+  string record_id = 3;
+  bool hard_delete = 4;
+  string audit_reason = 5;
+}
+
+message DeleteReply {
+  string record_id = 1;
+  bool tombstoned = 2;
+  bool hard_deleted = 3;
+}
+
+message StoreStatsRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+}
+
+message NamespaceStats {
+  string tenant_id = 1;
+  string namespace = 2;
+  uint64 active_records = 3;
+  uint64 archived_records = 4;
+  uint64 deleted_records = 5;
+  uint64 suppressed_records = 6;
+  uint64 pinned_records = 7;
+}
+
+message MaintenanceStats {
+  uint64 duplicate_candidate_groups = 1;
+  uint64 duplicate_candidate_records = 2;
+  uint64 tombstoned_records = 3;
+  uint64 expired_records = 4;
+  uint64 stale_idempotency_keys = 5;
+}
+
+message EngineTuningInfo {
+  RecallScorerKind recall_scorer_kind = 1;
+  RecallScoringProfile recall_scoring_profile = 2;
+  EmbeddingProviderKind embedding_provider_kind = 3;
+  uint64 embedding_dimensions = 4;
+  uint64 compaction_summarize_after_record_count = 5;
+  uint32 compaction_cold_archive_after_days = 6;
+  uint32 compaction_cold_archive_importance_threshold_per_mille = 7;
+}
+
+message StoreStatsReply {
+  uint64 generated_at_unix_ms = 1;
+  uint64 total_records = 2;
+  uint64 storage_bytes = 3;
+  repeated NamespaceStats namespaces = 4;
+  MaintenanceStats maintenance = 5;
+  EngineTuningInfo engine = 6;
+}
+
+message IntegrityCheckRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+}
+
+message IntegrityCheckReply {
+  uint64 generated_at_unix_ms = 1;
+  bool healthy = 2;
+  uint64 scanned_records = 3;
+  uint64 scanned_idempotency_keys = 4;
+  uint64 stale_idempotency_keys = 5;
+  uint64 missing_idempotency_keys = 6;
+  uint64 duplicate_active_records = 7;
+}
+
+message RepairRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+  bool dry_run = 3;
+  string reason = 4;
+  bool remove_stale_idempotency_keys = 5;
+  bool rebuild_missing_idempotency_keys = 6;
+}
+
+message RepairReply {
+  bool dry_run = 1;
+  uint64 scanned_records = 2;
+  uint64 scanned_idempotency_keys = 3;
+  uint64 removed_stale_idempotency_keys = 4;
+  uint64 rebuilt_missing_idempotency_keys = 5;
+  bool healthy_after = 6;
+}
+
+enum TraceOperationKind {
+  TRACE_OPERATION_KIND_UNSPECIFIED = 0;
+  TRACE_OPERATION_KIND_UPSERT = 1;
+  TRACE_OPERATION_KIND_BATCH_UPSERT = 2;
+  TRACE_OPERATION_KIND_RECALL = 3;
+  TRACE_OPERATION_KIND_SNAPSHOT = 4;
+  TRACE_OPERATION_KIND_STATS = 5;
+  TRACE_OPERATION_KIND_INTEGRITY_CHECK = 6;
+  TRACE_OPERATION_KIND_REPAIR = 7;
+  TRACE_OPERATION_KIND_COMPACT = 8;
+  TRACE_OPERATION_KIND_DELETE = 9;
+  TRACE_OPERATION_KIND_EXPORT = 10;
+  TRACE_OPERATION_KIND_IMPORT = 11;
+}
+
+enum TraceStatus {
+  TRACE_STATUS_UNSPECIFIED = 0;
+  TRACE_STATUS_OK = 1;
+  TRACE_STATUS_REJECTED = 2;
+  TRACE_STATUS_ERROR = 3;
+}
+
+enum ImportMode {
+  IMPORT_MODE_UNSPECIFIED = 0;
+  IMPORT_MODE_MERGE = 1;
+  IMPORT_MODE_REPLACE = 2;
+  IMPORT_MODE_VALIDATE = 3;
+}
+
+message OperationTraceSummary {
+  optional string record_id = 1;
+  optional uint32 request_count = 2;
+  optional string query_text = 3;
+  optional uint32 max_items = 4;
+  optional uint32 token_budget = 5;
+  optional bool dry_run = 6;
+}
+
+message OperationTrace {
+  string trace_id = 1;
+  string correlation_id = 2;
+  TraceOperationKind operation = 3;
+  string transport = 4;
+  optional string backend = 15;
+  optional string admission_class = 16;
+  optional string tenant_id = 5;
+  optional string namespace = 6;
+  optional string principal = 7;
+  optional string store_span_id = 17;
+  optional string planning_trace_id = 18;
+  uint64 started_at_unix_ms = 8;
+  uint64 completed_at_unix_ms = 9;
+  uint64 latency_ms = 10;
+  TraceStatus status = 11;
+  optional string status_message = 12;
+  optional OperationTraceSummary summary = 13;
+  optional RecallExplanation recall_explanation = 14;
+}
+
+message ListTracesRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+  optional uint32 limit = 3;
+  TraceOperationKind operation = 4;
+  TraceStatus status = 5;
+  optional uint64 before_started_at_unix_ms = 6;
+}
+
+message ListTracesReply {
+  repeated OperationTrace traces = 1;
+}
+
+message GetTraceRequest {
+  string trace_id = 1;
+}
+
+message PortableRecord {
+  MemoryRecord record = 1;
+  optional string idempotency_key = 2;
+}
+
+message ExportRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+  bool include_archived = 3;
+}
+
+message ExportReply {
+  uint32 package_version = 1;
+  uint64 exported_at_unix_ms = 2;
+  SnapshotReply manifest = 3;
+  repeated PortableRecord records = 4;
+}
+
+message ImportRequest {
+  ExportReply package = 1;
+  ImportMode mode = 2;
+  bool dry_run = 3;
+}
+
+message ImportFailure {
+  optional string record_id = 1;
+  string reason = 2;
+}
+
+message ImportReply {
+  ImportMode mode = 1;
+  bool dry_run = 2;
+  bool applied = 3;
+  bool compatible_package = 4;
+  string snapshot_id = 5;
+  uint32 package_version = 6;
+  uint64 validated_records = 7;
+  uint64 imported_records = 8;
+  uint64 skipped_records = 9;
+  bool replaced_existing = 10;
+  repeated ImportFailure failed_records = 11;
+}
+
+service MemoryService {
+  rpc UpsertMemoryRecord(UpsertMemoryRecordRequest) returns (UpsertMemoryRecordReply);
+  rpc BatchUpsertMemoryRecords(BatchUpsertMemoryRecordsRequest) returns (BatchUpsertMemoryRecordsReply);
+  rpc Recall(RecallRequest) returns (RecallReply);
+  rpc Compact(CompactRequest) returns (CompactReply);
+  rpc Snapshot(SnapshotRequest) returns (SnapshotReply);
+  rpc Delete(DeleteRequest) returns (DeleteReply);
+  rpc Stats(StoreStatsRequest) returns (StoreStatsReply);
+  rpc IntegrityCheck(IntegrityCheckRequest) returns (IntegrityCheckReply);
+  rpc Repair(RepairRequest) returns (RepairReply);
+  rpc ListTraces(ListTracesRequest) returns (ListTracesReply);
+  rpc GetTrace(GetTraceRequest) returns (OperationTrace);
+  rpc Export(ExportRequest) returns (ExportReply);
+  rpc Import(ImportRequest) returns (ImportReply);
+}

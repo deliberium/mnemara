@@ -1,0 +1,21 @@
+{
+  "name": "@mnemara/http-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reference JavaScript SDK for the Mnemara HTTP API",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

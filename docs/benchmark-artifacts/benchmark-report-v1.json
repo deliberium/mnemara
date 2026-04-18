@@ -1,0 +1,1329 @@
+{
+  "report_version": 1,
+  "generated_at_unix_ms": 1776488108923,
+  "corpus_path": "/Users/kabudu/projex/deliberium-group/mnemara/crates/mnemara-store-sled/../../data/evaluation/ranking-corpus-v1.json",
+  "environment": {
+    "os": "macos",
+    "arch": "aarch64",
+    "logical_cpus": 10
+  },
+  "measurement": {
+    "upsert_runs": 6,
+    "recall_loops": 6,
+    "admin_runs": 4
+  },
+  "profiles": [
+    {
+      "scorer_kind": "Profile",
+      "scoring_profile": "Balanced",
+      "backend_results": [
+        {
+          "backend": "sled",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 1.0,
+            "ndcg_at_3": 1.0
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 80.32606249999999,
+            "p50_ms": 80.507542,
+            "p95_ms": 89.019166,
+            "max_ms": 89.019166,
+            "throughput_per_sec": 174.28963357938778
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.7933888703703706,
+            "p50_ms": 0.7421249999999999,
+            "p95_ms": 1.230958,
+            "max_ms": 1.365875,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.23927074999999998,
+              "p50_ms": 0.234333,
+              "p95_ms": 0.266167,
+              "max_ms": 0.266167,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 0.76659375,
+              "p50_ms": 0.7698750000000001,
+              "p95_ms": 0.810459,
+              "max_ms": 0.810459,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.20818725,
+              "p50_ms": 0.212541,
+              "p95_ms": 0.212583,
+              "max_ms": 0.212583,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.24007275,
+              "p50_ms": 0.241375,
+              "p95_ms": 0.247083,
+              "max_ms": 0.247083,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 9.58868725,
+              "p50_ms": 9.607625,
+              "p95_ms": 10.018208000000001,
+              "max_ms": 10.018208000000001,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        },
+        {
+          "backend": "file",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 1.0,
+            "ndcg_at_3": 1.0
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 12.046048666666666,
+            "p50_ms": 13.973583,
+            "p95_ms": 14.646083,
+            "max_ms": 14.646083,
+            "throughput_per_sec": 1162.2068271017556
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.5997645925925925,
+            "p50_ms": 0.592917,
+            "p95_ms": 0.658083,
+            "max_ms": 0.7468750000000001,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.41563525,
+              "p50_ms": 0.40870799999999996,
+              "p95_ms": 0.44,
+              "max_ms": 0.44,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 1.3167917500000001,
+              "p50_ms": 1.322417,
+              "p95_ms": 1.332875,
+              "max_ms": 1.332875,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.30976025,
+              "p50_ms": 0.3095,
+              "p95_ms": 0.31670800000000005,
+              "max_ms": 0.31670800000000005,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.3272395,
+              "p50_ms": 0.327792,
+              "p95_ms": 0.332166,
+              "max_ms": 0.332166,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 3.75953125,
+              "p50_ms": 3.06375,
+              "p95_ms": 8.442083,
+              "max_ms": 8.442083,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        }
+      ]
+    },
+    {
+      "scorer_kind": "Profile",
+      "scoring_profile": "LexicalFirst",
+      "backend_results": [
+        {
+          "backend": "sled",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 0.9444444,
+            "ndcg_at_3": 0.95899224
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 0.5,
+                "ndcg_at_3": 0.63092977
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 78.930229,
+            "p50_ms": 78.25916600000001,
+            "p95_ms": 83.028041,
+            "max_ms": 83.028041,
+            "throughput_per_sec": 177.37184064168878
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.7300324444444444,
+            "p50_ms": 0.682958,
+            "p95_ms": 1.0167089999999999,
+            "max_ms": 1.101791,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.22738525000000004,
+              "p50_ms": 0.227666,
+              "p95_ms": 0.252875,
+              "max_ms": 0.252875,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 0.74844775,
+              "p50_ms": 0.761167,
+              "p95_ms": 0.788583,
+              "max_ms": 0.788583,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.20343750000000002,
+              "p50_ms": 0.202208,
+              "p95_ms": 0.210792,
+              "max_ms": 0.210792,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.22971875,
+              "p50_ms": 0.227333,
+              "p95_ms": 0.24041700000000002,
+              "max_ms": 0.24041700000000002,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 12.4747605,
+              "p50_ms": 14.881333,
+              "p95_ms": 15.408875,
+              "max_ms": 15.408875,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        },
+        {
+          "backend": "file",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 0.9444444,
+            "ndcg_at_3": 0.95899224
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 0.5,
+                "ndcg_at_3": 0.63092977
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 19.3058265,
+            "p50_ms": 15.860875,
+            "p95_ms": 43.193042,
+            "max_ms": 43.193042,
+            "throughput_per_sec": 725.1696786977756
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.616548,
+            "p50_ms": 0.6112920000000001,
+            "p95_ms": 0.6871670000000001,
+            "max_ms": 0.712959,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.4423335,
+              "p50_ms": 0.446834,
+              "p95_ms": 0.461583,
+              "max_ms": 0.461583,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 1.4190205,
+              "p50_ms": 1.419958,
+              "p95_ms": 1.5232080000000001,
+              "max_ms": 1.5232080000000001,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.32030225,
+              "p50_ms": 0.320375,
+              "p95_ms": 0.328,
+              "max_ms": 0.328,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.34235425,
+              "p50_ms": 0.342958,
+              "p95_ms": 0.350417,
+              "max_ms": 0.350417,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 4.342771,
+              "p50_ms": 2.1945829999999997,
+              "p95_ms": 11.380958999999999,
+              "max_ms": 11.380958999999999,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        }
+      ]
+    },
+    {
+      "scorer_kind": "Curated",
+      "scoring_profile": "Balanced",
+      "backend_results": [
+        {
+          "backend": "sled",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 1.0,
+            "ndcg_at_3": 1.0
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 88.83147216666667,
+            "p50_ms": 80.994125,
+            "p95_ms": 130.717667,
+            "max_ms": 130.717667,
+            "throughput_per_sec": 157.60180101184218
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.7409960925925927,
+            "p50_ms": 0.697041,
+            "p95_ms": 1.057459,
+            "max_ms": 1.132125,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.22742700000000002,
+              "p50_ms": 0.22304200000000002,
+              "p95_ms": 0.263791,
+              "max_ms": 0.263791,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 0.7349687500000001,
+              "p50_ms": 0.718583,
+              "p95_ms": 0.794292,
+              "max_ms": 0.794292,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.19987475,
+              "p50_ms": 0.196583,
+              "p95_ms": 0.21229199999999998,
+              "max_ms": 0.21229199999999998,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.22785424999999998,
+              "p50_ms": 0.22391699999999998,
+              "p95_ms": 0.240542,
+              "max_ms": 0.240542,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 12.33839575,
+              "p50_ms": 13.813625,
+              "p95_ms": 14.093458,
+              "max_ms": 14.093458,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        },
+        {
+          "backend": "file",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 1.0,
+            "ndcg_at_3": 1.0
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 16.70145833333333,
+            "p50_ms": 15.538542000000001,
+            "p95_ms": 27.896416,
+            "max_ms": 27.896416,
+            "throughput_per_sec": 838.2501528060174
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.607969796296296,
+            "p50_ms": 0.601292,
+            "p95_ms": 0.6625,
+            "max_ms": 0.671167,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.40740600000000005,
+              "p50_ms": 0.40937500000000004,
+              "p95_ms": 0.410041,
+              "max_ms": 0.410041,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 1.3052709999999998,
+              "p50_ms": 1.3109169999999999,
+              "p95_ms": 1.326458,
+              "max_ms": 1.326458,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.30426050000000004,
+              "p50_ms": 0.304584,
+              "p95_ms": 0.306917,
+              "max_ms": 0.306917,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.32911475,
+              "p50_ms": 0.32949999999999996,
+              "p95_ms": 0.338708,
+              "max_ms": 0.338708,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 3.7030000000000003,
+              "p50_ms": 3.050084,
+              "p95_ms": 8.002333,
+              "max_ms": 8.002333,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        }
+      ]
+    },
+    {
+      "scorer_kind": "Curated",
+      "scoring_profile": "ImportanceFirst",
+      "backend_results": [
+        {
+          "backend": "sled",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 1.0,
+            "ndcg_at_3": 0.99108005
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 0.9197208
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 80.22315983333333,
+            "p50_ms": 81.058917,
+            "p95_ms": 81.504875,
+            "max_ms": 81.504875,
+            "throughput_per_sec": 174.51319580387425
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.8369383333333331,
+            "p50_ms": 0.772042,
+            "p95_ms": 1.1900000000000002,
+            "max_ms": 1.4226670000000001,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.25138525,
+              "p50_ms": 0.234375,
+              "p95_ms": 0.319083,
+              "max_ms": 0.319083,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 0.774854,
+              "p50_ms": 0.76975,
+              "p95_ms": 0.827541,
+              "max_ms": 0.827541,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.207615,
+              "p50_ms": 0.21245899999999998,
+              "p95_ms": 0.216042,
+              "max_ms": 0.216042,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.23470875000000002,
+              "p50_ms": 0.24033400000000002,
+              "p95_ms": 0.245,
+              "max_ms": 0.245,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 11.115375,
+              "p50_ms": 12.137792,
+              "p95_ms": 13.725875,
+              "max_ms": 13.725875,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        },
+        {
+          "backend": "file",
+          "quality_overall": {
+            "cases": 9,
+            "hit_rate_at_3": 1.0,
+            "recall_at_3": 1.0,
+            "mrr": 1.0,
+            "ndcg_at_3": 0.99108005
+          },
+          "quality_by_scenario": [
+            {
+              "scenario": "archival_cold_tier",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "deployment_transport",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "duplicate_heavy",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "durable_high_trust",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "exact_lookup",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "fairness_runtime",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "noisy_distractor",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            },
+            {
+              "scenario": "portability_regression",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 0.9197208
+              }
+            },
+            {
+              "scenario": "recent_thread",
+              "metrics": {
+                "cases": 1,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              }
+            }
+          ],
+          "ingest": {
+            "samples": 6,
+            "mean_ms": 19.967403,
+            "p50_ms": 20.275542,
+            "p95_ms": 30.749667000000002,
+            "max_ms": 30.749667000000002,
+            "throughput_per_sec": 701.1427575233494
+          },
+          "recall": {
+            "samples": 54,
+            "mean_ms": 0.6460965370370368,
+            "p50_ms": 0.6497080000000001,
+            "p95_ms": 0.715917,
+            "max_ms": 0.744334,
+            "throughput_per_sec": null
+          },
+          "admin_operations": {
+            "snapshot": {
+              "samples": 4,
+              "mean_ms": 0.41454125000000003,
+              "p50_ms": 0.414041,
+              "p95_ms": 0.429416,
+              "max_ms": 0.429416,
+              "throughput_per_sec": null
+            },
+            "stats": {
+              "samples": 4,
+              "mean_ms": 1.31734375,
+              "p50_ms": 1.31725,
+              "p95_ms": 1.352333,
+              "max_ms": 1.352333,
+              "throughput_per_sec": null
+            },
+            "export": {
+              "samples": 4,
+              "mean_ms": 0.30363575,
+              "p50_ms": 0.30416699999999997,
+              "p95_ms": 0.308834,
+              "max_ms": 0.308834,
+              "throughput_per_sec": null
+            },
+            "compact_dry_run": {
+              "samples": 4,
+              "mean_ms": 0.32805225,
+              "p50_ms": 0.32929200000000003,
+              "p95_ms": 0.332834,
+              "max_ms": 0.332834,
+              "throughput_per_sec": null
+            },
+            "import_replace": {
+              "samples": 4,
+              "mean_ms": 3.08216675,
+              "p50_ms": 1.8807500000000001,
+              "p95_ms": 6.814,
+              "max_ms": 6.814,
+              "throughput_per_sec": null
+            }
+          },
+          "exported_storage_bytes": 2005
+        }
+      ]
+    }
+  ]
+}

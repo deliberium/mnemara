@@ -1,0 +1,20 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# JavaScript SDK local install/package artifacts
+/sdk/javascript/node_modules/
+/sdk/javascript/*.tgz
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment-local files
+.env
+.env.*

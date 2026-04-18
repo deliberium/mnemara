@@ -1,0 +1,22 @@
+[package]
+name = "mnemara-store-file"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[lib]
+name = "mnemara_store_file"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait.workspace = true
+mnemara-core = { version = "0.1.0", path = "../mnemara-core" }
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+uuid = { version = "1.23.0", features = ["v4"] }
