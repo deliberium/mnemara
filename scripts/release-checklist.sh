@@ -31,6 +31,7 @@ Notes:
   - Use the workspace manifest at: $manifest_path
   - foundation can run before any crates are published.
   - storage, server, and facade require earlier crates to already exist on crates.io for Cargo verification.
+  - dry-run-publish all continues past expected publish-order gating failures and reports skipped crates.
 EOF
 }
 
@@ -48,6 +49,34 @@ package_crate() {
 dry_run_publish_crate() {
   local crate_name="$1"
   run cargo publish --dry-run --manifest-path "$manifest_path" -p "$crate_name" --allow-dirty
+}
+
+dry_run_publish_crate_or_skip() {
+  local crate_name="$1"
+  shift
+  local required_dependencies=("$@")
+  local output_file
+  local dependency
+
+  output_file="$(mktemp)"
+  printf '\n==> cargo publish --dry-run --manifest-path %s -p %s --allow-dirty\n' "$manifest_path" "$crate_name"
+  if cargo publish --dry-run --manifest-path "$manifest_path" -p "$crate_name" --allow-dirty >"$output_file" 2>&1; then
+    cat "$output_file"
+    rm -f "$output_file"
+    return 0
+  fi
+
+  cat "$output_file"
+  for dependency in "${required_dependencies[@]}"; do
+    if grep -Fq "no matching package named \`$dependency\` found" "$output_file"; then
+      printf '\n==> skipping %s: crates.io does not yet have required dependency %s\n' "$crate_name" "$dependency"
+      rm -f "$output_file"
+      return 0
+    fi
+  done
+
+  rm -f "$output_file"
+  return 1
 }
 
 foundation() {
@@ -87,11 +116,11 @@ dry_run_publish() {
       ;;
     all)
       dry_run_publish_crate mnemara-core
-      dry_run_publish_crate mnemara-store-file
-      dry_run_publish_crate mnemara-store-sled
       dry_run_publish_crate mnemara-protocol
-      dry_run_publish_crate mnemara-server
-      dry_run_publish_crate mnemara
+      dry_run_publish_crate_or_skip mnemara-store-file mnemara-core
+      dry_run_publish_crate_or_skip mnemara-store-sled mnemara-core
+      dry_run_publish_crate_or_skip mnemara-server mnemara-core mnemara-protocol mnemara-store-sled
+      dry_run_publish_crate_or_skip mnemara mnemara-core mnemara-store-file mnemara-store-sled mnemara-protocol mnemara-server
       ;;
     *)
       printf 'Unknown dry-run-publish target: %s\n' "$target" >&2
@@ -105,9 +134,9 @@ publish_plan() {
   cat <<EOF
 Recommended publish order:
   1. cargo publish --manifest-path "$manifest_path" -p mnemara-core
-  2. cargo publish --manifest-path "$manifest_path" -p mnemara-store-file
-  3. cargo publish --manifest-path "$manifest_path" -p mnemara-store-sled
-  4. cargo publish --manifest-path "$manifest_path" -p mnemara-protocol
+  2. cargo publish --manifest-path "$manifest_path" -p mnemara-protocol
+  3. cargo publish --manifest-path "$manifest_path" -p mnemara-store-file
+  4. cargo publish --manifest-path "$manifest_path" -p mnemara-store-sled
   5. cargo publish --manifest-path "$manifest_path" -p mnemara-server
   6. cargo publish --manifest-path "$manifest_path" -p mnemara
 
@@ -115,7 +144,7 @@ Recommended verification flow:
   $(basename "$0") preflight
   $(basename "$0") foundation
   $(basename "$0") dry-run-publish foundation
-  # publish foundation crates first, then continue
+  # publish mnemara-core and mnemara-protocol first, then continue
   $(basename "$0") storage
   $(basename "$0") dry-run-publish storage
   $(basename "$0") server

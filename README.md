@@ -144,11 +144,12 @@ mnemara-server
 If you plan to publish the workspace crates to crates.io, publish them in dependency order:
 
 1. `mnemara-core`
-2. `mnemara-store-file`, `mnemara-store-sled`, and `mnemara-protocol`
-3. `mnemara-server`
-4. `mnemara`
+2. `mnemara-protocol`
+3. `mnemara-store-file` and `mnemara-store-sled`
+4. `mnemara-server`
+5. `mnemara`
 
-The order matters because `cargo package` and `cargo publish` resolve internal path dependencies through crates.io during verification. Before `mnemara-core` is published, crates such as `mnemara-store-file`, `mnemara-store-sled`, `mnemara-server`, and the facade crate `mnemara` cannot complete a publish verification run.
+The order matters because `cargo package` and `cargo publish` resolve internal path dependencies through crates.io during verification. `mnemara-protocol` has no internal workspace dependency and can be published independently, but `mnemara-store-file` and `mnemara-store-sled` both require `mnemara-core`, `mnemara-server` requires `mnemara-core`, `mnemara-protocol`, and `mnemara-store-sled`, and the facade crate `mnemara` sits on top of the full workspace graph.
 
 Recommended release checks:
 
@@ -156,9 +157,10 @@ Recommended release checks:
 ./scripts/release-checklist.sh preflight
 ./scripts/release-checklist.sh foundation
 ./scripts/release-checklist.sh dry-run-publish foundation
+./scripts/release-checklist.sh dry-run-publish all
 ```
 
-After publishing the lower-level crates, repeat `cargo package` or `cargo publish --dry-run` for the remaining crates in order. The checklist script lives at [scripts/release-checklist.sh](https://github.com/deliberium/mnemara/blob/master/scripts/release-checklist.sh), and the crate README recommendation audit lives at [docs/crates-io-readme-audit.md](https://github.com/deliberium/mnemara/blob/master/docs/crates-io-readme-audit.md).
+`dry-run-publish all` verifies the crates that can currently pass and reports the crates that are still gated on earlier workspace packages being published to crates.io. After publishing the lower-level crates, repeat `cargo package` or `cargo publish --dry-run` for the remaining crates in order. The checklist script lives at [scripts/release-checklist.sh](https://github.com/deliberium/mnemara/blob/master/scripts/release-checklist.sh), and the crate README recommendation audit lives at [docs/crates-io-readme-audit.md](https://github.com/deliberium/mnemara/blob/master/docs/crates-io-readme-audit.md).
 
 ## Workspace Layout
 

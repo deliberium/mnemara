@@ -70,13 +70,14 @@ mnemara-server
 For crates.io publication, release the workspace in dependency order:
 
 1. `mnemara-core`
-2. `mnemara-store-file`, `mnemara-store-sled`, and `mnemara-protocol`
-3. `mnemara-server`
-4. `mnemara`
+2. `mnemara-protocol`
+3. `mnemara-store-file` and `mnemara-store-sled`
+4. `mnemara-server`
+5. `mnemara`
 
-This is required because Cargo verifies path dependencies against crates.io during packaging. In the current unpublished state, `cargo package -p mnemara-core` and `cargo package -p mnemara-protocol` succeed, while the dependent crates fail verification until their internal dependencies have already been published.
+This is required because Cargo verifies path dependencies against crates.io during packaging. `mnemara-protocol` is independent of the other workspace crates, but the file and sled backends both depend on `mnemara-core`, `mnemara-server` depends on `mnemara-core`, `mnemara-protocol`, and `mnemara-store-sled`, and the facade crate `mnemara` depends on the full workspace graph through its optional features.
 
-Use `cargo package` or `cargo publish --dry-run` as the final pre-release check for each crate before moving to the next step in the sequence. The scripted version of that flow is in `scripts/release-checklist.sh`, including the staged `dry-run-publish` phase, and the crate landing-page recommendation audit is documented in `docs/crates-io-readme-audit.md`.
+Use `cargo package` or `cargo publish --dry-run` as the final pre-release check for each crate before moving to the next step in the sequence. The scripted version of that flow is in `scripts/release-checklist.sh`, including the staged `dry-run-publish` phase. Its `all` target validates every crate it can and reports the crates that are still blocked by publish-order prerequisites. The crate landing-page recommendation audit is documented in `docs/crates-io-readme-audit.md`.
 
 ## What Mnemara is for
 
