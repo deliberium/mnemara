@@ -108,3 +108,9 @@ Available facade features:
 ## Project Status
 
 Mnemara now ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
+
+## Open Source and Contributions
+
+Mnemara is an open source project, and contributions are welcome.
+
+If you want to contribute, please read [CONTRIBUTORS.md](CONTRIBUTORS.md) for the current contribution areas, project priorities, and release-scope guidance.
