@@ -91,8 +91,10 @@ async fn grpc_service_accepts_tls_clients() {
     let store = temp_store("tls-store");
     let runtime = runtime_for(&store);
     let server_cert = generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
-    let server_identity =
-        Identity::from_pem(server_cert.cert.pem(), server_cert.signing_key.serialize_pem());
+    let server_identity = Identity::from_pem(
+        server_cert.cert.pem(),
+        server_cert.signing_key.serialize_pem(),
+    );
     let tls = ServerTlsConfig::new().identity(server_identity);
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

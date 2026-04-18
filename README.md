@@ -1,7 +1,7 @@
 # Mnemara
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/deliberium/mnemara/master/assets/mnemaraLogo.png" alt="Mnemara logo" width="240">
+  <img src="assets/mnemaraLogo.png" alt="Mnemara logo" width="240">
 </p>
 
 <p align="center">
