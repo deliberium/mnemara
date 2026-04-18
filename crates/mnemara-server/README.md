@@ -37,4 +37,4 @@ Useful environment variables include:
 - exposes health, readiness, memory, admin, metrics, and trace endpoints
 - supports TCP, Unix domain sockets, TLS, and mutual TLS deployment profiles
 
-Deployment guide: <https://github.com/deliberium/mnemara/blob/main/docs/deployment.md>
+Deployment guide: <https://github.com/deliberium/mnemara/blob/master/docs/deployment.md>

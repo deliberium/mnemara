@@ -1,14 +1,14 @@
 # Mnemara
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/deliberium/mnemara/main/assets/mnemaraLogo.png" alt="Mnemara logo" width="240">
+  <img src="https://raw.githubusercontent.com/deliberium/mnemara/master/assets/mnemaraLogo.png" alt="Mnemara logo" width="240">
 </p>
 
 <p align="center">
   <a href="https://github.com/deliberium/mnemara/actions/workflows/ci.yml">
     <img src="https://github.com/deliberium/mnemara/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="https://github.com/deliberium/mnemara/blob/main/LICENSE.md">
+  <a href="https://github.com/deliberium/mnemara/blob/master/LICENSE.md">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
   </a>
 </p>
@@ -48,22 +48,22 @@ The current release includes:
 - compaction, deletion, snapshot, stats, integrity-check, repair, export, and import operations
 - published evaluation assets covering ranking quality, backend parity, and portability scenarios
 
-Future work beyond the current release remains in [ROADMAP.md](https://github.com/deliberium/mnemara/blob/main/ROADMAP.md).
+Future work beyond the current release remains in [ROADMAP.md](https://github.com/deliberium/mnemara/blob/master/ROADMAP.md).
 
 ## Quick Start
 
 Embedded library usage and daemon-mode deployment are documented here:
 
-- [User Guide](https://github.com/deliberium/mnemara/blob/main/docs/user-guide.md)
-- [Architecture](https://github.com/deliberium/mnemara/blob/main/docs/architecture.md)
-- [Deployment](https://github.com/deliberium/mnemara/blob/main/docs/deployment.md)
-- [JavaScript SDK](https://github.com/deliberium/mnemara/blob/main/sdk/javascript/README.md)
-- [Roadmap](https://github.com/deliberium/mnemara/blob/main/ROADMAP.md)
-- [Benchmark Methodology](https://github.com/deliberium/mnemara/blob/main/docs/benchmark-methodology.md)
-- [Benchmark Results](https://github.com/deliberium/mnemara/blob/main/docs/benchmark-results.md)
-- [Ranking Defaults ADR](https://github.com/deliberium/mnemara/blob/main/docs/decision-records/0001-ranking-defaults.md)
-- [Security Policy](https://github.com/deliberium/mnemara/blob/main/SECURITY.md)
-- [Contributors](https://github.com/deliberium/mnemara/blob/main/CONTRIBUTORS.md)
+- [User Guide](https://github.com/deliberium/mnemara/blob/master/docs/user-guide.md)
+- [Architecture](https://github.com/deliberium/mnemara/blob/master/docs/architecture.md)
+- [Deployment](https://github.com/deliberium/mnemara/blob/master/docs/deployment.md)
+- [JavaScript SDK](https://github.com/deliberium/mnemara/blob/master/sdk/javascript/README.md)
+- [Roadmap](https://github.com/deliberium/mnemara/blob/master/ROADMAP.md)
+- [Benchmark Methodology](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-methodology.md)
+- [Benchmark Results](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-results.md)
+- [Ranking Defaults ADR](https://github.com/deliberium/mnemara/blob/master/docs/decision-records/0001-ranking-defaults.md)
+- [Security Policy](https://github.com/deliberium/mnemara/blob/master/SECURITY.md)
+- [Contributors](https://github.com/deliberium/mnemara/blob/master/CONTRIBUTORS.md)
 
 Run the daemon locally with:
 
@@ -157,7 +157,7 @@ Recommended release checks:
 ./scripts/release-checklist.sh dry-run-publish foundation
 ```
 
-After publishing the lower-level crates, repeat `cargo package` or `cargo publish --dry-run` for the remaining crates in order. The checklist script lives at [scripts/release-checklist.sh](https://github.com/deliberium/mnemara/blob/main/scripts/release-checklist.sh), and the crate README recommendation audit lives at [docs/crates-io-readme-audit.md](https://github.com/deliberium/mnemara/blob/main/docs/crates-io-readme-audit.md).
+After publishing the lower-level crates, repeat `cargo package` or `cargo publish --dry-run` for the remaining crates in order. The checklist script lives at [scripts/release-checklist.sh](https://github.com/deliberium/mnemara/blob/master/scripts/release-checklist.sh), and the crate README recommendation audit lives at [docs/crates-io-readme-audit.md](https://github.com/deliberium/mnemara/blob/master/docs/crates-io-readme-audit.md).
 
 ## Workspace Layout
 
@@ -202,4 +202,4 @@ Mnemara now ships the extracted core/store/protocol/server workspace, the facade
 
 Mnemara is an open source project, and contributions are welcome.
 
-If you want to contribute, please read [CONTRIBUTORS.md](https://github.com/deliberium/mnemara/blob/main/CONTRIBUTORS.md) for the current contribution areas, project priorities, and release-scope guidance.
+If you want to contribute, please read [CONTRIBUTORS.md](https://github.com/deliberium/mnemara/blob/master/CONTRIBUTORS.md) for the current contribution areas, project priorities, and release-scope guidance.
