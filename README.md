@@ -62,6 +62,7 @@ Embedded library usage and daemon-mode deployment are documented here:
 - [Benchmark Methodology](docs/benchmark-methodology.md)
 - [Benchmark Results](docs/benchmark-results.md)
 - [Ranking Defaults ADR](docs/decision-records/0001-ranking-defaults.md)
+- [Security Policy](SECURITY.md)
 - [Contributors](CONTRIBUTORS.md)
 
 Run the daemon locally with:
