@@ -59,6 +59,7 @@ Embedded library usage and daemon-mode deployment are documented here:
 - [Deployment](https://github.com/deliberium/mnemara/blob/master/docs/deployment.md)
 - [JavaScript SDK](https://github.com/deliberium/mnemara/blob/master/sdk/javascript/README.md)
 - [Roadmap](https://github.com/deliberium/mnemara/blob/master/ROADMAP.md)
+- [Changelog](https://github.com/deliberium/mnemara/blob/master/CHANGELOG.md)
 - [Benchmark Methodology](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-methodology.md)
 - [Benchmark Results](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-results.md)
 - [Ranking Defaults ADR](https://github.com/deliberium/mnemara/blob/master/docs/decision-records/0001-ranking-defaults.md)
