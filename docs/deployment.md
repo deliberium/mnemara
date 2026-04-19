@@ -12,12 +12,12 @@ cargo run -p mnemara-server
 
 `MNEMARA_DEPLOYMENT_PROFILE` selects the transport posture:
 
-| Profile | Purpose |
-| --- | --- |
-| `default` | plain TCP gRPC plus HTTP |
-| `uds-local` | local gRPC over Unix domain sockets |
-| `tls-service` | gRPC with TLS server identity |
-| `mtls-service` | gRPC with mutual TLS |
+| Profile        | Purpose                             |
+| -------------- | ----------------------------------- |
+| `default`      | plain TCP gRPC plus HTTP            |
+| `uds-local`    | local gRPC over Unix domain sockets |
+| `tls-service`  | gRPC with TLS server identity       |
+| `mtls-service` | gRPC with mutual TLS                |
 
 Related transport variables:
 
@@ -91,11 +91,33 @@ Engine/runtime tuning:
 
 - `MNEMARA_RECALL_SCORER_KIND`
 - `MNEMARA_RECALL_SCORING_PROFILE`
+- `MNEMARA_RECALL_PLANNING_PROFILE`
+- `MNEMARA_RECALL_POLICY_PROFILE`
+- `MNEMARA_GRAPH_EXPANSION_MAX_HOPS`
 - `MNEMARA_EMBEDDING_PROVIDER_KIND`
 - `MNEMARA_EMBEDDING_DIMENSIONS`
 - `MNEMARA_COMPACTION_SUMMARIZE_AFTER_RECORD_COUNT`
 - `MNEMARA_COMPACTION_COLD_ARCHIVE_AFTER_DAYS`
 - `MNEMARA_COMPACTION_COLD_ARCHIVE_IMPORTANCE_THRESHOLD_PER_MILLE`
+
+Planner tuning is additive. `MNEMARA_RECALL_PLANNING_PROFILE=fast_path`
+preserves the lowest-latency default path, while
+`MNEMARA_RECALL_PLANNING_PROFILE=continuity_aware` enables bounded continuity
+expansion and richer planner traces. `MNEMARA_GRAPH_EXPANSION_MAX_HOPS`
+controls the maximum graph-style expansion depth used by that planner profile.
+
+`MNEMARA_RECALL_POLICY_PROFILE` controls provenance and lifecycle weighting for
+different workloads. Supported values are `general`, `support`, `research`,
+`assistant`, and `autonomous_agent`. `support` biases toward current,
+high-trust records; `research` is more tolerant of historical context;
+`assistant` balances continuity and verification; `autonomous_agent` keeps a
+stricter provenance posture for execution-oriented workflows.
+
+For embedded Rust integrations that need a custom semantic provider, there is
+now a supported additive seam outside the environment-variable path. Use the
+shared-embedder constructors in `mnemara-core` and supply your own provider note
+string so explanation traces continue to disclose which provider produced the
+semantic channel.
 
 Auth:
 
@@ -144,3 +166,51 @@ Portable import supports:
 - `dry_run=true` for no-write validation previews
 
 Import reports now disclose package compatibility, validated/imported/skipped counts, and structured failures.
+
+## Lifecycle-aware operations
+
+Compaction and retention now preserve more than archive state alone.
+
+Operationally:
+
+- compaction can emit summary records with lineage links back to source records
+- duplicate consolidation can mark records as `superseded` instead of treating
+  them as opaque archived entries
+- cold archival and namespace-cap enforcement can preserve records as
+  `historical` context rather than making them disappear from every recall view
+
+The lifecycle counters exposed through compact and stats surfaces now include:
+
+- superseded-record counts
+- lineage-link counts
+- historical-record counts
+
+If you want admin or operator tooling to inspect archived material after a
+maintenance pass, query with historical recall enabled rather than assuming
+archived records are part of the default current-only view.
+
+## Retrieval guidance for operators
+
+The daemon now carries richer recall filters and explanations over both gRPC
+and HTTP/JSON.
+
+Useful lifecycle and continuity controls include:
+
+- `episode_id` to constrain results to one episodic thread
+- `continuity_states` and `unresolved_only` for open-loop style recall
+- `historical_mode` to choose current-only, mixed, or historical-only recall
+- `lineage_record_id` to inspect a derived record and its related lineage
+- planning trace fields that expose planner stage, candidate sources, and the
+  effective planning profile
+
+For shared systems, start with the fast-path planner, then enable
+continuity-aware retrieval only for workloads that benefit from episode and
+lineage-sensitive recall.
+
+Protocol compatibility stays additive for these retrieval controls. Older HTTP
+or gRPC callers can omit episodic fields and the daemon will keep record-only
+behavior. Missing additive lifecycle fields deserialize to safe defaults, and
+portable JSON packages ignore unknown future additive fields during import.
+
+For the complete release-candidate validation and fallback posture used before
+promoting these capabilities, see `docs/release-validation.md`.

@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::model::MemoryRecord;
+use crate::model::{MemoryHistoricalState, MemoryQualityState, MemoryRecord};
 use crate::query::{
     CompactionReport, CompactionRequest, ExportRequest, ImportReport, ImportRequest,
     IntegrityCheckReport, IntegrityCheckRequest, RecallQuery, RecallResult, RepairReport,
@@ -42,6 +42,68 @@ pub struct DeleteReceipt {
     pub hard_deleted: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ArchiveRequest {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: String,
+    pub dry_run: bool,
+    pub audit_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ArchiveReceipt {
+    pub record_id: String,
+    pub previous_quality_state: MemoryQualityState,
+    pub previous_historical_state: MemoryHistoricalState,
+    pub quality_state: MemoryQualityState,
+    pub historical_state: MemoryHistoricalState,
+    pub changed: bool,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SuppressRequest {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: String,
+    pub dry_run: bool,
+    pub audit_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SuppressReceipt {
+    pub record_id: String,
+    pub previous_quality_state: MemoryQualityState,
+    pub previous_historical_state: MemoryHistoricalState,
+    pub quality_state: MemoryQualityState,
+    pub historical_state: MemoryHistoricalState,
+    pub changed: bool,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RecoverRequest {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: String,
+    pub dry_run: bool,
+    pub audit_reason: String,
+    pub quality_state: MemoryQualityState,
+    pub historical_state: Option<MemoryHistoricalState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RecoverReceipt {
+    pub record_id: String,
+    pub previous_quality_state: MemoryQualityState,
+    pub previous_historical_state: MemoryHistoricalState,
+    pub quality_state: MemoryQualityState,
+    pub historical_state: MemoryHistoricalState,
+    pub changed: bool,
+    pub dry_run: bool,
+}
+
 #[async_trait]
 pub trait MemoryStore: Send + Sync {
     fn backend_kind(&self) -> &'static str {
@@ -57,6 +119,12 @@ pub trait MemoryStore: Send + Sync {
     async fn compact(&self, request: CompactionRequest) -> Result<CompactionReport>;
 
     async fn delete(&self, request: DeleteRequest) -> Result<DeleteReceipt>;
+
+    async fn archive(&self, request: ArchiveRequest) -> Result<ArchiveReceipt>;
+
+    async fn suppress(&self, request: SuppressRequest) -> Result<SuppressReceipt>;
+
+    async fn recover(&self, request: RecoverRequest) -> Result<RecoverReceipt>;
 
     async fn snapshot(&self) -> Result<SnapshotManifest>;
 

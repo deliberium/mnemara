@@ -22,12 +22,32 @@ pub enum RecallScorerKind {
     Curated,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum RecallPlanningProfile {
+    #[default]
+    FastPath,
+    ContinuityAware,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum RecallPolicyProfile {
+    #[default]
+    General,
+    Support,
+    Research,
+    Assistant,
+    AutonomousAgent,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EngineTuningInfo {
     pub recall_scorer_kind: RecallScorerKind,
     pub recall_scoring_profile: RecallScoringProfile,
+    pub recall_planning_profile: RecallPlanningProfile,
+    pub recall_policy_profile: RecallPolicyProfile,
     pub embedding_provider_kind: EmbeddingProviderKind,
     pub embedding_dimensions: usize,
+    pub graph_expansion_max_hops: u8,
     pub compaction_summarize_after_record_count: usize,
     pub compaction_cold_archive_after_days: u32,
     pub compaction_cold_archive_importance_threshold_per_mille: u16,
@@ -43,8 +63,11 @@ pub struct EngineConfig {
     pub ingestion: IngestionPolicy,
     pub recall_scorer_kind: RecallScorerKind,
     pub recall_scoring_profile: RecallScoringProfile,
+    pub recall_planning_profile: RecallPlanningProfile,
+    pub recall_policy_profile: RecallPolicyProfile,
     pub embedding_provider_kind: EmbeddingProviderKind,
     pub embedding_dimensions: usize,
+    pub graph_expansion_max_hops: u8,
     pub explain_recall: bool,
 }
 
@@ -59,8 +82,11 @@ impl Default for EngineConfig {
             ingestion: IngestionPolicy::default(),
             recall_scorer_kind: RecallScorerKind::default(),
             recall_scoring_profile: RecallScoringProfile::default(),
+            recall_planning_profile: RecallPlanningProfile::default(),
+            recall_policy_profile: RecallPolicyProfile::default(),
             embedding_provider_kind: EmbeddingProviderKind::default(),
             embedding_dimensions: 64,
+            graph_expansion_max_hops: 1,
             explain_recall: true,
         }
     }
@@ -71,8 +97,11 @@ impl EngineConfig {
         EngineTuningInfo {
             recall_scorer_kind: self.recall_scorer_kind,
             recall_scoring_profile: self.recall_scoring_profile,
+            recall_planning_profile: self.recall_planning_profile,
+            recall_policy_profile: self.recall_policy_profile,
             embedding_provider_kind: self.embedding_provider_kind,
             embedding_dimensions: self.embedding_dimensions,
+            graph_expansion_max_hops: self.graph_expansion_max_hops,
             compaction_summarize_after_record_count: self.compaction.summarize_after_record_count,
             compaction_cold_archive_after_days: self.compaction.cold_archive_after_days,
             compaction_cold_archive_importance_threshold_per_mille: self

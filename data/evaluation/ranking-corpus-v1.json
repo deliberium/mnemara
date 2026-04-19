@@ -243,6 +243,468 @@
       "metadata": {
         "transport": "uds"
       }
+    },
+    {
+      "id": "incident-root-cause",
+      "scenario": "chronology_reconstruction",
+      "kind": "episodic",
+      "content": "Root cause for the storm episode: retry budget was too low after the deploy.",
+      "summary": "Storm root cause identified",
+      "importance_score": 0.78,
+      "source": "incident-timeline",
+      "labels": ["storm", "timeline", "root-cause"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000900000,
+      "updated_at_unix_ms": 1700000900000,
+      "episode": {
+        "episode_id": "storm-episode",
+        "summary": "Storm remediation episode",
+        "continuity_state": "resolved",
+        "actor_ids": ["ava", "ops-bot"],
+        "goal": "stabilize the websocket reconnect storm",
+        "outcome": "storm resolved after retry tuning",
+        "started_at_unix_ms": 1700000900000,
+        "last_active_unix_ms": 1700000900000,
+        "next_record_id": "incident-mitigation-step",
+        "salience": {
+          "reuse_count": 2,
+          "novelty_score": 0.15,
+          "goal_relevance": 0.8,
+          "unresolved_weight": 0.0
+        }
+      },
+      "metadata": {
+        "topic": "incident-response"
+      }
+    },
+    {
+      "id": "incident-mitigation-step",
+      "scenario": "chronology_reconstruction",
+      "kind": "episodic",
+      "content": "Mitigation step: raise retry jitter and clear stale sessions.",
+      "summary": "Storm mitigation step",
+      "importance_score": 0.82,
+      "source": "incident-timeline",
+      "labels": ["storm", "timeline", "mitigation"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000902000,
+      "updated_at_unix_ms": 1700000902000,
+      "episode": {
+        "episode_id": "storm-episode",
+        "summary": "Storm remediation episode",
+        "continuity_state": "resolved",
+        "actor_ids": ["ava", "ops-bot"],
+        "goal": "stabilize the websocket reconnect storm",
+        "outcome": "storm resolved after retry tuning",
+        "started_at_unix_ms": 1700000902000,
+        "last_active_unix_ms": 1700000902000,
+        "previous_record_id": "incident-root-cause",
+        "next_record_id": "incident-postmortem",
+        "causal_record_ids": ["incident-root-cause"],
+        "salience": {
+          "reuse_count": 3,
+          "novelty_score": 0.2,
+          "goal_relevance": 0.9,
+          "unresolved_weight": 0.0
+        }
+      },
+      "metadata": {
+        "topic": "incident-response"
+      }
+    },
+    {
+      "id": "incident-postmortem",
+      "scenario": "chronology_reconstruction",
+      "kind": "summary",
+      "content": "Postmortem: cap reconnect burst size and update the runbook for future storms.",
+      "summary": "Storm postmortem action",
+      "importance_score": 0.76,
+      "source": "incident-timeline",
+      "labels": ["storm", "timeline", "postmortem"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000904000,
+      "updated_at_unix_ms": 1700000904000,
+      "episode": {
+        "episode_id": "storm-episode",
+        "summary": "Storm remediation episode",
+        "continuity_state": "resolved",
+        "actor_ids": ["ava", "ops-bot"],
+        "goal": "stabilize the websocket reconnect storm",
+        "outcome": "storm resolved after retry tuning",
+        "started_at_unix_ms": 1700000904000,
+        "last_active_unix_ms": 1700000904000,
+        "previous_record_id": "incident-mitigation-step",
+        "causal_record_ids": ["incident-mitigation-step"],
+        "salience": {
+          "reuse_count": 2,
+          "novelty_score": 0.1,
+          "goal_relevance": 0.7,
+          "unresolved_weight": 0.0
+        }
+      },
+      "metadata": {
+        "topic": "incident-response"
+      }
+    },
+    {
+      "id": "incident-open-followup",
+      "scenario": "continuity_unresolved",
+      "kind": "task",
+      "content": "Open follow-up: verify mobile clients honor reconnect backoff after the patch.",
+      "summary": "Open reconnect follow-up",
+      "importance_score": 0.91,
+      "source": "incident-timeline",
+      "labels": ["storm", "follow-up", "open-loop"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000905000,
+      "updated_at_unix_ms": 1700000905000,
+      "episode": {
+        "episode_id": "storm-episode",
+        "summary": "Storm remediation episode",
+        "continuity_state": "open",
+        "actor_ids": ["ava", "ops-bot"],
+        "goal": "close the reconnect storm follow-up list",
+        "started_at_unix_ms": 1700000905000,
+        "last_active_unix_ms": 1700000905000,
+        "previous_record_id": "incident-postmortem",
+        "causal_record_ids": ["incident-postmortem"],
+        "salience": {
+          "reuse_count": 4,
+          "novelty_score": 0.25,
+          "goal_relevance": 0.95,
+          "unresolved_weight": 0.95
+        }
+      },
+      "metadata": {
+        "topic": "incident-response"
+      }
+    },
+    {
+      "id": "export-policy-old",
+      "scenario": "contradiction_handling",
+      "kind": "fact",
+      "content": "Historical export policy: cross-backend import could proceed before tenant validation completed.",
+      "summary": "Older export validation policy",
+      "importance_score": 0.62,
+      "source": "policy-history",
+      "labels": ["policy", "export", "historical"],
+      "trust_level": "observed",
+      "quality_state": "archived",
+      "created_at_unix_ms": 1700000910000,
+      "updated_at_unix_ms": 1700000910000,
+      "historical_state": "historical",
+      "lineage": [
+        {
+          "record_id": "export-policy-current",
+          "relation": "superseded_by",
+          "confidence": 1.0
+        }
+      ],
+      "metadata": {
+        "topic": "policy"
+      }
+    },
+    {
+      "id": "export-policy-current",
+      "scenario": "contradiction_handling",
+      "kind": "fact",
+      "content": "Current export policy: tenant-scoped validation must pass before cross-backend import.",
+      "summary": "Current export validation policy",
+      "importance_score": 0.94,
+      "source": "policy-manual",
+      "labels": ["policy", "export", "current"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000915000,
+      "updated_at_unix_ms": 1700000915000,
+      "historical_state": "current",
+      "lineage": [
+        {
+          "record_id": "export-policy-old",
+          "relation": "supersedes",
+          "confidence": 1.0
+        }
+      ],
+      "metadata": {
+        "topic": "policy"
+      }
+    },
+    {
+      "id": "response-style-preference-old",
+      "scenario": "preference_change",
+      "kind": "preference",
+      "content": "Older preference: user wanted detailed answers with long rationale.",
+      "summary": "Older response style preference",
+      "importance_score": 0.54,
+      "source": "preference-history",
+      "labels": ["preference", "response-style", "historical"],
+      "trust_level": "observed",
+      "quality_state": "archived",
+      "created_at_unix_ms": 1700000920000,
+      "updated_at_unix_ms": 1700000920000,
+      "historical_state": "historical",
+      "lineage": [
+        {
+          "record_id": "response-style-preference-current",
+          "relation": "superseded_by",
+          "confidence": 1.0
+        }
+      ],
+      "metadata": {
+        "topic": "preference"
+      }
+    },
+    {
+      "id": "response-style-preference-current",
+      "scenario": "preference_change",
+      "kind": "preference",
+      "content": "Current preference: user wants concise answers with a short rationale only.",
+      "summary": "Current response style preference",
+      "importance_score": 0.9,
+      "source": "preference-manual",
+      "labels": ["preference", "response-style", "current"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000925000,
+      "updated_at_unix_ms": 1700000925000,
+      "historical_state": "current",
+      "lineage": [
+        {
+          "record_id": "response-style-preference-old",
+          "relation": "supersedes",
+          "confidence": 1.0
+        }
+      ],
+      "metadata": {
+        "topic": "preference"
+      }
+    },
+    {
+      "id": "timeout-drift-old",
+      "scenario": "operational_drift",
+      "kind": "fact",
+      "content": "Previous timeout setting was 6 seconds before reconnect drift analysis.",
+      "summary": "Older timeout baseline",
+      "importance_score": 0.58,
+      "source": "ops-history",
+      "labels": ["timeout", "drift", "historical"],
+      "trust_level": "observed",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000930000,
+      "updated_at_unix_ms": 1700000930000,
+      "historical_state": "historical",
+      "lineage": [
+        {
+          "record_id": "timeout-drift-current",
+          "relation": "superseded_by",
+          "confidence": 1.0
+        }
+      ],
+      "metadata": {
+        "topic": "runtime"
+      }
+    },
+    {
+      "id": "timeout-drift-current",
+      "scenario": "operational_drift",
+      "kind": "fact",
+      "content": "Current timeout after drift analysis is 12 seconds with fallback cache enabled.",
+      "summary": "Current timeout after drift analysis",
+      "importance_score": 0.88,
+      "source": "ops-runbook",
+      "labels": ["timeout", "drift", "current"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000935000,
+      "updated_at_unix_ms": 1700000935000,
+      "historical_state": "current",
+      "lineage": [
+        {
+          "record_id": "timeout-drift-old",
+          "relation": "supersedes",
+          "confidence": 1.0
+        }
+      ],
+      "metadata": {
+        "topic": "runtime"
+      }
+    },
+    {
+      "id": "release-task-root",
+      "scenario": "long_horizon_task",
+      "kind": "task",
+      "content": "Long-horizon task: stage release candidate validation for episodic, planner, and lifecycle rollout.",
+      "summary": "Release validation task root",
+      "importance_score": 0.89,
+      "source": "release-plan",
+      "labels": ["release", "rollout", "task"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000940000,
+      "updated_at_unix_ms": 1700000940000,
+      "episode": {
+        "episode_id": "release-rollout",
+        "summary": "Release rollout execution",
+        "continuity_state": "open",
+        "actor_ids": ["ava"],
+        "goal": "ship evidence-backed release messaging",
+        "started_at_unix_ms": 1700000940000,
+        "last_active_unix_ms": 1700000940000,
+        "next_record_id": "release-task-checkpoint",
+        "salience": {
+          "reuse_count": 3,
+          "novelty_score": 0.4,
+          "goal_relevance": 0.95,
+          "unresolved_weight": 0.8
+        }
+      },
+      "metadata": {
+        "topic": "release"
+      }
+    },
+    {
+      "id": "release-task-checkpoint",
+      "scenario": "long_horizon_task",
+      "kind": "task",
+      "content": "Checkpoint: align docs, benchmark evidence, and website claims before release promotion.",
+      "summary": "Release rollout checkpoint",
+      "importance_score": 0.92,
+      "source": "release-plan",
+      "labels": ["release", "rollout", "checkpoint"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000942000,
+      "updated_at_unix_ms": 1700000942000,
+      "episode": {
+        "episode_id": "release-rollout",
+        "summary": "Release rollout execution",
+        "continuity_state": "open",
+        "actor_ids": ["ava"],
+        "goal": "ship evidence-backed release messaging",
+        "started_at_unix_ms": 1700000942000,
+        "last_active_unix_ms": 1700000942000,
+        "previous_record_id": "release-task-root",
+        "next_record_id": "release-task-handoff",
+        "causal_record_ids": ["release-task-root"],
+        "salience": {
+          "reuse_count": 4,
+          "novelty_score": 0.35,
+          "goal_relevance": 0.98,
+          "unresolved_weight": 0.9
+        }
+      },
+      "metadata": {
+        "topic": "release"
+      }
+    },
+    {
+      "id": "release-task-handoff",
+      "scenario": "long_horizon_task",
+      "kind": "task",
+      "content": "Final handoff: run the release-candidate gate and document fallback posture before promotion.",
+      "summary": "Release rollout handoff",
+      "importance_score": 0.95,
+      "source": "release-plan",
+      "labels": ["release", "rollout", "handoff"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000944000,
+      "updated_at_unix_ms": 1700000944000,
+      "episode": {
+        "episode_id": "release-rollout",
+        "summary": "Release rollout execution",
+        "continuity_state": "open",
+        "actor_ids": ["ava"],
+        "goal": "ship evidence-backed release messaging",
+        "started_at_unix_ms": 1700000944000,
+        "last_active_unix_ms": 1700000944000,
+        "previous_record_id": "release-task-checkpoint",
+        "causal_record_ids": ["release-task-checkpoint"],
+        "salience": {
+          "reuse_count": 5,
+          "novelty_score": 0.3,
+          "goal_relevance": 1.0,
+          "unresolved_weight": 0.95
+        }
+      },
+      "metadata": {
+        "topic": "release"
+      }
+    },
+    {
+      "id": "weekly-release-retrospective",
+      "scenario": "recurrence_pattern",
+      "kind": "task",
+      "content": "Recurring weekly release retrospective crosses the release handoff boundary every 7 days before the next rollout session starts.",
+      "summary": "Recurring weekly release retrospective",
+      "importance_score": 0.82,
+      "source": "release-plan",
+      "labels": ["release", "recurring", "weekly", "boundary"],
+      "trust_level": "verified",
+      "quality_state": "active",
+      "created_at_unix_ms": 1700000950000,
+      "updated_at_unix_ms": 1700000950000,
+      "episode": {
+        "episode_id": "release-retro",
+        "summary": "Recurring release retrospective cadence",
+        "continuity_state": "open",
+        "actor_ids": ["ava"],
+        "goal": "review each release boundary before the next handoff",
+        "started_at_unix_ms": 1700000950000,
+        "ended_at_unix_ms": 1700004550000,
+        "last_active_unix_ms": 1700004550000,
+        "recurrence_key": "weekly-release-retro",
+        "recurrence_interval_ms": 604800000,
+        "boundary_label": "weekly-release-boundary",
+        "salience": {
+          "reuse_count": 4,
+          "novelty_score": 0.3,
+          "goal_relevance": 0.9,
+          "unresolved_weight": 0.6
+        }
+      },
+      "metadata": {
+        "topic": "release"
+      }
+    },
+    {
+      "id": "migration-cutover-window",
+      "scenario": "duration_boundary",
+      "kind": "task",
+      "content": "Migration cutover window lasted 4 hours across the overnight maintenance boundary before the handoff completed.",
+      "summary": "Duration-aware migration cutover window",
+      "importance_score": 0.85,
+      "source": "ops-runbook",
+      "labels": ["migration", "duration", "boundary", "handoff"],
+      "trust_level": "verified",
+      "quality_state": "verified",
+      "created_at_unix_ms": 1700000960000,
+      "updated_at_unix_ms": 1700015360000,
+      "episode": {
+        "episode_id": "migration-cutover",
+        "summary": "Overnight migration cutover",
+        "continuity_state": "resolved",
+        "actor_ids": ["ava"],
+        "goal": "complete the migration cutover safely",
+        "outcome": "handoff finished after a four-hour window",
+        "started_at_unix_ms": 1700000960000,
+        "ended_at_unix_ms": 1700015360000,
+        "last_active_unix_ms": 1700015360000,
+        "boundary_label": "overnight-maintenance-window",
+        "salience": {
+          "reuse_count": 3,
+          "novelty_score": 0.25,
+          "goal_relevance": 0.93,
+          "unresolved_weight": 0.1
+        }
+      },
+      "metadata": {
+        "topic": "migration"
+      }
     }
   ],
   "cases": [
@@ -257,7 +719,11 @@
       "name": "duplicate-heavy-reconnect-summaries",
       "scenario": "duplicate_heavy",
       "query_text": "reconnect storm retry budget websocket",
-      "relevant_record_ids": ["websocket-runbook", "websocket-duplicate-a", "websocket-duplicate-b"],
+      "relevant_record_ids": [
+        "websocket-runbook",
+        "websocket-duplicate-a",
+        "websocket-duplicate-b"
+      ],
       "max_items": 5
     },
     {
@@ -293,7 +759,10 @@
       "name": "portability-schema-validation",
       "scenario": "portability_regression",
       "query_text": "portable package schema validate import dry run",
-      "relevant_record_ids": ["portability-schema-check", "portability-roundtrip"],
+      "relevant_record_ids": [
+        "portability-schema-check",
+        "portability-roundtrip"
+      ],
       "max_items": 5
     },
     {
@@ -308,6 +777,95 @@
       "scenario": "deployment_transport",
       "query_text": "grpc uds local deployment tls mtls",
       "relevant_record_ids": ["grpc-uds-local-profile"],
+      "max_items": 5
+    },
+    {
+      "name": "chronology-reconstruction-storm-timeline",
+      "scenario": "chronology_reconstruction",
+      "query_text": "timeline for the storm remediation episode",
+      "relevant_record_ids": [
+        "incident-root-cause",
+        "incident-mitigation-step",
+        "incident-postmortem"
+      ],
+      "max_items": 5,
+      "filters": {
+        "episode_id": "storm-episode",
+        "temporal_order": "chronological_asc"
+      }
+    },
+    {
+      "name": "continuity-unresolved-storm-follow-up",
+      "scenario": "continuity_unresolved",
+      "query_text": "what is still unresolved in the storm episode",
+      "relevant_record_ids": ["incident-open-followup"],
+      "max_items": 5,
+      "filters": {
+        "episode_id": "storm-episode",
+        "unresolved_only": true,
+        "temporal_order": "chronological_desc"
+      }
+    },
+    {
+      "name": "contradiction-current-export-policy",
+      "scenario": "contradiction_handling",
+      "query_text": "current tenant validation export policy",
+      "relevant_record_ids": ["export-policy-current"],
+      "max_items": 5
+    },
+    {
+      "name": "contradiction-historical-export-policy-lineage",
+      "scenario": "contradiction_handling",
+      "query_text": "previous export validation policy",
+      "relevant_record_ids": ["export-policy-old"],
+      "max_items": 5,
+      "include_archived": true,
+      "filters": {
+        "historical_mode": "historical_only",
+        "lineage_record_id": "export-policy-current"
+      }
+    },
+    {
+      "name": "preference-change-current-response-style",
+      "scenario": "preference_change",
+      "query_text": "current preference for response style",
+      "relevant_record_ids": ["response-style-preference-current"],
+      "max_items": 5
+    },
+    {
+      "name": "operational-drift-current-timeout",
+      "scenario": "operational_drift",
+      "query_text": "current timeout after drift analysis",
+      "relevant_record_ids": ["timeout-drift-current"],
+      "max_items": 5
+    },
+    {
+      "name": "long-horizon-release-rollout-thread",
+      "scenario": "long_horizon_task",
+      "query_text": "what led to the release candidate validation handoff",
+      "relevant_record_ids": [
+        "release-task-root",
+        "release-task-checkpoint",
+        "release-task-handoff"
+      ],
+      "max_items": 5,
+      "filters": {
+        "episode_id": "release-rollout",
+        "temporal_order": "chronological_asc"
+      }
+    },
+    {
+      "name": "recurrence-pattern-release-retrospective",
+      "scenario": "recurrence_pattern",
+      "query_text": "recurring weekly release handoff boundary ritual",
+      "relevant_record_ids": ["weekly-release-retrospective"],
+      "max_items": 5
+    },
+    {
+      "name": "duration-boundary-migration-window",
+      "scenario": "duration_boundary",
+      "query_text": "how long was the overnight migration handoff boundary",
+      "relevant_record_ids": ["migration-cutover-window"],
       "max_items": 5
     }
   ]

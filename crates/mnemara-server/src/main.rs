@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use mnemara_core::{
-    EmbeddingProviderKind, EngineConfig, MemoryStore, RecallScorerKind, RecallScoringProfile,
+    EmbeddingProviderKind, EngineConfig, MemoryStore, RecallPlanningProfile, RecallPolicyProfile,
+    RecallScorerKind, RecallScoringProfile,
 };
 use mnemara_server::{
     AuthConfig, AuthPermission, GrpcMemoryService, ServerLimits, ServerMetrics, ServerRuntime,
@@ -195,6 +196,43 @@ fn parse_recall_scorer_kind(raw: Option<String>) -> Result<RecallScorerKind, Str
     }
 }
 
+fn parse_recall_planning_profile(raw: Option<String>) -> Result<RecallPlanningProfile, String> {
+    let Some(value) = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(RecallPlanningProfile::FastPath);
+    };
+
+    match value.as_str() {
+        "fast" | "fast-path" | "fast_path" => Ok(RecallPlanningProfile::FastPath),
+        "continuity-aware" | "continuity_aware" => Ok(RecallPlanningProfile::ContinuityAware),
+        _ => Err(format!(
+            "invalid MNEMARA_RECALL_PLANNING_PROFILE '{value}': expected fast_path or continuity_aware"
+        )),
+    }
+}
+
+fn parse_recall_policy_profile(raw: Option<String>) -> Result<RecallPolicyProfile, String> {
+    let Some(value) = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(RecallPolicyProfile::General);
+    };
+
+    match value.as_str() {
+        "general" => Ok(RecallPolicyProfile::General),
+        "support" => Ok(RecallPolicyProfile::Support),
+        "research" => Ok(RecallPolicyProfile::Research),
+        "assistant" => Ok(RecallPolicyProfile::Assistant),
+        "autonomous-agent" | "autonomous_agent" => Ok(RecallPolicyProfile::AutonomousAgent),
+        _ => Err(format!(
+            "invalid MNEMARA_RECALL_POLICY_PROFILE '{value}': expected general, support, research, assistant, or autonomous_agent"
+        )),
+    }
+}
+
 fn parse_embedding_provider_kind(raw: Option<String>) -> Result<EmbeddingProviderKind, String> {
     let Some(value) = raw
         .map(|value| value.trim().to_ascii_lowercase())
@@ -241,6 +279,10 @@ where
     config.recall_scorer_kind = parse_recall_scorer_kind(get("MNEMARA_RECALL_SCORER_KIND"))?;
     config.recall_scoring_profile =
         parse_recall_scoring_profile(get("MNEMARA_RECALL_SCORING_PROFILE"))?;
+    config.recall_planning_profile =
+        parse_recall_planning_profile(get("MNEMARA_RECALL_PLANNING_PROFILE"))?;
+    config.recall_policy_profile =
+        parse_recall_policy_profile(get("MNEMARA_RECALL_POLICY_PROFILE"))?;
     config.embedding_provider_kind =
         parse_embedding_provider_kind(get("MNEMARA_EMBEDDING_PROVIDER_KIND"))?;
     config.embedding_dimensions = parse_usize(
@@ -248,6 +290,15 @@ where
         "MNEMARA_EMBEDDING_DIMENSIONS",
         config.embedding_dimensions,
     )?;
+    config.graph_expansion_max_hops = parse_u16(
+        get("MNEMARA_GRAPH_EXPANSION_MAX_HOPS"),
+        "MNEMARA_GRAPH_EXPANSION_MAX_HOPS",
+        u16::from(config.graph_expansion_max_hops),
+    )?
+    .try_into()
+    .map_err(|_| {
+        "invalid MNEMARA_GRAPH_EXPANSION_MAX_HOPS: expected a value between 0 and 255".to_string()
+    })?;
     Ok(config)
 }
 
@@ -453,7 +504,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::engine_config_from;
-    use mnemara_core::{EmbeddingProviderKind, RecallScorerKind, RecallScoringProfile};
+    use mnemara_core::{
+        EmbeddingProviderKind, RecallPlanningProfile, RecallPolicyProfile, RecallScorerKind,
+        RecallScoringProfile,
+    };
     use std::collections::HashMap;
 
     #[test]
@@ -469,6 +523,12 @@ mod tests {
             EmbeddingProviderKind::Disabled
         );
         assert_eq!(config.embedding_dimensions, 64);
+        assert_eq!(
+            config.recall_planning_profile,
+            RecallPlanningProfile::FastPath
+        );
+        assert_eq!(config.recall_policy_profile, RecallPolicyProfile::General);
+        assert_eq!(config.graph_expansion_max_hops, 1);
         assert_eq!(config.compaction.summarize_after_record_count, 50);
         assert_eq!(config.compaction.cold_archive_after_days, 0);
         assert_eq!(
@@ -489,6 +549,18 @@ mod tests {
             (
                 "MNEMARA_RECALL_SCORING_PROFILE".to_string(),
                 "importance-first".to_string(),
+            ),
+            (
+                "MNEMARA_RECALL_PLANNING_PROFILE".to_string(),
+                "continuity_aware".to_string(),
+            ),
+            (
+                "MNEMARA_RECALL_POLICY_PROFILE".to_string(),
+                "research".to_string(),
+            ),
+            (
+                "MNEMARA_GRAPH_EXPANSION_MAX_HOPS".to_string(),
+                "0".to_string(),
             ),
             (
                 "MNEMARA_EMBEDDING_PROVIDER_KIND".to_string(),
@@ -516,10 +588,16 @@ mod tests {
             RecallScoringProfile::ImportanceFirst
         );
         assert_eq!(
+            config.recall_planning_profile,
+            RecallPlanningProfile::ContinuityAware
+        );
+        assert_eq!(config.recall_policy_profile, RecallPolicyProfile::Research);
+        assert_eq!(
             config.embedding_provider_kind,
             EmbeddingProviderKind::DeterministicLocal
         );
         assert_eq!(config.embedding_dimensions, 96);
+        assert_eq!(config.graph_expansion_max_hops, 0);
         assert_eq!(config.compaction.summarize_after_record_count, 8);
         assert_eq!(config.compaction.cold_archive_after_days, 14);
         assert_eq!(
@@ -546,6 +624,33 @@ mod tests {
         })
         .unwrap_err();
         assert!(error.contains("invalid MNEMARA_RECALL_SCORER_KIND"));
+    }
+
+    #[test]
+    fn engine_config_from_rejects_invalid_planning_profile() {
+        let error = engine_config_from(|name| {
+            (name == "MNEMARA_RECALL_PLANNING_PROFILE").then(|| "nonsense".to_string())
+        })
+        .unwrap_err();
+        assert!(error.contains("invalid MNEMARA_RECALL_PLANNING_PROFILE"));
+    }
+
+    #[test]
+    fn engine_config_from_rejects_invalid_policy_profile() {
+        let error = engine_config_from(|name| {
+            (name == "MNEMARA_RECALL_POLICY_PROFILE").then(|| "nonsense".to_string())
+        })
+        .unwrap_err();
+        assert!(error.contains("invalid MNEMARA_RECALL_POLICY_PROFILE"));
+    }
+
+    #[test]
+    fn engine_config_from_rejects_out_of_range_graph_hops() {
+        let error = engine_config_from(|name| {
+            (name == "MNEMARA_GRAPH_EXPANSION_MAX_HOPS").then(|| "999".to_string())
+        })
+        .unwrap_err();
+        assert!(error.contains("invalid MNEMARA_GRAPH_EXPANSION_MAX_HOPS"));
     }
 
     #[test]

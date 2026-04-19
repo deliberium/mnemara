@@ -19,6 +19,7 @@ Usage: $(basename "$0") <phase>
 
 Phases:
   preflight     Run fmt, clippy, and tests against the workspace manifest.
+  release-candidate Run the release-candidate validation gate, including serial tests and website verification.
   foundation    Package crates that can verify before the internal dependency graph is published.
   storage       Package mnemara-store-file and mnemara-store-sled.
   server        Package mnemara-server.
@@ -39,6 +40,24 @@ preflight() {
   run cargo fmt --manifest-path "$manifest_path" --all --check
   run cargo clippy --manifest-path "$manifest_path" --workspace --all-targets
   run cargo test --manifest-path "$manifest_path" --workspace
+}
+
+release_candidate() {
+  local website_root="$repo_root/../mnemara-web"
+
+  run cargo fmt --manifest-path "$manifest_path" --all --check
+  run cargo clippy --manifest-path "$manifest_path" --workspace --all-targets
+  run cargo test --manifest-path "$manifest_path" --workspace -- --test-threads=1
+
+  if [[ -d "$website_root" ]]; then
+    run test -f "$repo_root/docs/benchmark-methodology.md"
+    run test -f "$repo_root/docs/benchmark-results.md"
+    run test -f "$repo_root/docs/release-validation.md"
+    run pnpm --dir "$website_root" build
+    run pnpm --dir "$website_root" typecheck
+  else
+    printf '\n==> skipping website validation: %s not found\n' "$website_root"
+  fi
 }
 
 package_crate() {
@@ -142,6 +161,7 @@ Recommended publish order:
 
 Recommended verification flow:
   $(basename "$0") preflight
+  $(basename "$0") release-candidate
   $(basename "$0") foundation
   $(basename "$0") dry-run-publish foundation
   # publish mnemara-core and mnemara-protocol first, then continue
@@ -157,6 +177,9 @@ EOF
 case "$phase" in
   preflight)
     preflight
+    ;;
+  release-candidate)
+    release_candidate
     ;;
   foundation)
     foundation

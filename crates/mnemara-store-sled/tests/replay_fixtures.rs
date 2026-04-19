@@ -1,10 +1,11 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use mnemara_core::{
-    BatchUpsertRequest, CompactionRequest, DeleteRequest, EmbeddingProviderKind, EngineConfig,
-    IngestionPolicy, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryStore,
-    MemoryTrustLevel, RecallFilters, RecallQuery, RecallScoringProfile, RetentionPolicy,
-    UpsertRequest,
+    BatchUpsertRequest, CompactionRequest, DeleteRequest, EPISODE_SCHEMA_VERSION,
+    EmbeddingProviderKind, EngineConfig, IngestionPolicy, IntegrityCheckRequest, LineageLink,
+    LineageRelationKind, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind,
+    MemoryScope, MemoryStore, MemoryTrustLevel, RecallFilters, RecallHistoricalMode, RecallQuery,
+    RecallScoringProfile, RepairRequest, RetentionPolicy, UpsertRequest,
 };
 use mnemara_store_sled::{SledMemoryStore, SledStoreConfig};
 use serde::Deserialize;
@@ -116,6 +117,9 @@ fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
         expires_at_unix_ms: None,
         importance_score: record.importance_score,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     }
 }
 
@@ -147,6 +151,9 @@ fn map_durable_capture_fixture(record: &DurableCaptureFixture) -> MemoryRecord {
         expires_at_unix_ms: None,
         importance_score: record.importance_score,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     }
 }
 
@@ -202,6 +209,78 @@ fn recent_query_for(scope_thread_id: Option<&str>, max_items: usize) -> RecallQu
         filters: RecallFilters::default(),
         include_explanation: true,
     }
+}
+
+fn episodic_fixture_record() -> MemoryRecord {
+    MemoryRecord {
+        id: "episodic-sled-repair".to_string(),
+        scope: MemoryScope {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            actor_id: "ava".to_string(),
+            conversation_id: Some("thread-a".to_string()),
+            session_id: Some("session-a".to_string()),
+            source: "test".to_string(),
+            labels: vec!["shared-fixture".to_string(), "episode".to_string()],
+            trust_level: MemoryTrustLevel::Verified,
+        },
+        kind: MemoryRecordKind::Task,
+        content: "Restore reconnect rollout after operator restart".to_string(),
+        summary: Some("Restart-safe repair fixture".to_string()),
+        source_id: Some("episodic-sled-repair".to_string()),
+        metadata: BTreeMap::new(),
+        quality_state: MemoryQualityState::Active,
+        created_at_unix_ms: 10,
+        updated_at_unix_ms: 20,
+        expires_at_unix_ms: None,
+        importance_score: 0.9,
+        artifact: None,
+        episode: Some(mnemara_core::EpisodeContext {
+            schema_version: EPISODE_SCHEMA_VERSION,
+            episode_id: "storm-episode".to_string(),
+            summary: Some("Storm remediation episode".to_string()),
+            continuity_state: mnemara_core::EpisodeContinuityState::Open,
+            actor_ids: vec!["ava".to_string()],
+            goal: Some("close the reconnect storm follow-up list".to_string()),
+            outcome: None,
+            started_at_unix_ms: Some(1),
+            ended_at_unix_ms: None,
+            last_active_unix_ms: Some(20),
+            recurrence_key: None,
+            recurrence_interval_ms: None,
+            boundary_label: Some("incident-handoff".to_string()),
+            previous_record_id: Some("incident-root".to_string()),
+            next_record_id: None,
+            causal_record_ids: vec!["incident-root".to_string()],
+            related_record_ids: vec!["incident-postmortem".to_string()],
+            linked_artifact_uris: vec!["file:///tmp/storm.md".to_string()],
+            salience: mnemara_core::EpisodeSalience {
+                reuse_count: 4,
+                novelty_score: 0.3,
+                goal_relevance: 0.95,
+                unresolved_weight: 0.9,
+            },
+            affective: None,
+        }),
+        historical_state: MemoryHistoricalState::Historical,
+        lineage: vec![LineageLink {
+            record_id: "incident-root".to_string(),
+            relation: LineageRelationKind::DerivedFrom,
+            confidence: 0.8,
+        }],
+    }
+}
+
+fn idempotency_scoped_key(scope: &MemoryScope, key: &str) -> String {
+    format!(
+        "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
+        scope.tenant_id,
+        scope.namespace,
+        scope.actor_id,
+        scope.conversation_id.as_deref().unwrap_or(""),
+        scope.session_id.as_deref().unwrap_or(""),
+        key
+    )
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -287,6 +366,187 @@ async fn durable_capture_fixture_retrieves_summary_lane() {
             .unwrap_or_default()
             .contains("reconnect storm mitigation")
     );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn repair_recovers_missing_idempotency_after_restart_without_losing_lineage() {
+    let dir = temp_store_dir("repair-restart");
+    let record = episodic_fixture_record();
+    let scope = record.scope.clone();
+
+    let store = SledMemoryStore::open(SledStoreConfig::new(&dir)).unwrap();
+    store
+        .upsert(UpsertRequest {
+            record,
+            idempotency_key: Some("repair-key".to_string()),
+        })
+        .await
+        .unwrap();
+    drop(store);
+
+    let db = sled::open(&dir).unwrap();
+    let idempotency_tree = db.open_tree("idempotency").unwrap();
+    idempotency_tree
+        .remove(idempotency_scoped_key(&scope, "repair-key").as_bytes())
+        .unwrap();
+    db.flush().unwrap();
+    drop(idempotency_tree);
+    drop(db);
+
+    let reopened = SledMemoryStore::open(SledStoreConfig::new(&dir)).unwrap();
+    let integrity_before = reopened
+        .integrity_check(IntegrityCheckRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+        })
+        .await
+        .unwrap();
+    assert!(!integrity_before.healthy);
+    assert_eq!(integrity_before.missing_idempotency_keys, 1);
+
+    let dry_run = reopened
+        .repair(RepairRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: true,
+            reason: "test".to_string(),
+            remove_stale_idempotency_keys: false,
+            rebuild_missing_idempotency_keys: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(dry_run.rebuilt_missing_idempotency_keys, 1);
+
+    let integrity_after_dry_run = reopened
+        .integrity_check(IntegrityCheckRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+        })
+        .await
+        .unwrap();
+    assert_eq!(integrity_after_dry_run.missing_idempotency_keys, 1);
+
+    let repaired = reopened
+        .repair(RepairRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: false,
+            reason: "test".to_string(),
+            remove_stale_idempotency_keys: false,
+            rebuild_missing_idempotency_keys: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(repaired.rebuilt_missing_idempotency_keys, 1);
+    drop(reopened);
+
+    let final_store = SledMemoryStore::open(SledStoreConfig::new(&dir)).unwrap();
+    let integrity_after = final_store
+        .integrity_check(IntegrityCheckRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+        })
+        .await
+        .unwrap();
+    assert!(integrity_after.healthy);
+
+    let recalled = final_store
+        .recall(RecallQuery {
+            scope,
+            query_text: "restore reconnect rollout incident root".to_string(),
+            max_items: 3,
+            token_budget: None,
+            filters: RecallFilters {
+                lineage_record_id: Some("incident-root".to_string()),
+                historical_mode: RecallHistoricalMode::IncludeHistorical,
+                ..RecallFilters::default()
+            },
+            include_explanation: true,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(recalled.hits.len(), 1);
+    let record = &recalled.hits[0].record;
+    assert_eq!(record.scope.tenant_id, "default");
+    assert_eq!(record.scope.namespace, "conversation");
+    assert_eq!(record.historical_state, MemoryHistoricalState::Historical);
+    assert_eq!(record.lineage.len(), 1);
+    assert_eq!(record.lineage[0].relation, LineageRelationKind::DerivedFrom);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn snapshot_and_repair_preserve_lineage_and_scope() {
+    let dir = temp_store_dir("snapshot-repair");
+    let record = episodic_fixture_record();
+    let scope = record.scope.clone();
+
+    let store = SledMemoryStore::open(SledStoreConfig::new(&dir)).unwrap();
+    store
+        .upsert(UpsertRequest {
+            record,
+            idempotency_key: Some("snapshot-repair-key".to_string()),
+        })
+        .await
+        .unwrap();
+
+    let snapshot_before = store.snapshot().await.unwrap();
+    assert_eq!(snapshot_before.record_count, 1);
+    assert_eq!(snapshot_before.namespaces, vec!["conversation".to_string()]);
+    drop(store);
+
+    let db = sled::open(&dir).unwrap();
+    let idempotency_tree = db.open_tree("idempotency").unwrap();
+    idempotency_tree
+        .remove(idempotency_scoped_key(&scope, "snapshot-repair-key").as_bytes())
+        .unwrap();
+    db.flush().unwrap();
+    drop(idempotency_tree);
+    drop(db);
+
+    let reopened = SledMemoryStore::open(SledStoreConfig::new(&dir)).unwrap();
+    let repaired = reopened
+        .repair(RepairRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: false,
+            reason: "snapshot-repair-test".to_string(),
+            remove_stale_idempotency_keys: false,
+            rebuild_missing_idempotency_keys: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(repaired.rebuilt_missing_idempotency_keys, 1);
+
+    let snapshot_after = reopened.snapshot().await.unwrap();
+    assert_eq!(snapshot_after.record_count, 1);
+    assert_eq!(snapshot_after.namespaces, vec!["conversation".to_string()]);
+
+    let recalled = reopened
+        .recall(RecallQuery {
+            scope,
+            query_text: "restore reconnect rollout incident root".to_string(),
+            max_items: 3,
+            token_budget: None,
+            filters: RecallFilters {
+                lineage_record_id: Some("incident-root".to_string()),
+                historical_mode: RecallHistoricalMode::IncludeHistorical,
+                ..RecallFilters::default()
+            },
+            include_explanation: true,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(recalled.hits.len(), 1);
+    let record = &recalled.hits[0].record;
+    assert_eq!(record.scope.tenant_id, "default");
+    assert_eq!(record.scope.namespace, "conversation");
+    assert_eq!(record.scope.actor_id, "ava");
+    assert_eq!(record.historical_state, MemoryHistoricalState::Historical);
+    assert_eq!(record.lineage.len(), 1);
+    assert_eq!(record.lineage[0].record_id, "incident-root");
+    assert_eq!(record.lineage[0].relation, LineageRelationKind::DerivedFrom);
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -419,6 +679,7 @@ async fn compaction_archives_duplicate_records_and_reports_them() {
             filters: RecallFilters {
                 states: vec![MemoryQualityState::Archived],
                 include_archived: true,
+                historical_mode: mnemara_core::RecallHistoricalMode::IncludeHistorical,
                 ..RecallFilters::default()
             },
             include_explanation: false,
@@ -520,6 +781,7 @@ async fn compaction_can_roll_up_duplicate_clusters_and_cold_archive_stale_record
             filters: RecallFilters {
                 states: vec![MemoryQualityState::Archived],
                 include_archived: true,
+                historical_mode: mnemara_core::RecallHistoricalMode::IncludeHistorical,
                 ..RecallFilters::default()
             },
             include_explanation: false,
@@ -606,6 +868,7 @@ async fn retention_policy_archives_old_records_without_deleting_them() {
             filters: RecallFilters {
                 states: vec![MemoryQualityState::Archived],
                 include_archived: true,
+                historical_mode: mnemara_core::RecallHistoricalMode::IncludeHistorical,
                 ..RecallFilters::default()
             },
             ..query_for("CORTEX_BACKEND")
@@ -671,6 +934,7 @@ async fn retention_policy_caps_active_namespace_records() {
             filters: RecallFilters {
                 states: vec![MemoryQualityState::Archived],
                 include_archived: true,
+                historical_mode: mnemara_core::RecallHistoricalMode::IncludeHistorical,
                 ..RecallFilters::default()
             },
             include_explanation: false,
@@ -748,6 +1012,17 @@ async fn recall_explanations_include_planning_trace_candidates() {
             .iter()
             .all(|candidate| !candidate.record_id.is_empty())
     );
+    assert!(
+        planning_trace
+            .candidates
+            .iter()
+            .all(|candidate| !candidate.candidate_sources.is_empty())
+    );
+    assert!(planning_trace.candidates.iter().any(|candidate| matches!(
+        candidate.planner_stage,
+        mnemara_core::RecallPlannerStage::CandidateGeneration
+            | mnemara_core::RecallPlannerStage::GraphExpansion
+    )));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -781,6 +1056,9 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         expires_at_unix_ms: None,
         importance_score: 0.1,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     };
     let importance_favorite = MemoryRecord {
         id: "importance-favorite".to_string(),
@@ -796,6 +1074,9 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         expires_at_unix_ms: None,
         importance_score: 0.95,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     };
 
     for store in [&lexical_store, &importance_store] {
@@ -854,6 +1135,9 @@ async fn semantic_embedding_can_surface_semantic_channel_in_explanations() {
         expires_at_unix_ms: None,
         importance_score: 0.3,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     };
 
     store

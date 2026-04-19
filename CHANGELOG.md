@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- markdownlint-disable MD024 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project aims to follow Semantic Versioning.
@@ -8,9 +10,27 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Added
 
+- additive episodic record fields for continuity state, salience, causal links, and optional affective annotations
+- retrieval-planner profiles with planner-stage and candidate-source traces for explainable continuity-aware recall
+- lifecycle-aware historical-state and lineage-link model fields across the core, protocol, daemon, and backend layers
+- compaction and maintenance counters for superseded records, historical records, and lineage links
+- workload-aware retrieval policy profiles for general, support, research, assistant, and autonomous-agent recall tuning
+- public shared-embedder constructors for custom semantic providers in the scorer and planner path
+
 ### Changed
 
+- recall explanations now expose planning profile, episodic and salience score channels, and richer planner trace detail
+- recall explanations and engine tuning exports now disclose the effective retrieval policy profile alongside scorer and planner metadata
+- custom semantic provider notes now flow through explanation policy notes on the same path as built-in embedding providers
+- compaction and archival flows now preserve current versus historical versus superseded visibility instead of treating all archived data as the same state
+- repository docs, deployment guidance, benchmark docs, and website rollout copy were aligned with shipped episodic, planner, and lifecycle behavior
+- benchmark report v1 now publishes the expanded 16-case corpus, lifecycle-sensitive scenario tables, and the continuity-aware planner profile slice
+
 ### Fixed
+
+- archived replay and roundtrip coverage now explicitly exercises historical recall visibility after lifecycle-aware maintenance transitions
+- daemon startup now honors the documented `MNEMARA_RECALL_PLANNING_PROFILE` and `MNEMARA_GRAPH_EXPANSION_MAX_HOPS` fallback controls, with regression coverage for safer rollout posture
+- policy-tuned provenance ranking now applies the configured workload profile consistently across file, sled, daemon, and transport explanation surfaces
 
 ## [0.1.0] - 2026-04-18
 

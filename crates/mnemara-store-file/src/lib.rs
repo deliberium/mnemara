@@ -1,12 +1,16 @@
 use async_trait::async_trait;
 use mnemara_core::{
-    BatchUpsertRequest, CompactionReport, CompactionRequest, ConfiguredRecallScorer, DeleteReceipt,
-    DeleteRequest, EngineConfig, Error, ExportRequest, ImportFailure, ImportMode, ImportReport,
-    ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, MaintenanceStats,
-    MemoryQualityState, MemoryRecord, MemoryScope, MemoryStore, MemoryTrustLevel, NamespaceStats,
-    PortableRecord, PortableStorePackage, RecallExplanation, RecallHit, RecallPlanningTrace,
-    RecallQuery, RecallResult, RecallScorer, RecallTraceCandidate, RepairReport, RepairRequest,
-    Result, SnapshotManifest, StoreStatsReport, StoreStatsRequest, UpsertReceipt, UpsertRequest,
+    ArchiveReceipt, ArchiveRequest, BatchUpsertRequest, CompactionReport, CompactionRequest,
+    ConfiguredRecallScorer, DeleteReceipt, DeleteRequest, EngineConfig, Error, ExportRequest,
+    ImportFailure, ImportMode, ImportReport, ImportRequest, IntegrityCheckReport,
+    IntegrityCheckRequest, LineageLink, LineageRelationKind, MaintenanceStats,
+    MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryScope, MemoryStore,
+    MemoryTrustLevel, NamespaceStats, PlannedRecallCandidate, PortableRecord, PortableStorePackage,
+    RecallExplanation, RecallHistoricalMode, RecallHit, RecallPlanner, RecallPlanningProfile,
+    RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer, RecallTemporalOrder,
+    RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, Result,
+    SnapshotManifest, StoreStatsReport, StoreStatsRequest, SuppressReceipt, SuppressRequest,
+    UpsertReceipt, UpsertRequest,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -115,32 +119,7 @@ impl FileMemoryStore {
     }
 
     fn validate_record(&self, record: &MemoryRecord) -> Result<()> {
-        if record.id.trim().is_empty() {
-            return Err(Error::InvalidRequest(
-                "memory record id is required".to_string(),
-            ));
-        }
-        if record.scope.tenant_id.trim().is_empty() {
-            return Err(Error::InvalidRequest(
-                "memory record tenant_id is required".to_string(),
-            ));
-        }
-        if record.scope.namespace.trim().is_empty() {
-            return Err(Error::InvalidRequest(
-                "memory record namespace is required".to_string(),
-            ));
-        }
-        if record.scope.actor_id.trim().is_empty() {
-            return Err(Error::InvalidRequest(
-                "memory record actor_id is required".to_string(),
-            ));
-        }
-        if record.content.trim().is_empty() && record.artifact.is_none() {
-            return Err(Error::InvalidRequest(
-                "memory record content or artifact is required".to_string(),
-            ));
-        }
-        Ok(())
+        record.validate()
     }
 
     fn validate_delete_request(&self, request: &DeleteRequest) -> Result<()> {
@@ -163,6 +142,103 @@ impl FileMemoryStore {
             return Err(Error::InvalidRequest(
                 "delete audit_reason is required".to_string(),
             ));
+        }
+        Ok(())
+    }
+
+    fn validate_archive_request(&self, request: &ArchiveRequest) -> Result<()> {
+        Self::validate_lifecycle_request(
+            "archive",
+            &request.tenant_id,
+            &request.namespace,
+            &request.record_id,
+            &request.audit_reason,
+        )
+    }
+
+    fn validate_suppress_request(&self, request: &SuppressRequest) -> Result<()> {
+        Self::validate_lifecycle_request(
+            "suppress",
+            &request.tenant_id,
+            &request.namespace,
+            &request.record_id,
+            &request.audit_reason,
+        )
+    }
+
+    fn validate_recover_request(&self, request: &RecoverRequest) -> Result<()> {
+        Self::validate_lifecycle_request(
+            "recover",
+            &request.tenant_id,
+            &request.namespace,
+            &request.record_id,
+            &request.audit_reason,
+        )?;
+        match request.quality_state {
+            MemoryQualityState::Active | MemoryQualityState::Verified => {}
+            _ => {
+                return Err(Error::InvalidRequest(
+                    "recover quality_state must be Active or Verified".to_string(),
+                ));
+            }
+        }
+        if matches!(
+            request.historical_state,
+            Some(MemoryHistoricalState::Superseded)
+        ) {
+            return Err(Error::InvalidRequest(
+                "recover historical_state cannot be Superseded".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_lifecycle_request(
+        action: &str,
+        tenant_id: &str,
+        namespace: &str,
+        record_id: &str,
+        audit_reason: &str,
+    ) -> Result<()> {
+        if tenant_id.trim().is_empty() {
+            return Err(Error::InvalidRequest(format!(
+                "{action} tenant_id is required"
+            )));
+        }
+        if namespace.trim().is_empty() {
+            return Err(Error::InvalidRequest(format!(
+                "{action} namespace is required"
+            )));
+        }
+        if record_id.trim().is_empty() {
+            return Err(Error::InvalidRequest(format!(
+                "{action} record_id is required"
+            )));
+        }
+        if audit_reason.trim().is_empty() {
+            return Err(Error::InvalidRequest(format!(
+                "{action} audit_reason is required"
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_record_scope(
+        stored: &StoredRecord,
+        tenant_id: &str,
+        namespace: &str,
+    ) -> Result<()> {
+        if stored.record.scope.tenant_id != tenant_id {
+            return Err(Error::InvalidRequest(format!(
+                "record {} does not belong to tenant {}",
+                stored.record.id, tenant_id
+            )));
+        }
+        if stored.record.scope.namespace != namespace {
+            return Err(Error::InvalidRequest(format!(
+                "record {} does not belong to namespace {}",
+                stored.record.id, namespace
+            )));
         }
         Ok(())
     }
@@ -502,6 +578,9 @@ impl FileMemoryStore {
         let mut duplicate_groups = HashMap::<String, usize>::new();
         let mut tombstoned_records = 0u64;
         let mut expired_records = 0u64;
+        let mut historical_records = 0u64;
+        let mut superseded_records = 0u64;
+        let mut lineage_links = 0u64;
 
         for stored in &filtered_records {
             let key = (
@@ -538,6 +617,19 @@ impl FileMemoryStore {
             {
                 expired_records += 1;
             }
+            if matches!(
+                stored.record.historical_state,
+                MemoryHistoricalState::Historical
+            ) {
+                historical_records += 1;
+            }
+            if matches!(
+                stored.record.historical_state,
+                MemoryHistoricalState::Superseded
+            ) {
+                superseded_records += 1;
+            }
+            lineage_links += stored.record.lineage.len() as u64;
             if !matches!(
                 stored.record.quality_state,
                 MemoryQualityState::Archived
@@ -570,6 +662,9 @@ impl FileMemoryStore {
                 tombstoned_records,
                 expired_records,
                 stale_idempotency_keys: integrity.stale_idempotency_keys,
+                historical_records,
+                superseded_records,
+                lineage_links,
             },
             engine: self.config.engine_config.tuning_info(),
         })
@@ -644,6 +739,56 @@ impl FileMemoryStore {
             return false;
         }
 
+        if let Some(episode_id) = &query.filters.episode_id
+            && record.episode.as_ref().map(|episode| &episode.episode_id) != Some(episode_id)
+        {
+            return false;
+        }
+
+        if !query.filters.continuity_states.is_empty()
+            && !record.episode.as_ref().is_some_and(|episode| {
+                query
+                    .filters
+                    .continuity_states
+                    .contains(&episode.continuity_state)
+            })
+        {
+            return false;
+        }
+
+        if query.filters.unresolved_only
+            && !record
+                .episode
+                .as_ref()
+                .is_some_and(|episode| episode.continuity_state.is_unresolved())
+        {
+            return false;
+        }
+
+        if let Some(lineage_record_id) = &query.filters.lineage_record_id
+            && record.id != *lineage_record_id
+            && !record
+                .lineage
+                .iter()
+                .any(|link| &link.record_id == lineage_record_id)
+        {
+            return false;
+        }
+
+        match query.filters.historical_mode {
+            RecallHistoricalMode::CurrentOnly => {
+                if !matches!(record.historical_state, MemoryHistoricalState::Current) {
+                    return false;
+                }
+            }
+            RecallHistoricalMode::HistoricalOnly => {
+                if matches!(record.historical_state, MemoryHistoricalState::Current) {
+                    return false;
+                }
+            }
+            RecallHistoricalMode::IncludeHistorical => {}
+        }
+
         if !query.filters.states.is_empty() {
             if !query.filters.states.contains(&record.quality_state) {
                 return false;
@@ -659,10 +804,6 @@ impl FileMemoryStore {
         true
     }
 
-    fn scorer(&self) -> ConfiguredRecallScorer {
-        ConfiguredRecallScorer::from_engine_config(&self.config.engine_config)
-    }
-
     fn approximate_tokens(record: &MemoryRecord) -> usize {
         let content_tokens = record.content.split_whitespace().count();
         let summary_tokens = record
@@ -671,6 +812,47 @@ impl FileMemoryStore {
             .map(|summary| summary.split_whitespace().count())
             .unwrap_or(0);
         content_tokens + summary_tokens
+    }
+
+    fn record_temporal_anchor(record: &MemoryRecord) -> u64 {
+        record
+            .episode
+            .as_ref()
+            .and_then(|episode| episode.last_active_unix_ms.or(episode.started_at_unix_ms))
+            .unwrap_or(record.updated_at_unix_ms)
+    }
+
+    fn selected_channels_for_hit(hit: &RecallHit, empty_query: bool) -> Vec<String> {
+        let mut selected_channels = if empty_query {
+            vec!["temporal".to_string(), "policy".to_string()]
+        } else {
+            vec!["lexical".to_string(), "policy".to_string()]
+        };
+        if hit.breakdown.semantic > 0.0 {
+            selected_channels.push("semantic".to_string());
+        }
+        if hit.breakdown.metadata > 0.0 {
+            selected_channels.push("metadata".to_string());
+        }
+        if hit.breakdown.episodic > 0.0 {
+            selected_channels.push("episodic".to_string());
+        }
+        if hit.breakdown.salience > 0.0 {
+            selected_channels.push("salience".to_string());
+        }
+        if hit.breakdown.curation > 0.0 {
+            selected_channels.push("curation".to_string());
+        }
+        selected_channels.sort();
+        selected_channels.dedup();
+        selected_channels
+    }
+
+    fn planning_profile_note(profile: RecallPlanningProfile) -> &'static str {
+        match profile {
+            RecallPlanningProfile::FastPath => "planning_profile=fast_path",
+            RecallPlanningProfile::ContinuityAware => "planning_profile=continuity_aware",
+        }
     }
 
     fn dedup_signature(record: &MemoryRecord) -> String {
@@ -763,6 +945,16 @@ impl FileMemoryStore {
                 expires_at_unix_ms: None,
                 importance_score: max_importance_score,
                 artifact: canonical.artifact.clone(),
+                episode: canonical.episode.clone(),
+                historical_state: MemoryHistoricalState::Current,
+                lineage: group
+                    .iter()
+                    .map(|stored| LineageLink {
+                        record_id: stored.record.id.clone(),
+                        relation: LineageRelationKind::ConsolidatedFrom,
+                        confidence: 1.0,
+                    })
+                    .collect(),
             },
             idempotency_key: None,
         }
@@ -813,30 +1005,23 @@ impl FileMemoryStore {
     fn build_explanations(
         &self,
         scorer: ConfiguredRecallScorer,
+        planning_profile: RecallPlanningProfile,
         query: &RecallQuery,
-        scored: &[(RecallHit, Vec<String>)],
+        planned: &[PlannedRecallCandidate],
         selected_record_ids: &[String],
         trace_id: &str,
     ) -> (Vec<RecallHit>, Option<RecallExplanation>) {
         let selected_set = selected_record_ids.iter().cloned().collect::<BTreeSet<_>>();
-        let hits = scored
+        let hits = planned
             .iter()
-            .filter(|(hit, _)| selected_set.contains(&hit.record.id))
-            .map(|(hit, matched_terms)| {
-                let mut enriched = hit.clone();
+            .filter(|candidate| selected_set.contains(&candidate.hit.record.id))
+            .map(|candidate| {
+                let mut enriched = candidate.hit.clone();
                 if query.include_explanation {
-                    let mut selected_channels = if query.query_text.trim().is_empty() {
-                        vec!["temporal".to_string(), "policy".to_string()]
-                    } else {
-                        vec!["lexical".to_string(), "policy".to_string()]
-                    };
-                    if hit.breakdown.semantic > 0.0
-                        && !selected_channels
-                            .iter()
-                            .any(|channel| channel == "semantic")
-                    {
-                        selected_channels.push("semantic".to_string());
-                    }
+                    let selected_channels = Self::selected_channels_for_hit(
+                        &candidate.hit,
+                        query.query_text.trim().is_empty(),
+                    );
                     enriched.explanation = Some(RecallExplanation {
                         selected_channels,
                         policy_notes: vec![if query.query_text.trim().is_empty() {
@@ -846,6 +1031,8 @@ impl FileMemoryStore {
                         }],
                         trace_id: Some(trace_id.to_string()),
                         planning_trace: None,
+                        planning_profile: Some(planning_profile),
+                        policy_profile: Some(scorer.policy_profile()),
                         scorer_kind: Some(scorer.scorer_kind()),
                         scoring_profile: Some(scorer.scoring_profile()),
                     });
@@ -853,12 +1040,29 @@ impl FileMemoryStore {
                         explanation
                             .policy_notes
                             .push(scorer.profile_note().to_string());
+                        explanation
+                            .policy_notes
+                            .push(scorer.policy_profile_note().to_string());
+                        explanation
+                            .policy_notes
+                            .push(Self::planning_profile_note(planning_profile).to_string());
                         if let Some(note) = scorer.embedding_note() {
                             explanation.policy_notes.push(note.to_string());
                         }
-                        explanation
-                            .policy_notes
-                            .push(format!("matched_terms={}", matched_terms.join(",")));
+                        if query.filters.episode_id.is_some() {
+                            explanation
+                                .policy_notes
+                                .push("episode_filter_applied".to_string());
+                        }
+                        if query.filters.unresolved_only {
+                            explanation
+                                .policy_notes
+                                .push("unresolved_only_filter_applied".to_string());
+                        }
+                        explanation.policy_notes.push(format!(
+                            "matched_terms={}",
+                            candidate.matched_terms.join(",")
+                        ));
                     }
                 }
                 enriched
@@ -868,31 +1072,19 @@ impl FileMemoryStore {
         let planning_trace = query.include_explanation.then(|| RecallPlanningTrace {
             trace_id: trace_id.to_string(),
             token_budget_applied: query.token_budget.is_some(),
-            candidates: scored
+            candidates: planned
                 .iter()
                 .enumerate()
-                .map(|(index, (hit, matched_terms))| {
-                    let selected = selected_set.contains(&hit.record.id);
+                .map(|(index, candidate)| {
+                    let selected = selected_set.contains(&candidate.hit.record.id);
                     let selection_rank = selected_record_ids
                         .iter()
-                        .position(|record_id| record_id == &hit.record.id)
+                        .position(|record_id| record_id == &candidate.hit.record.id)
                         .map(|position| position as u32 + 1);
-                    let mut selected_channels = if query.query_text.trim().is_empty() {
-                        vec!["temporal".to_string(), "policy".to_string()]
-                    } else {
-                        vec!["lexical".to_string(), "policy".to_string()]
-                    };
-                    if hit.breakdown.semantic > 0.0 {
-                        selected_channels.push("semantic".to_string());
-                    }
-                    if hit.breakdown.metadata > 0.0 {
-                        selected_channels.push("metadata".to_string());
-                    }
-                    if hit.breakdown.curation > 0.0 {
-                        selected_channels.push("curation".to_string());
-                    }
-                    selected_channels.sort();
-                    selected_channels.dedup();
+                    let selected_channels = Self::selected_channels_for_hit(
+                        &candidate.hit,
+                        query.query_text.trim().is_empty(),
+                    );
 
                     let mut filter_reasons = Vec::new();
                     if selected {
@@ -907,11 +1099,13 @@ impl FileMemoryStore {
                     }
 
                     RecallTraceCandidate {
-                        record_id: hit.record.id.clone(),
-                        kind: hit.record.kind,
+                        record_id: candidate.hit.record.id.clone(),
+                        kind: candidate.hit.record.kind,
                         selected,
+                        planner_stage: candidate.planner_stage,
+                        candidate_sources: candidate.candidate_sources.clone(),
                         selection_rank,
-                        matched_terms: matched_terms.clone(),
+                        matched_terms: candidate.matched_terms.clone(),
                         selected_channels,
                         filter_reasons,
                         decision_reason: if selected {
@@ -921,7 +1115,7 @@ impl FileMemoryStore {
                         } else {
                             "excluded_by_rank".to_string()
                         },
-                        breakdown: hit.breakdown.clone(),
+                        breakdown: candidate.hit.breakdown.clone(),
                     }
                 })
                 .collect(),
@@ -933,12 +1127,18 @@ impl FileMemoryStore {
             } else {
                 vec!["lexical".to_string(), "policy".to_string()]
             };
-            if scored.iter().any(|(hit, _)| hit.breakdown.semantic > 0.0)
-                && !selected_channels
-                    .iter()
-                    .any(|channel| channel == "semantic")
-            {
-                selected_channels.push("semantic".to_string());
+            for channel in ["semantic", "metadata", "episodic", "salience", "curation"] {
+                let present = planned.iter().any(|candidate| match channel {
+                    "semantic" => candidate.hit.breakdown.semantic > 0.0,
+                    "metadata" => candidate.hit.breakdown.metadata > 0.0,
+                    "episodic" => candidate.hit.breakdown.episodic > 0.0,
+                    "salience" => candidate.hit.breakdown.salience > 0.0,
+                    "curation" => candidate.hit.breakdown.curation > 0.0,
+                    _ => false,
+                });
+                if present && !selected_channels.iter().any(|existing| existing == channel) {
+                    selected_channels.push(channel.to_string());
+                }
             }
             let mut policy_notes = vec![if query.query_text.trim().is_empty() {
                 "recent_scope_scan".to_string()
@@ -946,14 +1146,24 @@ impl FileMemoryStore {
                 "initial_file_backend_scoring".to_string()
             }];
             policy_notes.push(scorer.profile_note().to_string());
+            policy_notes.push(scorer.policy_profile_note().to_string());
+            policy_notes.push(Self::planning_profile_note(planning_profile).to_string());
             if let Some(note) = scorer.embedding_note() {
                 policy_notes.push(note.to_string());
+            }
+            if query.filters.episode_id.is_some() {
+                policy_notes.push("episode_filter_applied".to_string());
+            }
+            if query.filters.unresolved_only {
+                policy_notes.push("unresolved_only_filter_applied".to_string());
             }
             RecallExplanation {
                 selected_channels,
                 policy_notes,
                 trace_id: Some(trace_id.to_string()),
                 planning_trace,
+                planning_profile: Some(planning_profile),
+                policy_profile: Some(scorer.policy_profile()),
                 scorer_kind: Some(scorer.scorer_kind()),
                 scoring_profile: Some(scorer.scoring_profile()),
             }
@@ -1007,6 +1217,7 @@ impl FileMemoryStore {
             if should_archive_by_age && stored.record.quality_state != MemoryQualityState::Archived
             {
                 stored.record.quality_state = MemoryQualityState::Archived;
+                stored.record.historical_state = MemoryHistoricalState::Historical;
                 stored.record.updated_at_unix_ms = now_unix_ms;
                 self.persist_record(stored)?;
             }
@@ -1043,6 +1254,7 @@ impl FileMemoryStore {
                 let archive_count = active.len() - retention.max_records_per_namespace;
                 for stored in active.iter_mut().take(archive_count) {
                     stored.record.quality_state = MemoryQualityState::Archived;
+                    stored.record.historical_state = MemoryHistoricalState::Historical;
                     stored.record.updated_at_unix_ms = now_unix_ms;
                     self.persist_record(stored)?;
                 }
@@ -1151,55 +1363,82 @@ impl MemoryStore for FileMemoryStore {
 
     async fn recall(&self, query: RecallQuery) -> Result<RecallResult> {
         let empty_query = query.query_text.trim().is_empty();
-        let scorer = self.scorer();
-        let mut scored = self
+        let planner = RecallPlanner::from_engine_config(&self.config.engine_config);
+        let scorer = planner.scorer();
+        let planning_profile = planner.effective_profile(&query);
+        let records = self
             .iterate_records()?
             .into_iter()
             .filter(|stored| Self::record_passes_filters(&stored.record, &query))
-            .filter_map(|stored| {
-                scorer
-                    .score(&stored.record, &query)
-                    .map(|candidate| (candidate.hit, candidate.matched_terms))
-            })
+            .map(|stored| stored.record)
             .collect::<Vec<_>>();
-        if empty_query {
-            scored.sort_by(|left, right| {
-                right
-                    .0
-                    .record
-                    .updated_at_unix_ms
-                    .cmp(&left.0.record.updated_at_unix_ms)
-                    .then_with(|| {
-                        right
-                            .0
-                            .record
-                            .importance_score
-                            .total_cmp(&left.0.record.importance_score)
-                    })
-                    .then_with(|| left.0.record.id.cmp(&right.0.record.id))
-            });
-        } else {
-            scored.sort_by(|left, right| {
-                right
-                    .0
-                    .breakdown
-                    .total
-                    .total_cmp(&left.0.breakdown.total)
-                    .then_with(|| left.0.record.id.cmp(&right.0.record.id))
-            });
+        let mut scored = planner.plan(&records, &query);
+        match query.filters.temporal_order {
+            RecallTemporalOrder::Relevance if empty_query => {
+                scored.sort_by(|left, right| {
+                    Self::record_temporal_anchor(&right.hit.record)
+                        .cmp(&Self::record_temporal_anchor(&left.hit.record))
+                        .then_with(|| {
+                            right
+                                .hit
+                                .record
+                                .importance_score
+                                .total_cmp(&left.hit.record.importance_score)
+                        })
+                        .then_with(|| left.hit.record.id.cmp(&right.hit.record.id))
+                });
+            }
+            RecallTemporalOrder::Relevance => {
+                scored.sort_by(|left, right| {
+                    right
+                        .hit
+                        .breakdown
+                        .total
+                        .total_cmp(&left.hit.breakdown.total)
+                        .then_with(|| left.hit.record.id.cmp(&right.hit.record.id))
+                });
+            }
+            RecallTemporalOrder::ChronologicalAsc => {
+                scored.sort_by(|left, right| {
+                    Self::record_temporal_anchor(&left.hit.record)
+                        .cmp(&Self::record_temporal_anchor(&right.hit.record))
+                        .then_with(|| {
+                            right
+                                .hit
+                                .breakdown
+                                .total
+                                .total_cmp(&left.hit.breakdown.total)
+                        })
+                        .then_with(|| left.hit.record.id.cmp(&right.hit.record.id))
+                });
+            }
+            RecallTemporalOrder::ChronologicalDesc => {
+                scored.sort_by(|left, right| {
+                    Self::record_temporal_anchor(&right.hit.record)
+                        .cmp(&Self::record_temporal_anchor(&left.hit.record))
+                        .then_with(|| {
+                            right
+                                .hit
+                                .breakdown
+                                .total
+                                .total_cmp(&left.hit.breakdown.total)
+                        })
+                        .then_with(|| left.hit.record.id.cmp(&right.hit.record.id))
+                });
+            }
         }
 
         let examined = scored.len();
         let mut selected_ids = Vec::with_capacity(query.max_items);
         let mut remaining_budget = query.token_budget.unwrap_or(usize::MAX);
-        for (hit, _) in &scored {
+        for candidate in &scored {
             if selected_ids.len() >= query.max_items {
                 break;
             }
-            let estimated_tokens = Self::approximate_tokens(&hit.record);
+            let estimated_tokens = Self::approximate_tokens(&candidate.hit.record);
             if selected_ids.is_empty() || estimated_tokens <= remaining_budget {
                 remaining_budget = remaining_budget.saturating_sub(estimated_tokens);
-                selected_ids.push(hit.record.id.clone());
+                selected_ids.push(candidate.hit.record.id.clone());
             }
         }
 
@@ -1207,8 +1446,14 @@ impl MemoryStore for FileMemoryStore {
             "recall:{}:{}:{}",
             query.scope.tenant_id, query.scope.namespace, examined
         );
-        let (hits, explanation) =
-            self.build_explanations(scorer, &query, &scored, &selected_ids, &trace_id);
+        let (hits, explanation) = self.build_explanations(
+            scorer,
+            planning_profile,
+            &query,
+            &scored,
+            &selected_ids,
+            &trace_id,
+        );
         Ok(RecallResult {
             hits,
             total_candidates_examined: examined,
@@ -1250,6 +1495,8 @@ impl MemoryStore for FileMemoryStore {
         let mut deduplicated_records = 0u64;
         let mut archived_records = 0u64;
         let mut summarized_clusters = 0u64;
+        let mut superseded_records = 0u64;
+        let mut lineage_links_created = 0u64;
         let now_unix_ms = Self::now_unix_ms()?;
         for group in groups.values_mut() {
             if group.len() < 2 {
@@ -1283,6 +1530,7 @@ impl MemoryStore for FileMemoryStore {
                         .summarize_after_record_count
             {
                 summarized_clusters += 1;
+                lineage_links_created += group.len() as u64;
                 if !request.dry_run {
                     let summary = Self::compaction_summary_record(group, &signature, now_unix_ms);
                     self.persist_record(&summary)?;
@@ -1291,10 +1539,18 @@ impl MemoryStore for FileMemoryStore {
             for duplicate in group.iter_mut().skip(1) {
                 deduplicated_records += 1;
                 archived_records += 1;
+                superseded_records += 1;
                 if request.dry_run {
                     continue;
                 }
                 duplicate.record.quality_state = MemoryQualityState::Archived;
+                duplicate.record.historical_state = MemoryHistoricalState::Superseded;
+                duplicate.record.lineage.push(LineageLink {
+                    record_id: Self::summary_record_id(&signature),
+                    relation: LineageRelationKind::SupersededBy,
+                    confidence: 1.0,
+                });
+                lineage_links_created += 1;
                 duplicate.record.updated_at_unix_ms = Self::now_unix_ms()?;
                 self.persist_record(duplicate)?;
             }
@@ -1310,6 +1566,7 @@ impl MemoryStore for FileMemoryStore {
                 continue;
             }
             candidate.record.quality_state = MemoryQualityState::Archived;
+            candidate.record.historical_state = MemoryHistoricalState::Historical;
             candidate.record.updated_at_unix_ms = now_unix_ms;
             self.persist_record(&candidate)?;
         }
@@ -1319,6 +1576,8 @@ impl MemoryStore for FileMemoryStore {
             archived_records,
             summarized_clusters,
             pruned_graph_edges: 0,
+            superseded_records,
+            lineage_links_created,
             dry_run: request.dry_run,
         })
     }
@@ -1359,6 +1618,110 @@ impl MemoryStore for FileMemoryStore {
             record_id: request.record_id,
             tombstoned: !request.hard_delete,
             hard_deleted: request.hard_delete,
+        })
+    }
+
+    async fn archive(&self, request: ArchiveRequest) -> Result<ArchiveReceipt> {
+        self.validate_archive_request(&request)?;
+        let Some(mut stored) = self.load_record(&request.record_id)? else {
+            return Err(Error::InvalidRequest(format!(
+                "record {} was not found",
+                request.record_id
+            )));
+        };
+        Self::validate_record_scope(&stored, &request.tenant_id, &request.namespace)?;
+
+        let previous_quality_state = stored.record.quality_state;
+        let previous_historical_state = stored.record.historical_state;
+        let changed = previous_quality_state != MemoryQualityState::Archived
+            || previous_historical_state == MemoryHistoricalState::Current;
+        let historical_state = match previous_historical_state {
+            MemoryHistoricalState::Current => MemoryHistoricalState::Historical,
+            other => other,
+        };
+
+        if changed && !request.dry_run {
+            stored.record.quality_state = MemoryQualityState::Archived;
+            stored.record.historical_state = historical_state;
+            stored.record.updated_at_unix_ms = Self::now_unix_ms()?;
+            self.persist_record(&stored)?;
+        }
+
+        Ok(ArchiveReceipt {
+            record_id: request.record_id,
+            previous_quality_state,
+            previous_historical_state,
+            quality_state: MemoryQualityState::Archived,
+            historical_state,
+            changed,
+            dry_run: request.dry_run,
+        })
+    }
+
+    async fn suppress(&self, request: SuppressRequest) -> Result<SuppressReceipt> {
+        self.validate_suppress_request(&request)?;
+        let Some(mut stored) = self.load_record(&request.record_id)? else {
+            return Err(Error::InvalidRequest(format!(
+                "record {} was not found",
+                request.record_id
+            )));
+        };
+        Self::validate_record_scope(&stored, &request.tenant_id, &request.namespace)?;
+
+        let previous_quality_state = stored.record.quality_state;
+        let previous_historical_state = stored.record.historical_state;
+        let changed = previous_quality_state != MemoryQualityState::Suppressed;
+
+        if changed && !request.dry_run {
+            stored.record.quality_state = MemoryQualityState::Suppressed;
+            stored.record.updated_at_unix_ms = Self::now_unix_ms()?;
+            self.persist_record(&stored)?;
+        }
+
+        Ok(SuppressReceipt {
+            record_id: request.record_id,
+            previous_quality_state,
+            previous_historical_state,
+            quality_state: MemoryQualityState::Suppressed,
+            historical_state: previous_historical_state,
+            changed,
+            dry_run: request.dry_run,
+        })
+    }
+
+    async fn recover(&self, request: RecoverRequest) -> Result<RecoverReceipt> {
+        self.validate_recover_request(&request)?;
+        let Some(mut stored) = self.load_record(&request.record_id)? else {
+            return Err(Error::InvalidRequest(format!(
+                "record {} was not found",
+                request.record_id
+            )));
+        };
+        Self::validate_record_scope(&stored, &request.tenant_id, &request.namespace)?;
+
+        let previous_quality_state = stored.record.quality_state;
+        let previous_historical_state = stored.record.historical_state;
+        let historical_state = request
+            .historical_state
+            .unwrap_or(MemoryHistoricalState::Current);
+        let changed = previous_quality_state != request.quality_state
+            || previous_historical_state != historical_state;
+
+        if changed && !request.dry_run {
+            stored.record.quality_state = request.quality_state;
+            stored.record.historical_state = historical_state;
+            stored.record.updated_at_unix_ms = Self::now_unix_ms()?;
+            self.persist_record(&stored)?;
+        }
+
+        Ok(RecoverReceipt {
+            record_id: request.record_id,
+            previous_quality_state,
+            previous_historical_state,
+            quality_state: request.quality_state,
+            historical_state,
+            changed,
+            dry_run: request.dry_run,
         })
     }
 
@@ -1685,7 +2048,7 @@ fn nibble_to_hex(value: u8) -> char {
 }
 
 fn unhex_key(input: &str) -> Option<String> {
-    if !input.len().is_multiple_of(2) {
+    if input.len() % 2 != 0 {
         return None;
     }
 

@@ -6,13 +6,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request as HttpRequest, StatusCode};
-use mnemara_core::{EmbeddingProviderKind as CoreEmbeddingProviderKind, EngineConfig};
+use mnemara_core::{
+    EPISODE_SCHEMA_VERSION, EmbeddingProviderKind as CoreEmbeddingProviderKind, EngineConfig,
+};
 use mnemara_protocol::v1::memory_service_server::MemoryService;
 use mnemara_protocol::v1::{
+    AffectiveAnnotation as ProtoAffectiveAnnotation, ArchiveRequest as ProtoArchiveRequest,
     ArtifactPointer, BatchUpsertMemoryRecordsRequest, CompactRequest, DeleteRequest,
-    EmbeddingProviderKind, IntegrityCheckRequest, MemoryRecord, MemoryScope, RecallFilters,
-    RecallRequest, RecallScorerKind, RecallScoringProfile, RepairRequest, SnapshotRequest,
-    StoreStatsRequest, UpsertMemoryRecordRequest,
+    EmbeddingProviderKind, EpisodeContext as ProtoEpisodeContext,
+    EpisodeSalience as ProtoEpisodeSalience, IntegrityCheckRequest,
+    LineageLink as ProtoLineageLink, MemoryRecord, MemoryScope, RecallFilters, RecallPolicyProfile,
+    RecallRequest, RecallScorerKind, RecallScoringProfile, RecoverRequest as ProtoRecoverRequest,
+    RepairRequest, SnapshotRequest, StoreStatsRequest, SuppressRequest as ProtoSuppressRequest,
+    UpsertMemoryRecordRequest,
 };
 use mnemara_server::{
     AuthConfig, AuthPermission, GrpcMemoryService, ServerLimits, ServerMetrics, TokenPolicy,
@@ -85,6 +91,9 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
                     media_type: Some("text/markdown".to_string()),
                     checksum: Some("abc123".to_string()),
                 }),
+                episode: None,
+                historical_state: None,
+                lineage: vec![],
             }),
             idempotency_key: Some("record-1".to_string()),
         }))
@@ -111,6 +120,7 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
                 trust_levels: vec!["verified".to_string()],
                 states: vec![],
                 include_archived: false,
+                ..Default::default()
             }),
         }))
         .await
@@ -187,6 +197,326 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn grpc_round_trip_preserves_present_episodic_fields() {
+    let mut config = EngineConfig::default();
+    config.recall_planning_profile = mnemara_core::RecallPlanningProfile::ContinuityAware;
+    let store = Arc::new(
+        SledMemoryStore::open(
+            SledStoreConfig::new(temp_store_dir("grpc-episodic")).with_engine_config(config),
+        )
+        .unwrap(),
+    );
+    let service = GrpcMemoryService::new(Arc::clone(&store));
+
+    service
+        .upsert_memory_record(Request::new(UpsertMemoryRecordRequest {
+            record: Some(MemoryRecord {
+                id: "episodic-record-1".to_string(),
+                scope: Some(test_scope()),
+                kind: "task".to_string(),
+                content: "Open follow-up: verify reconnect backoff rollout status".to_string(),
+                summary: Some("Reconnect rollout follow-up".to_string()),
+                metadata: HashMap::new(),
+                quality_state: "active".to_string(),
+                created_at_unix_ms: 10,
+                updated_at_unix_ms: 20,
+                expires_at_unix_ms: None,
+                importance_score: 0.9,
+                source_id: Some("episodic-source-1".to_string()),
+                artifact: None,
+                episode: Some(ProtoEpisodeContext {
+                    schema_version: EPISODE_SCHEMA_VERSION,
+                    episode_id: "storm-episode".to_string(),
+                    summary: Some("Storm remediation episode".to_string()),
+                    continuity_state: "open".to_string(),
+                    actor_ids: vec!["ava".to_string(), "ops-bot".to_string()],
+                    goal: Some("close the reconnect storm follow-up list".to_string()),
+                    outcome: None,
+                    started_at_unix_ms: Some(1),
+                    ended_at_unix_ms: None,
+                    last_active_unix_ms: Some(20),
+                    recurrence_key: Some("storm-followup-weekly".to_string()),
+                    recurrence_interval_ms: Some(7 * 24 * 60 * 60 * 1000),
+                    boundary_label: Some("incident-handoff".to_string()),
+                    previous_record_id: Some("incident-root".to_string()),
+                    next_record_id: None,
+                    causal_record_ids: vec!["incident-root".to_string()],
+                    related_record_ids: vec!["incident-postmortem".to_string()],
+                    linked_artifact_uris: vec!["file:///tmp/storm.md".to_string()],
+                    salience: Some(ProtoEpisodeSalience {
+                        reuse_count: 4,
+                        novelty_score: 0.3,
+                        goal_relevance: 0.95,
+                        unresolved_weight: 0.9,
+                    }),
+                    affective: Some(ProtoAffectiveAnnotation {
+                        tone: Some("urgent".to_string()),
+                        sentiment: Some("concerned".to_string()),
+                        urgency: 0.8,
+                        confidence: 0.7,
+                        tension: 0.6,
+                        provenance: "derived".to_string(),
+                    }),
+                }),
+                historical_state: Some("current".to_string()),
+                lineage: vec![ProtoLineageLink {
+                    record_id: "incident-root".to_string(),
+                    relation: "derived_from".to_string(),
+                    confidence: 0.85,
+                }],
+            }),
+            idempotency_key: Some("episodic-record-1".to_string()),
+        }))
+        .await
+        .unwrap();
+
+    let recall_reply = service
+        .recall(Request::new(RecallRequest {
+            scope: Some(test_scope()),
+            query_text: "reconnect rollout follow-up storm".to_string(),
+            max_items: 3,
+            token_budget: None,
+            include_explanation: true,
+            filters: None,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(recall_reply.hits.len(), 1);
+    let record = recall_reply.hits[0].record.as_ref().unwrap();
+    let episode = record.episode.as_ref().unwrap();
+    assert_eq!(record.historical_state.as_deref(), Some("current"));
+    assert_eq!(record.lineage.len(), 1);
+    assert_eq!(episode.episode_id, "storm-episode");
+    assert_eq!(episode.schema_version, EPISODE_SCHEMA_VERSION);
+    assert_eq!(episode.continuity_state, "open");
+    assert_eq!(
+        episode.recurrence_key.as_deref(),
+        Some("storm-followup-weekly")
+    );
+    assert_eq!(
+        episode.recurrence_interval_ms,
+        Some(7 * 24 * 60 * 60 * 1000)
+    );
+    assert_eq!(episode.boundary_label.as_deref(), Some("incident-handoff"));
+    assert_eq!(
+        episode
+            .affective
+            .as_ref()
+            .map(|value| value.provenance.as_str()),
+        Some("derived")
+    );
+    assert_eq!(
+        recall_reply
+            .explanation
+            .as_ref()
+            .map(|value| value.planning_profile.as_deref()),
+        Some(Some("continuity_aware"))
+    );
+    assert_eq!(
+        recall_reply
+            .explanation
+            .as_ref()
+            .map(|value| value.policy_profile),
+        Some(RecallPolicyProfile::General as i32)
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn grpc_archive_suppress_and_recover_round_trip() {
+    let store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("grpc-lifecycle"))).unwrap(),
+    );
+    let service = GrpcMemoryService::new(Arc::clone(&store));
+
+    service
+        .upsert_memory_record(Request::new(UpsertMemoryRecordRequest {
+            record: Some(MemoryRecord {
+                id: "lifecycle-record-1".to_string(),
+                scope: Some(test_scope()),
+                kind: "fact".to_string(),
+                content: "Lifecycle record for archive suppress recover tests".to_string(),
+                summary: Some("Lifecycle control fixture".to_string()),
+                metadata: HashMap::new(),
+                quality_state: "active".to_string(),
+                created_at_unix_ms: 1,
+                updated_at_unix_ms: 1,
+                expires_at_unix_ms: None,
+                importance_score: 0.7,
+                source_id: None,
+                artifact: None,
+                episode: None,
+                historical_state: Some("current".to_string()),
+                lineage: vec![],
+            }),
+            idempotency_key: Some("lifecycle-record-1".to_string()),
+        }))
+        .await
+        .unwrap();
+
+    let archive = service
+        .archive(Request::new(ProtoArchiveRequest {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            record_id: "lifecycle-record-1".to_string(),
+            dry_run: false,
+            audit_reason: "test archive".to_string(),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(archive.quality_state, "archived");
+    assert_eq!(archive.historical_state, "historical");
+    assert!(archive.changed);
+
+    let archived_recall = service
+        .recall(Request::new(RecallRequest {
+            scope: Some(test_scope()),
+            query_text: "Lifecycle control fixture".to_string(),
+            max_items: 3,
+            token_budget: None,
+            include_explanation: false,
+            filters: Some(RecallFilters::default()),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(archived_recall.hits.is_empty());
+
+    let recovered = service
+        .recover(Request::new(ProtoRecoverRequest {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            record_id: "lifecycle-record-1".to_string(),
+            dry_run: false,
+            audit_reason: "test recover".to_string(),
+            quality_state: "active".to_string(),
+            historical_state: Some("current".to_string()),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(recovered.quality_state, "active");
+    assert_eq!(recovered.historical_state, "current");
+    assert!(recovered.changed);
+
+    let suppress = service
+        .suppress(Request::new(ProtoSuppressRequest {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            record_id: "lifecycle-record-1".to_string(),
+            dry_run: false,
+            audit_reason: "test suppress".to_string(),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(suppress.quality_state, "suppressed");
+    assert!(suppress.changed);
+
+    let suppressed_recall = service
+        .recall(Request::new(RecallRequest {
+            scope: Some(test_scope()),
+            query_text: "Lifecycle control fixture".to_string(),
+            max_items: 3,
+            token_budget: None,
+            include_explanation: false,
+            filters: Some(RecallFilters::default()),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(suppressed_recall.hits.is_empty());
+
+    let recover_verified = service
+        .recover(Request::new(ProtoRecoverRequest {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            record_id: "lifecycle-record-1".to_string(),
+            dry_run: false,
+            audit_reason: "test recover verified".to_string(),
+            quality_state: "verified".to_string(),
+            historical_state: Some("current".to_string()),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(recover_verified.quality_state, "verified");
+
+    let visible_again = service
+        .recall(Request::new(RecallRequest {
+            scope: Some(test_scope()),
+            query_text: "Lifecycle control fixture".to_string(),
+            max_items: 3,
+            token_budget: None,
+            include_explanation: false,
+            filters: Some(RecallFilters::default()),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(visible_again.hits.len(), 1);
+    assert_eq!(
+        visible_again.hits[0]
+            .record
+            .as_ref()
+            .map(|record| record.quality_state.as_str()),
+        Some("verified")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn grpc_lifecycle_controls_reject_wrong_tenant() {
+    let store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir(
+            "grpc-lifecycle-tenant",
+        )))
+        .unwrap(),
+    );
+    let service = GrpcMemoryService::new(Arc::clone(&store));
+
+    service
+        .upsert_memory_record(Request::new(UpsertMemoryRecordRequest {
+            record: Some(MemoryRecord {
+                id: "tenant-boundary-record".to_string(),
+                scope: Some(test_scope()),
+                kind: "fact".to_string(),
+                content: "Tenant boundary fixture".to_string(),
+                summary: Some("Tenant boundary fixture".to_string()),
+                metadata: HashMap::new(),
+                quality_state: "active".to_string(),
+                created_at_unix_ms: 1,
+                updated_at_unix_ms: 1,
+                expires_at_unix_ms: None,
+                importance_score: 0.5,
+                source_id: None,
+                artifact: None,
+                episode: None,
+                historical_state: Some("current".to_string()),
+                lineage: vec![],
+            }),
+            idempotency_key: Some("tenant-boundary-record".to_string()),
+        }))
+        .await
+        .unwrap();
+
+    let error = service
+        .archive(Request::new(ProtoArchiveRequest {
+            tenant_id: "other-tenant".to_string(),
+            namespace: "conversation".to_string(),
+            record_id: "tenant-boundary-record".to_string(),
+            dry_run: false,
+            audit_reason: "wrong tenant".to_string(),
+        }))
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), Code::InvalidArgument);
+    assert!(error.message().contains("does not belong to tenant"));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn batch_upsert_and_delete_round_trip() {
     let store = Arc::new(
         SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("grpc-batch"))).unwrap(),
@@ -211,6 +541,9 @@ async fn batch_upsert_and_delete_round_trip() {
                         importance_score: 0.8,
                         source_id: Some("fact-1".to_string()),
                         artifact: None,
+                        episode: None,
+                        historical_state: None,
+                        lineage: vec![],
                     }),
                     idempotency_key: Some("record-a".to_string()),
                 },
@@ -229,6 +562,9 @@ async fn batch_upsert_and_delete_round_trip() {
                         importance_score: 0.7,
                         source_id: None,
                         artifact: None,
+                        episode: None,
+                        historical_state: None,
+                        lineage: vec![],
                     }),
                     idempotency_key: Some("record-b".to_string()),
                 },
@@ -271,6 +607,7 @@ async fn batch_upsert_and_delete_round_trip() {
                 trust_levels: vec![],
                 states: vec![],
                 include_archived: false,
+                ..Default::default()
             }),
         }))
         .await
@@ -305,6 +642,9 @@ async fn stats_integrity_and_repair_round_trip() {
                     importance_score: 0.6,
                     source_id: None,
                     artifact: None,
+                    episode: None,
+                    historical_state: None,
+                    lineage: vec![],
                 }),
                 idempotency_key: Some("repair-key".to_string()),
             }))
@@ -402,6 +742,9 @@ async fn http_health_snapshot_and_compact_routes_round_trip() {
                 importance_score: 0.5,
                 source_id: None,
                 artifact: None,
+                episode: None,
+                historical_state: None,
+                lineage: vec![],
             }),
             idempotency_key: Some("record-http".to_string()),
         }))
@@ -470,6 +813,7 @@ async fn http_health_snapshot_and_compact_routes_round_trip() {
     assert_eq!(compact.status(), StatusCode::OK);
 
     let delete = app
+        .clone()
         .oneshot(
             HttpRequest::builder()
                 .method("POST")
@@ -483,6 +827,54 @@ async fn http_health_snapshot_and_compact_routes_round_trip() {
         .await
         .unwrap();
     assert_eq!(delete.status(), StatusCode::OK);
+
+    let archive = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/archive")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenant_id":"default","namespace":"conversation","record_id":"record-http","dry_run":true,"audit_reason":"test"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(archive.status(), StatusCode::OK);
+
+    let suppress = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/suppress")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenant_id":"default","namespace":"conversation","record_id":"record-http","dry_run":true,"audit_reason":"test"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(suppress.status(), StatusCode::OK);
+
+    let recover = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/recover")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenant_id":"default","namespace":"conversation","record_id":"record-http","dry_run":true,"audit_reason":"test","quality_state":"Active","historical_state":"Current"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(recover.status(), StatusCode::OK);
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -866,6 +1258,9 @@ async fn grpc_recall_exposes_semantic_channel_when_embeddings_are_enabled() {
                 importance_score: 0.3,
                 source_id: None,
                 artifact: None,
+                episode: None,
+                historical_state: None,
+                lineage: vec![],
             }),
             idempotency_key: Some("semantic-grpc-record".to_string()),
         }))
@@ -898,6 +1293,7 @@ async fn grpc_recall_exposes_semantic_channel_when_embeddings_are_enabled() {
                 trust_levels: vec![],
                 states: vec![],
                 include_archived: false,
+                ..Default::default()
             }),
         }))
         .await
@@ -1001,6 +1397,9 @@ async fn grpc_limits_reject_oversized_recall_and_batch_requests() {
                         importance_score: 0.1,
                         source_id: None,
                         artifact: None,
+                        episode: None,
+                        historical_state: None,
+                        lineage: vec![],
                     }),
                     idempotency_key: Some("record-1".to_string()),
                 },
@@ -1019,6 +1418,9 @@ async fn grpc_limits_reject_oversized_recall_and_batch_requests() {
                         importance_score: 0.1,
                         source_id: None,
                         artifact: None,
+                        episode: None,
+                        historical_state: None,
+                        lineage: vec![],
                     }),
                     idempotency_key: Some("record-2".to_string()),
                 },
@@ -1086,6 +1488,9 @@ async fn metrics_endpoint_reports_http_and_grpc_activity() {
                 importance_score: 0.5,
                 source_id: None,
                 artifact: None,
+                episode: None,
+                historical_state: None,
+                lineage: vec![],
             }),
             idempotency_key: Some("metrics-record".to_string()),
         }))
@@ -1146,6 +1551,9 @@ async fn recall_reply_exposes_planning_trace_payload() {
                         importance_score: 0.8,
                         source_id: None,
                         artifact: None,
+                        episode: None,
+                        historical_state: None,
+                        lineage: vec![],
                     }),
                     idempotency_key: Some("trace-a".to_string()),
                 },
@@ -1165,6 +1573,9 @@ async fn recall_reply_exposes_planning_trace_payload() {
                         importance_score: 0.7,
                         source_id: None,
                         artifact: None,
+                        episode: None,
+                        historical_state: None,
+                        lineage: vec![],
                     }),
                     idempotency_key: Some("trace-b".to_string()),
                 },
@@ -1191,12 +1602,25 @@ async fn recall_reply_exposes_planning_trace_payload() {
         .planning_trace
         .expect("expected planning trace payload");
     assert!(planning_trace.token_budget_applied);
+    assert_eq!(explanation.planning_profile.as_deref(), Some("fast_path"));
     assert!(planning_trace.candidates.len() >= 2);
     assert!(
         planning_trace
             .candidates
             .iter()
             .any(|candidate| candidate.selected)
+    );
+    assert!(
+        planning_trace
+            .candidates
+            .iter()
+            .all(|candidate| !candidate.candidate_sources.is_empty())
+    );
+    assert!(
+        planning_trace
+            .candidates
+            .iter()
+            .all(|candidate| candidate.planner_stage.is_some())
     );
 }
 
@@ -1283,6 +1707,9 @@ async fn role_based_auth_policies_enforce_read_write_admin_and_metrics_permissio
             importance_score: 0.5,
             source_id: None,
             artifact: None,
+            episode: None,
+            historical_state: None,
+            lineage: vec![],
         }),
         idempotency_key: Some("role-record".to_string()),
     });
@@ -1331,6 +1758,9 @@ async fn role_based_auth_policies_enforce_read_write_admin_and_metrics_permissio
                     importance_score: 0.4,
                     source_id: None,
                     artifact: None,
+                    episode: None,
+                    historical_state: None,
+                    lineage: vec![],
                 }),
                 idempotency_key: Some("role-record-2".to_string()),
             });

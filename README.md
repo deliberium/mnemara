@@ -24,9 +24,12 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - HTTP/JSON memory, health, and admin endpoints for daemon operations
 - reference JavaScript HTTP SDK for non-Rust consumers
 - explicit memory scope, trust, and quality state concepts
+- optional episodic context with continuity state, salience, and causal links
+- explicit recurrence, duration, and boundary cues for episodic timelines
 - retry-safe idempotent writes, batch upserts, and tombstone or hard delete flows
 - explainable recall filters plus duplicate-aware compaction, stats, integrity, and repair reporting
-- compaction rollup summaries and optional cold-tier archival for stale low-importance records
+- continuity-aware retrieval planning with bounded expansion, provenance-aware ranking overlays, and planner traces
+- compaction rollup summaries, lineage-preserving supersession, and optional cold-tier archival for stale low-importance records
 - configurable recall scorer kinds and scoring profiles across the embedded and daemon-backed stores
 - a public semantic embedding seam with a deterministic local reference embedder for integration tests and offline deployments
 - opt-in retention enforcement for TTL, archival windows, and namespace caps
@@ -45,6 +48,8 @@ The current release includes:
 - native Rust embedding through direct crate dependencies
 - a local gRPC daemon backed by the sled store
 - typed memory records, recall filters, explanations, and planning traces
+- episodic continuity fields, continuity-aware planner profiles, and lifecycle-aware historical recall
+- recurrence and duration-aware episodic timeline cues with additive boundary labeling
 - compaction, deletion, snapshot, stats, integrity-check, repair, export, and import operations
 - published evaluation assets covering ranking quality, backend parity, and portability scenarios
 
@@ -62,6 +67,7 @@ Embedded library usage and daemon-mode deployment are documented here:
 - [Changelog](https://github.com/deliberium/mnemara/blob/master/CHANGELOG.md)
 - [Benchmark Methodology](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-methodology.md)
 - [Benchmark Results](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-results.md)
+- [Release Validation](https://github.com/deliberium/mnemara/blob/master/docs/release-validation.md)
 - [Ranking Defaults ADR](https://github.com/deliberium/mnemara/blob/master/docs/decision-records/0001-ranking-defaults.md)
 - [Security Policy](https://github.com/deliberium/mnemara/blob/master/SECURITY.md)
 - [Contributors](https://github.com/deliberium/mnemara/blob/master/CONTRIBUTORS.md)
@@ -194,12 +200,13 @@ Available facade features:
 - local-first by default
 - explainable retrieval over opaque ranking
 - explicit memory classes rather than transcript blobs only
+- additive episodic and lifecycle schema evolution
 - stable namespace and tenant isolation
 - support for both embedded and service-based deployment modes
 
 ## Project Status
 
-Mnemara now ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
+Mnemara now ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, episodic continuity fields, continuity-aware planner traces, lifecycle-aware historical recall, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
 
 ## Open Source and Contributions
 

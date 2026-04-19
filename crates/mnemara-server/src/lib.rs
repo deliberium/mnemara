@@ -18,38 +18,49 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use mnemara_core::{
+    AffectiveAnnotation, AffectiveAnnotationProvenance, ArchiveReceipt, ArchiveRequest,
     ArtifactPointer, BatchUpsertRequest, CompactionReport, CompactionRequest, DeleteReceipt,
-    DeleteRequest, EmbeddingProviderKind, EngineTuningInfo, ExportRequest, ImportMode,
-    ImportReport, ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, MaintenanceStats,
-    MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryStore, MemoryTrustLevel,
-    NamespaceStats, OperationTrace, OperationTraceSummary, PortableRecord, PortableStorePackage,
-    RecallExplanation, RecallFilters, RecallPlanningTrace, RecallQuery, RecallResult,
-    RecallScorerKind, RecallScoringProfile, RecallTraceCandidate, RepairReport, RepairRequest,
-    SnapshotManifest, StoreStatsReport, StoreStatsRequest, TraceListRequest, TraceOperationKind,
-    TraceStatus, UpsertReceipt, UpsertRequest,
+    DeleteRequest, EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineTuningInfo, EpisodeContext,
+    EpisodeContinuityState, EpisodeSalience, ExportRequest, ImportMode, ImportReport,
+    ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, LineageLink, LineageRelationKind,
+    MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind,
+    MemoryScope, MemoryStore, MemoryTrustLevel, NamespaceStats, OperationTrace,
+    OperationTraceSummary, PortableRecord, PortableStorePackage, RecallCandidateSource,
+    RecallExplanation, RecallFilters, RecallHistoricalMode, RecallPlannerStage,
+    RecallPlanningProfile, RecallPlanningTrace, RecallPolicyProfile, RecallQuery, RecallResult,
+    RecallScorerKind, RecallScoringProfile, RecallTemporalOrder, RecallTraceCandidate,
+    RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, SnapshotManifest,
+    StoreStatsReport, StoreStatsRequest, SuppressReceipt, SuppressRequest, TraceListRequest,
+    TraceOperationKind, TraceStatus, UpsertReceipt, UpsertRequest,
 };
 use mnemara_protocol::v1::memory_service_server::{MemoryService, MemoryServiceServer};
 use mnemara_protocol::v1::{
-    ArtifactPointer as ProtoArtifactPointer, BatchUpsertMemoryRecordsReply,
-    BatchUpsertMemoryRecordsRequest, CompactReply, CompactRequest as ProtoCompactRequest,
-    DeleteReply, DeleteRequest as ProtoDeleteRequest,
+    AffectiveAnnotation as ProtoAffectiveAnnotation, ArchiveReply,
+    ArchiveRequest as ProtoArchiveRequest, ArtifactPointer as ProtoArtifactPointer,
+    BatchUpsertMemoryRecordsReply, BatchUpsertMemoryRecordsRequest, CompactReply,
+    CompactRequest as ProtoCompactRequest, DeleteReply, DeleteRequest as ProtoDeleteRequest,
     EmbeddingProviderKind as ProtoEmbeddingProviderKind, EngineTuningInfo as ProtoEngineTuningInfo,
+    EpisodeContext as ProtoEpisodeContext, EpisodeSalience as ProtoEpisodeSalience,
     ExportReply as ProtoExportReply, ExportRequest as ProtoExportRequest,
     GetTraceRequest as ProtoGetTraceRequest, ImportMode as ProtoImportMode,
     ImportReply as ProtoImportReply, ImportRequest as ProtoImportRequest,
     IntegrityCheckReply as ProtoIntegrityCheckReply,
-    IntegrityCheckRequest as ProtoIntegrityCheckRequest, ListTracesReply as ProtoListTracesReply,
-    ListTracesRequest as ProtoListTracesRequest, MaintenanceStats as ProtoMaintenanceStats,
-    MemoryRecord as ProtoMemoryRecord, MemoryScope as ProtoMemoryScope,
-    NamespaceStats as ProtoNamespaceStats, OperationTrace as ProtoOperationTrace,
-    OperationTraceSummary as ProtoOperationTraceSummary, PortableRecord as ProtoPortableRecord,
-    RecallExplanation as ProtoRecallExplanation, RecallFilters as ProtoRecallFilters,
-    RecallHit as ProtoRecallHit, RecallPlanningTrace as ProtoRecallPlanningTrace, RecallReply,
+    IntegrityCheckRequest as ProtoIntegrityCheckRequest, LineageLink as ProtoLineageLink,
+    ListTracesReply as ProtoListTracesReply, ListTracesRequest as ProtoListTracesRequest,
+    MaintenanceStats as ProtoMaintenanceStats, MemoryRecord as ProtoMemoryRecord,
+    MemoryScope as ProtoMemoryScope, NamespaceStats as ProtoNamespaceStats,
+    OperationTrace as ProtoOperationTrace, OperationTraceSummary as ProtoOperationTraceSummary,
+    PortableRecord as ProtoPortableRecord, RecallExplanation as ProtoRecallExplanation,
+    RecallFilters as ProtoRecallFilters, RecallHit as ProtoRecallHit,
+    RecallPlanningTrace as ProtoRecallPlanningTrace,
+    RecallPolicyProfile as ProtoRecallPolicyProfile, RecallReply,
     RecallRequest as ProtoRecallRequest, RecallScoreBreakdown as ProtoRecallScoreBreakdown,
     RecallScorerKind as ProtoRecallScorerKind, RecallScoringProfile as ProtoRecallScoringProfile,
-    RecallTraceCandidate as ProtoRecallTraceCandidate, RepairReply as ProtoRepairReply,
+    RecallTraceCandidate as ProtoRecallTraceCandidate, RecoverReply,
+    RecoverRequest as ProtoRecoverRequest, RepairReply as ProtoRepairReply,
     RepairRequest as ProtoRepairRequest, SnapshotReply, SnapshotRequest,
     StoreStatsReply as ProtoStoreStatsReply, StoreStatsRequest as ProtoStoreStatsRequest,
+    SuppressReply, SuppressRequest as ProtoSuppressRequest,
     TraceOperationKind as ProtoTraceOperationKind, TraceStatus as ProtoTraceStatus,
     UpsertMemoryRecordReply, UpsertMemoryRecordRequest as ProtoUpsertMemoryRecordRequest,
 };
@@ -124,6 +135,9 @@ pub struct ServerMetrics {
     grpc_compact: MethodMetrics,
     grpc_snapshot: MethodMetrics,
     grpc_delete: MethodMetrics,
+    grpc_archive: MethodMetrics,
+    grpc_suppress: MethodMetrics,
+    grpc_recover: MethodMetrics,
     grpc_stats: MethodMetrics,
     grpc_integrity: MethodMetrics,
     grpc_repair: MethodMetrics,
@@ -132,6 +146,9 @@ pub struct ServerMetrics {
     http_snapshot: AtomicU64,
     http_compact: AtomicU64,
     http_delete: AtomicU64,
+    http_archive: AtomicU64,
+    http_suppress: AtomicU64,
+    http_recover: AtomicU64,
     http_metrics: AtomicU64,
     http_traces: AtomicU64,
     http_runtime: AtomicU64,
@@ -242,6 +259,36 @@ impl ServerMetrics {
         );
         append_counter(
             &mut output,
+            "mnemara_grpc_archive_requests_started_total",
+            self.grpc_archive.started.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_archive_requests_ok_total",
+            self.grpc_archive.ok.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_suppress_requests_started_total",
+            self.grpc_suppress.started.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_suppress_requests_ok_total",
+            self.grpc_suppress.ok.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_recover_requests_started_total",
+            self.grpc_recover.started.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_recover_requests_ok_total",
+            self.grpc_recover.ok.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
             "mnemara_http_healthz_requests_total",
             self.http_healthz.load(Ordering::Relaxed),
         );
@@ -264,6 +311,21 @@ impl ServerMetrics {
             &mut output,
             "mnemara_http_delete_requests_total",
             self.http_delete.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_http_archive_requests_total",
+            self.http_archive.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_http_suppress_requests_total",
+            self.http_suppress.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_http_recover_requests_total",
+            self.http_recover.load(Ordering::Relaxed),
         );
         append_counter(
             &mut output,
@@ -423,6 +485,35 @@ pub struct DeleteHttpRequest {
     pub record_id: String,
     pub hard_delete: bool,
     pub audit_reason: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ArchiveHttpRequest {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: String,
+    pub dry_run: bool,
+    pub audit_reason: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SuppressHttpRequest {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: String,
+    pub dry_run: bool,
+    pub audit_reason: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct RecoverHttpRequest {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: String,
+    pub dry_run: bool,
+    pub audit_reason: String,
+    pub quality_state: MemoryQualityState,
+    pub historical_state: Option<MemoryHistoricalState>,
 }
 
 pub struct GrpcMemoryService<S> {
@@ -638,6 +729,9 @@ where
     let repair_store = Arc::clone(&store);
     let compact_store = Arc::clone(&store);
     let delete_store = Arc::clone(&store);
+    let archive_store = Arc::clone(&store);
+    let suppress_store = Arc::clone(&store);
+    let recover_store = Arc::clone(&store);
     let export_store = Arc::clone(&store);
     let import_store = Arc::clone(&store);
     let ready_runtime = runtime.clone();
@@ -650,6 +744,9 @@ where
     let repair_runtime = runtime.clone();
     let compact_runtime = runtime.clone();
     let delete_runtime = runtime.clone();
+    let archive_runtime = runtime.clone();
+    let suppress_runtime = runtime.clone();
+    let recover_runtime = runtime.clone();
     let traces_runtime = runtime.clone();
     let trace_runtime = runtime.clone();
     let export_runtime = runtime.clone();
@@ -763,6 +860,36 @@ where
                     let store = Arc::clone(&delete_store);
                     let runtime = delete_runtime.clone();
                     async move { delete_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
+            "/admin/archive",
+            post(
+                move |headers: HeaderMap, Json(request): Json<ArchiveHttpRequest>| {
+                    let store = Arc::clone(&archive_store);
+                    let runtime = archive_runtime.clone();
+                    async move { archive_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
+            "/admin/suppress",
+            post(
+                move |headers: HeaderMap, Json(request): Json<SuppressHttpRequest>| {
+                    let store = Arc::clone(&suppress_store);
+                    let runtime = suppress_runtime.clone();
+                    async move { suppress_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
+            "/admin/recover",
+            post(
+                move |headers: HeaderMap, Json(request): Json<RecoverHttpRequest>| {
+                    let store = Arc::clone(&recover_store);
+                    let runtime = recover_runtime.clone();
+                    async move { recover_http(store, request, headers, runtime).await }
                 },
             ),
         )
@@ -1252,6 +1379,161 @@ where
     Ok(Json(receipt))
 }
 
+async fn archive_http<S>(
+    store: Arc<S>,
+    request: ArchiveHttpRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<ArchiveReceipt>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    runtime
+        .metrics()
+        .http_archive
+        .fetch_add(1, Ordering::Relaxed);
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, Some(&request.tenant_id))
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let receipt = store
+        .archive(ArchiveRequest {
+            tenant_id: request.tenant_id.clone(),
+            namespace: request.namespace.clone(),
+            record_id: request.record_id,
+            dry_run: request.dry_run,
+            audit_reason: request.audit_reason,
+        })
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::Archive,
+        "http",
+        Some(request.tenant_id),
+        Some(request.namespace),
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            record_id: Some(receipt.record_id.clone()),
+            dry_run: Some(receipt.dry_run),
+            ..OperationTraceSummary::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(receipt))
+}
+
+async fn suppress_http<S>(
+    store: Arc<S>,
+    request: SuppressHttpRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<SuppressReceipt>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    runtime
+        .metrics()
+        .http_suppress
+        .fetch_add(1, Ordering::Relaxed);
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, Some(&request.tenant_id))
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let receipt = store
+        .suppress(SuppressRequest {
+            tenant_id: request.tenant_id.clone(),
+            namespace: request.namespace.clone(),
+            record_id: request.record_id,
+            dry_run: request.dry_run,
+            audit_reason: request.audit_reason,
+        })
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::Suppress,
+        "http",
+        Some(request.tenant_id),
+        Some(request.namespace),
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            record_id: Some(receipt.record_id.clone()),
+            dry_run: Some(receipt.dry_run),
+            ..OperationTraceSummary::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(receipt))
+}
+
+async fn recover_http<S>(
+    store: Arc<S>,
+    request: RecoverHttpRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<RecoverReceipt>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    runtime
+        .metrics()
+        .http_recover
+        .fetch_add(1, Ordering::Relaxed);
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, Some(&request.tenant_id))
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let receipt = store
+        .recover(RecoverRequest {
+            tenant_id: request.tenant_id.clone(),
+            namespace: request.namespace.clone(),
+            record_id: request.record_id,
+            dry_run: request.dry_run,
+            audit_reason: request.audit_reason,
+            quality_state: request.quality_state,
+            historical_state: request.historical_state,
+        })
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::Recover,
+        "http",
+        Some(request.tenant_id),
+        Some(request.namespace),
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            record_id: Some(receipt.record_id.clone()),
+            dry_run: Some(receipt.dry_run),
+            ..OperationTraceSummary::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(receipt))
+}
+
 async fn traces_http(
     request: TraceListRequest,
     runtime: ServerRuntime,
@@ -1578,7 +1860,10 @@ fn admission_class_for_operation(operation: TraceOperationKind) -> &'static str 
         TraceOperationKind::Upsert
         | TraceOperationKind::BatchUpsert
         | TraceOperationKind::Compact
-        | TraceOperationKind::Delete => "write",
+        | TraceOperationKind::Delete
+        | TraceOperationKind::Archive
+        | TraceOperationKind::Suppress
+        | TraceOperationKind::Recover => "write",
         TraceOperationKind::IntegrityCheck
         | TraceOperationKind::Repair
         | TraceOperationKind::Export
@@ -1603,8 +1888,10 @@ fn validate_http_auth(
         "/memory/recall" => AuthPermission::Read,
         "/memory/upsert" | "/memory/batch-upsert" => AuthPermission::Write,
         "/admin/stats" | "/admin/integrity" | "/admin/repair" | "/admin/snapshot"
-        | "/admin/compact" | "/admin/delete" | "/admin/runtime" | "/admin/export"
-        | "/admin/import" => AuthPermission::Admin,
+        | "/admin/compact" | "/admin/delete" | "/admin/archive" | "/admin/suppress"
+        | "/admin/recover" | "/admin/runtime" | "/admin/export" | "/admin/import" => {
+            AuthPermission::Admin
+        }
         _ => AuthPermission::Admin,
     };
     if path.starts_with("/admin/traces") {
@@ -1762,6 +2049,261 @@ fn artifact_to_proto(value: ArtifactPointer) -> ProtoArtifactPointer {
     }
 }
 
+fn continuity_state_from_proto(value: &str) -> Result<EpisodeContinuityState, Status> {
+    match value {
+        "" | "open" => Ok(EpisodeContinuityState::Open),
+        "resolved" => Ok(EpisodeContinuityState::Resolved),
+        "superseded" => Ok(EpisodeContinuityState::Superseded),
+        "abandoned" => Ok(EpisodeContinuityState::Abandoned),
+        other => Err(invalid_argument(format!(
+            "unknown continuity state: {other}"
+        ))),
+    }
+}
+
+fn continuity_state_to_proto(value: EpisodeContinuityState) -> String {
+    match value {
+        EpisodeContinuityState::Open => "open",
+        EpisodeContinuityState::Resolved => "resolved",
+        EpisodeContinuityState::Superseded => "superseded",
+        EpisodeContinuityState::Abandoned => "abandoned",
+    }
+    .to_string()
+}
+
+fn affective_provenance_from_proto(value: &str) -> Result<AffectiveAnnotationProvenance, Status> {
+    match value {
+        "" | "authored" => Ok(AffectiveAnnotationProvenance::Authored),
+        "imported" => Ok(AffectiveAnnotationProvenance::Imported),
+        "derived" => Ok(AffectiveAnnotationProvenance::Derived),
+        other => Err(invalid_argument(format!(
+            "unknown affective provenance: {other}"
+        ))),
+    }
+}
+
+fn affective_provenance_to_proto(value: AffectiveAnnotationProvenance) -> String {
+    match value {
+        AffectiveAnnotationProvenance::Authored => "authored",
+        AffectiveAnnotationProvenance::Imported => "imported",
+        AffectiveAnnotationProvenance::Derived => "derived",
+    }
+    .to_string()
+}
+
+fn temporal_order_from_proto(value: &str) -> Result<RecallTemporalOrder, Status> {
+    match value {
+        "" | "relevance" => Ok(RecallTemporalOrder::Relevance),
+        "chronological_asc" => Ok(RecallTemporalOrder::ChronologicalAsc),
+        "chronological_desc" => Ok(RecallTemporalOrder::ChronologicalDesc),
+        other => Err(invalid_argument(format!("unknown temporal order: {other}"))),
+    }
+}
+
+fn planning_profile_from_proto(value: &str) -> Result<RecallPlanningProfile, Status> {
+    match value {
+        "" | "fast_path" => Ok(RecallPlanningProfile::FastPath),
+        "continuity_aware" => Ok(RecallPlanningProfile::ContinuityAware),
+        other => Err(invalid_argument(format!(
+            "unknown planning profile: {other}"
+        ))),
+    }
+}
+
+fn planning_profile_to_proto(value: RecallPlanningProfile) -> String {
+    match value {
+        RecallPlanningProfile::FastPath => "fast_path",
+        RecallPlanningProfile::ContinuityAware => "continuity_aware",
+    }
+    .to_string()
+}
+
+fn planner_stage_to_proto(value: RecallPlannerStage) -> String {
+    match value {
+        RecallPlannerStage::CandidateGeneration => "candidate_generation",
+        RecallPlannerStage::GraphExpansion => "graph_expansion",
+        RecallPlannerStage::Selection => "selection",
+    }
+    .to_string()
+}
+
+fn candidate_source_to_proto(value: RecallCandidateSource) -> String {
+    match value {
+        RecallCandidateSource::Lexical => "lexical",
+        RecallCandidateSource::Semantic => "semantic",
+        RecallCandidateSource::Metadata => "metadata",
+        RecallCandidateSource::Episode => "episode",
+        RecallCandidateSource::Graph => "graph",
+        RecallCandidateSource::Temporal => "temporal",
+        RecallCandidateSource::Provenance => "provenance",
+    }
+    .to_string()
+}
+
+fn affective_annotation_from_proto(
+    value: ProtoAffectiveAnnotation,
+) -> Result<AffectiveAnnotation, Status> {
+    Ok(AffectiveAnnotation {
+        tone: value.tone,
+        sentiment: value.sentiment,
+        urgency: value.urgency,
+        confidence: value.confidence,
+        tension: value.tension,
+        provenance: affective_provenance_from_proto(&value.provenance)?,
+    })
+}
+
+fn affective_annotation_to_proto(value: AffectiveAnnotation) -> ProtoAffectiveAnnotation {
+    ProtoAffectiveAnnotation {
+        tone: value.tone,
+        sentiment: value.sentiment,
+        urgency: value.urgency,
+        confidence: value.confidence,
+        tension: value.tension,
+        provenance: affective_provenance_to_proto(value.provenance),
+    }
+}
+
+fn historical_state_from_proto(value: &str) -> Result<MemoryHistoricalState, Status> {
+    match value {
+        "" | "current" => Ok(MemoryHistoricalState::Current),
+        "historical" => Ok(MemoryHistoricalState::Historical),
+        "superseded" => Ok(MemoryHistoricalState::Superseded),
+        other => Err(invalid_argument(format!(
+            "unknown historical state: {other}"
+        ))),
+    }
+}
+
+fn historical_state_to_proto(value: MemoryHistoricalState) -> String {
+    match value {
+        MemoryHistoricalState::Current => "current",
+        MemoryHistoricalState::Historical => "historical",
+        MemoryHistoricalState::Superseded => "superseded",
+    }
+    .to_string()
+}
+
+fn lineage_relation_from_proto(value: &str) -> Result<LineageRelationKind, Status> {
+    match value {
+        "" | "derived_from" => Ok(LineageRelationKind::DerivedFrom),
+        "consolidated_from" => Ok(LineageRelationKind::ConsolidatedFrom),
+        "supersedes" => Ok(LineageRelationKind::Supersedes),
+        "superseded_by" => Ok(LineageRelationKind::SupersededBy),
+        "conflicts_with" => Ok(LineageRelationKind::ConflictsWith),
+        other => Err(invalid_argument(format!(
+            "unknown lineage relation: {other}"
+        ))),
+    }
+}
+
+fn lineage_relation_to_proto(value: LineageRelationKind) -> String {
+    match value {
+        LineageRelationKind::DerivedFrom => "derived_from",
+        LineageRelationKind::ConsolidatedFrom => "consolidated_from",
+        LineageRelationKind::Supersedes => "supersedes",
+        LineageRelationKind::SupersededBy => "superseded_by",
+        LineageRelationKind::ConflictsWith => "conflicts_with",
+    }
+    .to_string()
+}
+
+fn lineage_link_from_proto(value: ProtoLineageLink) -> Result<LineageLink, Status> {
+    Ok(LineageLink {
+        record_id: value.record_id,
+        relation: lineage_relation_from_proto(&value.relation)?,
+        confidence: value.confidence,
+    })
+}
+
+fn lineage_link_to_proto(value: LineageLink) -> ProtoLineageLink {
+    ProtoLineageLink {
+        record_id: value.record_id,
+        relation: lineage_relation_to_proto(value.relation),
+        confidence: value.confidence,
+    }
+}
+
+fn historical_mode_from_proto(value: &str) -> Result<RecallHistoricalMode, Status> {
+    match value {
+        "" | "current_only" => Ok(RecallHistoricalMode::CurrentOnly),
+        "include_historical" => Ok(RecallHistoricalMode::IncludeHistorical),
+        "historical_only" => Ok(RecallHistoricalMode::HistoricalOnly),
+        other => Err(invalid_argument(format!(
+            "unknown historical mode: {other}"
+        ))),
+    }
+}
+
+fn episode_context_from_proto(value: ProtoEpisodeContext) -> Result<EpisodeContext, Status> {
+    Ok(EpisodeContext {
+        schema_version: if value.schema_version == 0 {
+            EPISODE_SCHEMA_VERSION
+        } else {
+            value.schema_version
+        },
+        episode_id: value.episode_id,
+        summary: value.summary,
+        continuity_state: continuity_state_from_proto(&value.continuity_state)?,
+        actor_ids: value.actor_ids,
+        goal: value.goal,
+        outcome: value.outcome,
+        started_at_unix_ms: value.started_at_unix_ms,
+        ended_at_unix_ms: value.ended_at_unix_ms,
+        last_active_unix_ms: value.last_active_unix_ms,
+        recurrence_key: value.recurrence_key,
+        recurrence_interval_ms: value.recurrence_interval_ms,
+        boundary_label: value.boundary_label,
+        previous_record_id: value.previous_record_id,
+        next_record_id: value.next_record_id,
+        causal_record_ids: value.causal_record_ids,
+        related_record_ids: value.related_record_ids,
+        linked_artifact_uris: value.linked_artifact_uris,
+        salience: value
+            .salience
+            .map_or_else(EpisodeSalience::default, |salience| EpisodeSalience {
+                reuse_count: salience.reuse_count,
+                novelty_score: salience.novelty_score,
+                goal_relevance: salience.goal_relevance,
+                unresolved_weight: salience.unresolved_weight,
+            }),
+        affective: value
+            .affective
+            .map(affective_annotation_from_proto)
+            .transpose()?,
+    })
+}
+
+fn episode_context_to_proto(value: EpisodeContext) -> ProtoEpisodeContext {
+    ProtoEpisodeContext {
+        schema_version: value.schema_version,
+        episode_id: value.episode_id,
+        summary: value.summary,
+        continuity_state: continuity_state_to_proto(value.continuity_state),
+        actor_ids: value.actor_ids,
+        goal: value.goal,
+        outcome: value.outcome,
+        started_at_unix_ms: value.started_at_unix_ms,
+        ended_at_unix_ms: value.ended_at_unix_ms,
+        last_active_unix_ms: value.last_active_unix_ms,
+        recurrence_key: value.recurrence_key,
+        recurrence_interval_ms: value.recurrence_interval_ms,
+        boundary_label: value.boundary_label,
+        previous_record_id: value.previous_record_id,
+        next_record_id: value.next_record_id,
+        causal_record_ids: value.causal_record_ids,
+        related_record_ids: value.related_record_ids,
+        linked_artifact_uris: value.linked_artifact_uris,
+        salience: Some(ProtoEpisodeSalience {
+            reuse_count: value.salience.reuse_count,
+            novelty_score: value.salience.novelty_score,
+            goal_relevance: value.salience.goal_relevance,
+            unresolved_weight: value.salience.unresolved_weight,
+        }),
+        affective: value.affective.map(affective_annotation_to_proto),
+    }
+}
+
 fn record_from_proto(record: ProtoMemoryRecord) -> Result<MemoryRecord, Status> {
     Ok(MemoryRecord {
         id: record.id,
@@ -1781,6 +2323,15 @@ fn record_from_proto(record: ProtoMemoryRecord) -> Result<MemoryRecord, Status> 
         expires_at_unix_ms: record.expires_at_unix_ms,
         importance_score: record.importance_score,
         artifact: record.artifact.map(artifact_from_proto),
+        episode: record.episode.map(episode_context_from_proto).transpose()?,
+        historical_state: historical_state_from_proto(
+            record.historical_state.as_deref().unwrap_or(""),
+        )?,
+        lineage: record
+            .lineage
+            .into_iter()
+            .map(lineage_link_from_proto)
+            .collect::<Result<Vec<_>, _>>()?,
     })
 }
 
@@ -1799,6 +2350,13 @@ fn record_to_proto(record: MemoryRecord) -> ProtoMemoryRecord {
         importance_score: record.importance_score,
         source_id: record.source_id,
         artifact: record.artifact.map(artifact_to_proto),
+        episode: record.episode.map(episode_context_to_proto),
+        historical_state: Some(historical_state_to_proto(record.historical_state)),
+        lineage: record
+            .lineage
+            .into_iter()
+            .map(lineage_link_to_proto)
+            .collect(),
     }
 }
 
@@ -1816,6 +2374,11 @@ fn recall_explanation_to_proto(value: RecallExplanation) -> ProtoRecallExplanati
             .scoring_profile
             .map(recall_scoring_profile_to_proto)
             .unwrap_or(ProtoRecallScoringProfile::Unspecified as i32),
+        planning_profile: value.planning_profile.map(planning_profile_to_proto),
+        policy_profile: value
+            .policy_profile
+            .map(recall_policy_profile_to_proto)
+            .unwrap_or(ProtoRecallPolicyProfile::Unspecified as i32),
     }
 }
 
@@ -1834,6 +2397,16 @@ fn recall_scoring_profile_to_proto(value: RecallScoringProfile) -> i32 {
     }
 }
 
+fn recall_policy_profile_to_proto(value: RecallPolicyProfile) -> i32 {
+    match value {
+        RecallPolicyProfile::General => ProtoRecallPolicyProfile::General as i32,
+        RecallPolicyProfile::Support => ProtoRecallPolicyProfile::Support as i32,
+        RecallPolicyProfile::Research => ProtoRecallPolicyProfile::Research as i32,
+        RecallPolicyProfile::Assistant => ProtoRecallPolicyProfile::Assistant as i32,
+        RecallPolicyProfile::AutonomousAgent => ProtoRecallPolicyProfile::AutonomousAgent as i32,
+    }
+}
+
 fn embedding_provider_kind_to_proto(value: EmbeddingProviderKind) -> i32 {
     match value {
         EmbeddingProviderKind::Disabled => ProtoEmbeddingProviderKind::Disabled as i32,
@@ -1849,12 +2422,15 @@ fn engine_tuning_info_to_proto(value: EngineTuningInfo) -> ProtoEngineTuningInfo
         recall_scoring_profile: recall_scoring_profile_to_proto(value.recall_scoring_profile),
         embedding_provider_kind: embedding_provider_kind_to_proto(value.embedding_provider_kind),
         embedding_dimensions: value.embedding_dimensions as u64,
+        graph_expansion_max_hops: u32::from(value.graph_expansion_max_hops),
         compaction_summarize_after_record_count: value.compaction_summarize_after_record_count
             as u64,
         compaction_cold_archive_after_days: value.compaction_cold_archive_after_days,
         compaction_cold_archive_importance_threshold_per_mille: u32::from(
             value.compaction_cold_archive_importance_threshold_per_mille,
         ),
+        recall_planning_profile: Some(planning_profile_to_proto(value.recall_planning_profile)),
+        recall_policy_profile: recall_policy_profile_to_proto(value.recall_policy_profile),
     }
 }
 
@@ -1883,6 +2459,19 @@ fn engine_tuning_info_from_proto(value: ProtoEngineTuningInfo) -> Result<EngineT
                 ));
             }
         },
+        recall_planning_profile: planning_profile_from_proto(
+            value.recall_planning_profile.as_deref().unwrap_or(""),
+        )?,
+        recall_policy_profile: match ProtoRecallPolicyProfile::try_from(value.recall_policy_profile)
+            .unwrap_or(ProtoRecallPolicyProfile::Unspecified)
+        {
+            ProtoRecallPolicyProfile::General => RecallPolicyProfile::General,
+            ProtoRecallPolicyProfile::Support => RecallPolicyProfile::Support,
+            ProtoRecallPolicyProfile::Research => RecallPolicyProfile::Research,
+            ProtoRecallPolicyProfile::Assistant => RecallPolicyProfile::Assistant,
+            ProtoRecallPolicyProfile::AutonomousAgent => RecallPolicyProfile::AutonomousAgent,
+            ProtoRecallPolicyProfile::Unspecified => RecallPolicyProfile::General,
+        },
         embedding_provider_kind: match ProtoEmbeddingProviderKind::try_from(
             value.embedding_provider_kind,
         )
@@ -1899,6 +2488,7 @@ fn engine_tuning_info_from_proto(value: ProtoEngineTuningInfo) -> Result<EngineT
             }
         },
         embedding_dimensions: value.embedding_dimensions as usize,
+        graph_expansion_max_hops: value.graph_expansion_max_hops as u8,
         compaction_summarize_after_record_count: value.compaction_summarize_after_record_count
             as usize,
         compaction_cold_archive_after_days: value.compaction_cold_archive_after_days,
@@ -1931,6 +2521,12 @@ fn recall_trace_candidate_to_proto(value: RecallTraceCandidate) -> ProtoRecallTr
         selection_rank: value.selection_rank,
         selected_channels: value.selected_channels,
         filter_reasons: value.filter_reasons,
+        candidate_sources: value
+            .candidate_sources
+            .into_iter()
+            .map(candidate_source_to_proto)
+            .collect(),
+        planner_stage: Some(planner_stage_to_proto(value.planner_stage)),
     }
 }
 
@@ -1946,6 +2542,8 @@ fn recall_score_breakdown_to_proto(
         total: value.total,
         metadata: value.metadata,
         curation: value.curation,
+        episodic: value.episodic,
+        salience: value.salience,
     }
 }
 
@@ -1968,6 +2566,9 @@ fn maintenance_stats_to_proto(value: MaintenanceStats) -> ProtoMaintenanceStats 
         tombstoned_records: value.tombstoned_records,
         expired_records: value.expired_records,
         stale_idempotency_keys: value.stale_idempotency_keys,
+        historical_records: value.historical_records,
+        superseded_records: value.superseded_records,
+        lineage_links: value.lineage_links,
     }
 }
 
@@ -2065,6 +2666,9 @@ fn trace_operation_kind_to_proto(value: TraceOperationKind) -> i32 {
         TraceOperationKind::Repair => ProtoTraceOperationKind::Repair as i32,
         TraceOperationKind::Compact => ProtoTraceOperationKind::Compact as i32,
         TraceOperationKind::Delete => ProtoTraceOperationKind::Delete as i32,
+        TraceOperationKind::Archive => ProtoTraceOperationKind::Archive as i32,
+        TraceOperationKind::Suppress => ProtoTraceOperationKind::Suppress as i32,
+        TraceOperationKind::Recover => ProtoTraceOperationKind::Recover as i32,
         TraceOperationKind::Export => ProtoTraceOperationKind::Export as i32,
         TraceOperationKind::Import => ProtoTraceOperationKind::Import as i32,
     }
@@ -2081,6 +2685,9 @@ fn trace_operation_kind_from_proto(value: ProtoTraceOperationKind) -> Option<Tra
         ProtoTraceOperationKind::Repair => Some(TraceOperationKind::Repair),
         ProtoTraceOperationKind::Compact => Some(TraceOperationKind::Compact),
         ProtoTraceOperationKind::Delete => Some(TraceOperationKind::Delete),
+        ProtoTraceOperationKind::Archive => Some(TraceOperationKind::Archive),
+        ProtoTraceOperationKind::Suppress => Some(TraceOperationKind::Suppress),
+        ProtoTraceOperationKind::Recover => Some(TraceOperationKind::Recover),
         ProtoTraceOperationKind::Export => Some(TraceOperationKind::Export),
         ProtoTraceOperationKind::Import => Some(TraceOperationKind::Import),
         ProtoTraceOperationKind::Unspecified => None,
@@ -2170,6 +2777,18 @@ fn recall_filters_from_proto(filters: Option<ProtoRecallFilters>) -> Result<Reca
         trust_levels: trust_levels_from_proto(filters.trust_levels)?,
         states: quality_states_from_proto(filters.states)?,
         include_archived: filters.include_archived,
+        episode_id: filters.episode_id,
+        continuity_states: filters
+            .continuity_states
+            .into_iter()
+            .map(|value| continuity_state_from_proto(&value))
+            .collect::<Result<Vec<_>, _>>()?,
+        unresolved_only: filters.unresolved_only,
+        temporal_order: temporal_order_from_proto(filters.temporal_order.as_deref().unwrap_or(""))?,
+        historical_mode: historical_mode_from_proto(
+            filters.historical_mode.as_deref().unwrap_or(""),
+        )?,
+        lineage_record_id: filters.lineage_record_id,
     })
 }
 
@@ -2571,6 +3190,8 @@ where
                 archived_records: report.archived_records,
                 summarized_clusters: report.summarized_clusters,
                 pruned_graph_edges: report.pruned_graph_edges,
+                superseded_records: report.superseded_records,
+                lineage_links_created: report.lineage_links_created,
                 dry_run: report.dry_run,
             }))
         }
@@ -2690,6 +3311,225 @@ where
         }
         .await;
         record_grpc_result(&self.runtime.metrics().grpc_delete, result)
+    }
+
+    async fn archive(
+        &self,
+        request: Request<ProtoArchiveRequest>,
+    ) -> Result<Response<ArchiveReply>, Status> {
+        self.runtime.metrics().grpc_archive.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, Some(&tenant_id))
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let receipt = self
+                .store
+                .archive(ArchiveRequest {
+                    tenant_id,
+                    namespace: namespace.clone(),
+                    record_id: request.record_id,
+                    dry_run: request.dry_run,
+                    audit_reason: request.audit_reason,
+                })
+                .await
+                .map_err(map_store_error)?;
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::Archive,
+                "grpc",
+                Some(request.tenant_id),
+                Some(namespace),
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    record_id: Some(receipt.record_id.clone()),
+                    dry_run: Some(receipt.dry_run),
+                    ..OperationTraceSummary::default()
+                },
+                None,
+                correlation_id,
+            );
+
+            Ok(Response::new(ArchiveReply {
+                record_id: receipt.record_id,
+                previous_quality_state: quality_state_to_proto(receipt.previous_quality_state),
+                previous_historical_state: historical_state_to_proto(
+                    receipt.previous_historical_state,
+                ),
+                quality_state: quality_state_to_proto(receipt.quality_state),
+                historical_state: historical_state_to_proto(receipt.historical_state),
+                changed: receipt.changed,
+                dry_run: receipt.dry_run,
+            }))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_archive, result)
+    }
+
+    async fn suppress(
+        &self,
+        request: Request<ProtoSuppressRequest>,
+    ) -> Result<Response<SuppressReply>, Status> {
+        self.runtime.metrics().grpc_suppress.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, Some(&tenant_id))
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let receipt = self
+                .store
+                .suppress(SuppressRequest {
+                    tenant_id,
+                    namespace: namespace.clone(),
+                    record_id: request.record_id,
+                    dry_run: request.dry_run,
+                    audit_reason: request.audit_reason,
+                })
+                .await
+                .map_err(map_store_error)?;
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::Suppress,
+                "grpc",
+                Some(request.tenant_id),
+                Some(namespace),
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    record_id: Some(receipt.record_id.clone()),
+                    dry_run: Some(receipt.dry_run),
+                    ..OperationTraceSummary::default()
+                },
+                None,
+                correlation_id,
+            );
+
+            Ok(Response::new(SuppressReply {
+                record_id: receipt.record_id,
+                previous_quality_state: quality_state_to_proto(receipt.previous_quality_state),
+                previous_historical_state: historical_state_to_proto(
+                    receipt.previous_historical_state,
+                ),
+                quality_state: quality_state_to_proto(receipt.quality_state),
+                historical_state: historical_state_to_proto(receipt.historical_state),
+                changed: receipt.changed,
+                dry_run: receipt.dry_run,
+            }))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_suppress, result)
+    }
+
+    async fn recover(
+        &self,
+        request: Request<ProtoRecoverRequest>,
+    ) -> Result<Response<RecoverReply>, Status> {
+        self.runtime.metrics().grpc_recover.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, Some(&tenant_id))
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let receipt = self
+                .store
+                .recover(RecoverRequest {
+                    tenant_id,
+                    namespace: namespace.clone(),
+                    record_id: request.record_id,
+                    dry_run: request.dry_run,
+                    audit_reason: request.audit_reason,
+                    quality_state: quality_state_from_proto(&request.quality_state)?,
+                    historical_state: request
+                        .historical_state
+                        .as_deref()
+                        .map(historical_state_from_proto)
+                        .transpose()?,
+                })
+                .await
+                .map_err(map_store_error)?;
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::Recover,
+                "grpc",
+                Some(request.tenant_id),
+                Some(namespace),
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    record_id: Some(receipt.record_id.clone()),
+                    dry_run: Some(receipt.dry_run),
+                    ..OperationTraceSummary::default()
+                },
+                None,
+                correlation_id,
+            );
+
+            Ok(Response::new(RecoverReply {
+                record_id: receipt.record_id,
+                previous_quality_state: quality_state_to_proto(receipt.previous_quality_state),
+                previous_historical_state: historical_state_to_proto(
+                    receipt.previous_historical_state,
+                ),
+                quality_state: quality_state_to_proto(receipt.quality_state),
+                historical_state: historical_state_to_proto(receipt.historical_state),
+                changed: receipt.changed,
+                dry_run: receipt.dry_run,
+            }))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_recover, result)
     }
 
     async fn stats(

@@ -15,6 +15,15 @@ enum RecallScoringProfile {
   RECALL_SCORING_PROFILE_IMPORTANCE_FIRST = 3;
 }
 
+enum RecallPolicyProfile {
+  RECALL_POLICY_PROFILE_UNSPECIFIED = 0;
+  RECALL_POLICY_PROFILE_GENERAL = 1;
+  RECALL_POLICY_PROFILE_SUPPORT = 2;
+  RECALL_POLICY_PROFILE_RESEARCH = 3;
+  RECALL_POLICY_PROFILE_ASSISTANT = 4;
+  RECALL_POLICY_PROFILE_AUTONOMOUS_AGENT = 5;
+}
+
 enum EmbeddingProviderKind {
   EMBEDDING_PROVIDER_KIND_UNSPECIFIED = 0;
   EMBEDDING_PROVIDER_KIND_DISABLED = 1;
@@ -38,6 +47,51 @@ message ArtifactPointer {
   optional string checksum = 3;
 }
 
+message EpisodeSalience {
+  uint32 reuse_count = 1;
+  float novelty_score = 2;
+  float goal_relevance = 3;
+  float unresolved_weight = 4;
+}
+
+message AffectiveAnnotation {
+  optional string tone = 1;
+  optional string sentiment = 2;
+  float urgency = 3;
+  float confidence = 4;
+  float tension = 5;
+  string provenance = 6;
+}
+
+message EpisodeContext {
+  uint32 schema_version = 17;
+  string episode_id = 1;
+  optional string summary = 2;
+  string continuity_state = 3;
+  repeated string actor_ids = 4;
+  optional string goal = 5;
+  optional string outcome = 6;
+  optional uint64 started_at_unix_ms = 7;
+  optional uint64 ended_at_unix_ms = 8;
+  optional uint64 last_active_unix_ms = 9;
+  optional string recurrence_key = 18;
+  optional uint64 recurrence_interval_ms = 19;
+  optional string boundary_label = 20;
+  optional string previous_record_id = 10;
+  optional string next_record_id = 11;
+  repeated string causal_record_ids = 12;
+  repeated string related_record_ids = 13;
+  repeated string linked_artifact_uris = 14;
+  EpisodeSalience salience = 15;
+  optional AffectiveAnnotation affective = 16;
+}
+
+message LineageLink {
+  string record_id = 1;
+  string relation = 2;
+  float confidence = 3;
+}
+
 message MemoryRecord {
   string id = 1;
   MemoryScope scope = 2;
@@ -52,6 +106,9 @@ message MemoryRecord {
   float importance_score = 11;
   optional string source_id = 12;
   optional ArtifactPointer artifact = 13;
+  optional EpisodeContext episode = 14;
+  optional string historical_state = 15;
+  repeated LineageLink lineage = 16;
 }
 
 message UpsertMemoryRecordRequest {
@@ -83,6 +140,12 @@ message RecallFilters {
   repeated string trust_levels = 7;
   repeated string states = 8;
   bool include_archived = 9;
+  optional string episode_id = 10;
+  repeated string continuity_states = 11;
+  bool unresolved_only = 12;
+  optional string temporal_order = 13;
+  optional string historical_mode = 14;
+  optional string lineage_record_id = 15;
 }
 
 message RecallRequest {
@@ -103,6 +166,8 @@ message RecallScoreBreakdown {
   float total = 6;
   float metadata = 7;
   float curation = 8;
+  float episodic = 9;
+  float salience = 10;
 }
 
 message RecallExplanation {
@@ -112,6 +177,8 @@ message RecallExplanation {
   optional RecallPlanningTrace planning_trace = 4;
   RecallScorerKind scorer_kind = 5;
   RecallScoringProfile scoring_profile = 6;
+  optional string planning_profile = 7;
+  RecallPolicyProfile policy_profile = 8;
 }
 
 message RecallTraceCandidate {
@@ -124,6 +191,8 @@ message RecallTraceCandidate {
   optional uint32 selection_rank = 7;
   repeated string selected_channels = 8;
   repeated string filter_reasons = 9;
+  repeated string candidate_sources = 10;
+  optional string planner_stage = 11;
 }
 
 message RecallPlanningTrace {
@@ -159,6 +228,8 @@ message CompactReply {
   uint64 summarized_clusters = 3;
   uint64 pruned_graph_edges = 4;
   bool dry_run = 5;
+  uint64 superseded_records = 6;
+  uint64 lineage_links_created = 7;
 }
 
 message SnapshotRequest {}
@@ -186,6 +257,62 @@ message DeleteReply {
   bool hard_deleted = 3;
 }
 
+message ArchiveRequest {
+  string tenant_id = 1;
+  string namespace = 2;
+  string record_id = 3;
+  bool dry_run = 4;
+  string audit_reason = 5;
+}
+
+message ArchiveReply {
+  string record_id = 1;
+  string previous_quality_state = 2;
+  string previous_historical_state = 3;
+  string quality_state = 4;
+  string historical_state = 5;
+  bool changed = 6;
+  bool dry_run = 7;
+}
+
+message SuppressRequest {
+  string tenant_id = 1;
+  string namespace = 2;
+  string record_id = 3;
+  bool dry_run = 4;
+  string audit_reason = 5;
+}
+
+message SuppressReply {
+  string record_id = 1;
+  string previous_quality_state = 2;
+  string previous_historical_state = 3;
+  string quality_state = 4;
+  string historical_state = 5;
+  bool changed = 6;
+  bool dry_run = 7;
+}
+
+message RecoverRequest {
+  string tenant_id = 1;
+  string namespace = 2;
+  string record_id = 3;
+  bool dry_run = 4;
+  string audit_reason = 5;
+  string quality_state = 6;
+  optional string historical_state = 7;
+}
+
+message RecoverReply {
+  string record_id = 1;
+  string previous_quality_state = 2;
+  string previous_historical_state = 3;
+  string quality_state = 4;
+  string historical_state = 5;
+  bool changed = 6;
+  bool dry_run = 7;
+}
+
 message StoreStatsRequest {
   optional string tenant_id = 1;
   optional string namespace = 2;
@@ -207,6 +334,9 @@ message MaintenanceStats {
   uint64 tombstoned_records = 3;
   uint64 expired_records = 4;
   uint64 stale_idempotency_keys = 5;
+  uint64 historical_records = 6;
+  uint64 superseded_records = 7;
+  uint64 lineage_links = 8;
 }
 
 message EngineTuningInfo {
@@ -217,6 +347,9 @@ message EngineTuningInfo {
   uint64 compaction_summarize_after_record_count = 5;
   uint32 compaction_cold_archive_after_days = 6;
   uint32 compaction_cold_archive_importance_threshold_per_mille = 7;
+  optional string recall_planning_profile = 8;
+  uint32 graph_expansion_max_hops = 9;
+  RecallPolicyProfile recall_policy_profile = 10;
 }
 
 message StoreStatsReply {
@@ -272,8 +405,11 @@ enum TraceOperationKind {
   TRACE_OPERATION_KIND_REPAIR = 7;
   TRACE_OPERATION_KIND_COMPACT = 8;
   TRACE_OPERATION_KIND_DELETE = 9;
-  TRACE_OPERATION_KIND_EXPORT = 10;
-  TRACE_OPERATION_KIND_IMPORT = 11;
+  TRACE_OPERATION_KIND_ARCHIVE = 10;
+  TRACE_OPERATION_KIND_SUPPRESS = 11;
+  TRACE_OPERATION_KIND_RECOVER = 12;
+  TRACE_OPERATION_KIND_EXPORT = 13;
+  TRACE_OPERATION_KIND_IMPORT = 14;
 }
 
 enum TraceStatus {
@@ -387,6 +523,9 @@ service MemoryService {
   rpc Compact(CompactRequest) returns (CompactReply);
   rpc Snapshot(SnapshotRequest) returns (SnapshotReply);
   rpc Delete(DeleteRequest) returns (DeleteReply);
+  rpc Archive(ArchiveRequest) returns (ArchiveReply);
+  rpc Suppress(SuppressRequest) returns (SuppressReply);
+  rpc Recover(RecoverRequest) returns (RecoverReply);
   rpc Stats(StoreStatsRequest) returns (StoreStatsReply);
   rpc IntegrityCheck(IntegrityCheckRequest) returns (IntegrityCheckReply);
   rpc Repair(RepairRequest) returns (RepairReply);

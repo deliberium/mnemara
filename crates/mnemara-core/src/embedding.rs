@@ -1,4 +1,6 @@
 use crate::config::{EmbeddingProviderKind, EngineConfig};
+use std::fmt;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EmbeddingVector {
@@ -122,10 +124,54 @@ impl SemanticEmbedder for DeterministicLocalEmbedder {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
+pub struct SharedSemanticEmbedder {
+    provider_note: String,
+    embedder: Arc<dyn SemanticEmbedder>,
+}
+
+impl SharedSemanticEmbedder {
+    pub fn new(embedder: Arc<dyn SemanticEmbedder>, provider_note: impl Into<String>) -> Self {
+        Self {
+            provider_note: provider_note.into(),
+            embedder,
+        }
+    }
+
+    pub fn provider_note(&self) -> &str {
+        &self.provider_note
+    }
+}
+
+impl fmt::Debug for SharedSemanticEmbedder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SharedSemanticEmbedder")
+            .field("provider_note", &self.provider_note)
+            .field("provider_kind", &self.embedder.provider_kind())
+            .field("dimensions", &self.embedder.dimensions())
+            .finish()
+    }
+}
+
+impl SemanticEmbedder for SharedSemanticEmbedder {
+    fn provider_kind(&self) -> EmbeddingProviderKind {
+        self.embedder.provider_kind()
+    }
+
+    fn dimensions(&self) -> usize {
+        self.embedder.dimensions()
+    }
+
+    fn embed(&self, text: &str) -> EmbeddingVector {
+        self.embedder.embed(text)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum ConfiguredSemanticEmbedder {
     Disabled(DisabledEmbedder),
     DeterministicLocal(DeterministicLocalEmbedder),
+    Shared(SharedSemanticEmbedder),
 }
 
 impl ConfiguredSemanticEmbedder {
@@ -137,6 +183,20 @@ impl ConfiguredSemanticEmbedder {
             ),
         }
     }
+
+    pub fn shared(embedder: Arc<dyn SemanticEmbedder>, provider_note: impl Into<String>) -> Self {
+        Self::Shared(SharedSemanticEmbedder::new(embedder, provider_note))
+    }
+
+    pub fn provider_note(&self) -> Option<String> {
+        match self {
+            Self::Disabled(_) => None,
+            Self::DeterministicLocal(_) => {
+                Some("embedding_provider=deterministic_local".to_string())
+            }
+            Self::Shared(embedder) => Some(embedder.provider_note().to_string()),
+        }
+    }
 }
 
 impl SemanticEmbedder for ConfiguredSemanticEmbedder {
@@ -144,6 +204,7 @@ impl SemanticEmbedder for ConfiguredSemanticEmbedder {
         match self {
             Self::Disabled(embedder) => embedder.provider_kind(),
             Self::DeterministicLocal(embedder) => embedder.provider_kind(),
+            Self::Shared(embedder) => embedder.provider_kind(),
         }
     }
 
@@ -151,6 +212,7 @@ impl SemanticEmbedder for ConfiguredSemanticEmbedder {
         match self {
             Self::Disabled(embedder) => embedder.dimensions(),
             Self::DeterministicLocal(embedder) => embedder.dimensions(),
+            Self::Shared(embedder) => embedder.dimensions(),
         }
     }
 
@@ -158,6 +220,7 @@ impl SemanticEmbedder for ConfiguredSemanticEmbedder {
         match self {
             Self::Disabled(embedder) => embedder.embed(text),
             Self::DeterministicLocal(embedder) => embedder.embed(text),
+            Self::Shared(embedder) => embedder.embed(text),
         }
     }
 }
@@ -166,8 +229,36 @@ impl SemanticEmbedder for ConfiguredSemanticEmbedder {
 mod tests {
     #![allow(clippy::field_reassign_with_default)]
 
-    use super::{ConfiguredSemanticEmbedder, DeterministicLocalEmbedder, SemanticEmbedder};
+    use super::{
+        ConfiguredSemanticEmbedder, DeterministicLocalEmbedder, EmbeddingVector, SemanticEmbedder,
+    };
     use crate::config::{EmbeddingProviderKind, EngineConfig};
+    use std::sync::Arc;
+
+    #[derive(Debug)]
+    struct FixedEmbedder;
+
+    impl SemanticEmbedder for FixedEmbedder {
+        fn provider_kind(&self) -> EmbeddingProviderKind {
+            EmbeddingProviderKind::Disabled
+        }
+
+        fn dimensions(&self) -> usize {
+            2
+        }
+
+        fn embed(&self, text: &str) -> EmbeddingVector {
+            if text.contains("storm") {
+                EmbeddingVector {
+                    values: vec![1.0, 0.0],
+                }
+            } else {
+                EmbeddingVector {
+                    values: vec![0.0, 1.0],
+                }
+            }
+        }
+    }
 
     #[test]
     fn deterministic_embedder_returns_stable_dimensions() {
@@ -201,5 +292,45 @@ mod tests {
             EmbeddingProviderKind::DeterministicLocal
         );
         assert_eq!(embedder.dimensions(), 12);
+    }
+
+    #[test]
+    fn configured_embedder_disabled_is_safe_fallback() {
+        let config = EngineConfig::default();
+
+        let embedder = ConfiguredSemanticEmbedder::from_engine_config(&config);
+        let vector = embedder.embed("storm checklist remediation");
+
+        assert_eq!(embedder.provider_kind(), EmbeddingProviderKind::Disabled);
+        assert_eq!(embedder.dimensions(), 0);
+        assert!(vector.values.is_empty());
+    }
+
+    #[test]
+    fn cosine_similarity_returns_zero_for_mismatched_vectors() {
+        let left = DeterministicLocalEmbedder::new(8).embed("storm checklist");
+        let right = DeterministicLocalEmbedder::new(16).embed("storm checklist");
+
+        assert_eq!(left.cosine_similarity(&right), 0.0);
+    }
+
+    #[test]
+    fn shared_embedder_keeps_custom_provider_note() {
+        let embedder = ConfiguredSemanticEmbedder::shared(
+            Arc::new(FixedEmbedder),
+            "embedding_provider=fixture_custom",
+        );
+
+        assert_eq!(embedder.dimensions(), 2);
+        assert_eq!(
+            embedder.provider_note().as_deref(),
+            Some("embedding_provider=fixture_custom")
+        );
+        assert!(
+            embedder
+                .embed("storm checklist")
+                .cosine_similarity(&embedder.embed("storm runbook"))
+                > 0.0
+        );
     }
 }

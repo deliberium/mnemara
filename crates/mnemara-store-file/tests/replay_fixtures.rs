@@ -1,10 +1,12 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use mnemara_core::{
-    BatchUpsertRequest, CompactionRequest, DeleteRequest, EmbeddingProviderKind, EngineConfig,
-    IngestionPolicy, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryStore,
-    MemoryTrustLevel, RecallFilters, RecallQuery, RecallScoringProfile, RetentionPolicy,
-    UpsertRequest,
+    BatchUpsertRequest, CompactionRequest, DeleteRequest, EPISODE_SCHEMA_VERSION,
+    EmbeddingProviderKind, EngineConfig, EpisodeContext, EpisodeContinuityState, EpisodeSalience,
+    IngestionPolicy, IntegrityCheckRequest, LineageLink, LineageRelationKind,
+    MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
+    MemoryStore, MemoryTrustLevel, RecallFilters, RecallHistoricalMode, RecallQuery,
+    RecallScoringProfile, RepairRequest, RetentionPolicy, UpsertRequest,
 };
 use mnemara_store_file::{FileMemoryStore, FileStoreConfig};
 use serde::Deserialize;
@@ -117,6 +119,9 @@ fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
         expires_at_unix_ms: None,
         importance_score: record.importance_score,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     }
 }
 
@@ -148,6 +153,9 @@ fn map_durable_capture_fixture(record: &DurableCaptureFixture) -> MemoryRecord {
         expires_at_unix_ms: None,
         importance_score: record.importance_score,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     }
 }
 
@@ -183,6 +191,87 @@ fn query_for(text: &str) -> RecallQuery {
         filters: RecallFilters::default(),
         include_explanation: true,
     }
+}
+
+fn episodic_fixture_record() -> MemoryRecord {
+    MemoryRecord {
+        id: "episodic-file-roundtrip".to_string(),
+        scope: MemoryScope {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            actor_id: "ava".to_string(),
+            conversation_id: Some("thread-a".to_string()),
+            session_id: Some("session-a".to_string()),
+            source: "test".to_string(),
+            labels: vec!["episode".to_string()],
+            trust_level: MemoryTrustLevel::Verified,
+        },
+        kind: MemoryRecordKind::Task,
+        content: "Verify reconnect backoff rollout status".to_string(),
+        summary: Some("Reconnect rollout follow-up".to_string()),
+        source_id: Some("episodic-file-roundtrip".to_string()),
+        metadata: BTreeMap::new(),
+        quality_state: MemoryQualityState::Active,
+        created_at_unix_ms: 10,
+        updated_at_unix_ms: 20,
+        expires_at_unix_ms: None,
+        importance_score: 0.9,
+        artifact: None,
+        episode: Some(EpisodeContext {
+            schema_version: EPISODE_SCHEMA_VERSION,
+            episode_id: "storm-episode".to_string(),
+            summary: Some("Storm remediation episode".to_string()),
+            continuity_state: EpisodeContinuityState::Open,
+            actor_ids: vec!["ava".to_string()],
+            goal: Some("close the reconnect storm follow-up list".to_string()),
+            outcome: None,
+            started_at_unix_ms: Some(1),
+            ended_at_unix_ms: None,
+            last_active_unix_ms: Some(20),
+            recurrence_key: None,
+            recurrence_interval_ms: None,
+            boundary_label: Some("incident-handoff".to_string()),
+            previous_record_id: Some("incident-root".to_string()),
+            next_record_id: None,
+            causal_record_ids: vec!["incident-root".to_string()],
+            related_record_ids: vec!["incident-postmortem".to_string()],
+            linked_artifact_uris: vec!["file:///tmp/storm.md".to_string()],
+            salience: EpisodeSalience {
+                reuse_count: 4,
+                novelty_score: 0.3,
+                goal_relevance: 0.95,
+                unresolved_weight: 0.9,
+            },
+            affective: None,
+        }),
+        historical_state: MemoryHistoricalState::Historical,
+        lineage: vec![LineageLink {
+            record_id: "incident-root".to_string(),
+            relation: LineageRelationKind::DerivedFrom,
+            confidence: 0.8,
+        }],
+    }
+}
+
+fn idempotency_scoped_key(scope: &MemoryScope, key: &str) -> String {
+    format!(
+        "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
+        scope.tenant_id,
+        scope.namespace,
+        scope.actor_id,
+        scope.conversation_id.as_deref().unwrap_or(""),
+        scope.session_id.as_deref().unwrap_or(""),
+        key
+    )
+}
+
+fn hex_key(input: &str) -> String {
+    let mut output = String::with_capacity(input.len() * 2);
+    for byte in input.as_bytes() {
+        output.push(char::from(b"0123456789abcdef"[(byte >> 4) as usize]));
+        output.push(char::from(b"0123456789abcdef"[(byte & 0x0f) as usize]));
+    }
+    output
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -231,6 +320,250 @@ async fn durable_capture_fixture_retrieves_summary_lane() {
         .await
         .unwrap();
     assert_eq!(result.hits.len(), 1);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn file_store_persists_episodic_fields_across_reopen() {
+    let dir = temp_store_dir("episodic-roundtrip");
+    let record = episodic_fixture_record();
+    let scope = record.scope.clone();
+
+    let store = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    store
+        .upsert(UpsertRequest {
+            record,
+            idempotency_key: Some("episodic-file-roundtrip".to_string()),
+        })
+        .await
+        .unwrap();
+    drop(store);
+
+    let reopened = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    let result = reopened
+        .recall(RecallQuery {
+            scope,
+            query_text: "reconnect rollout follow-up".to_string(),
+            max_items: 3,
+            token_budget: None,
+            filters: RecallFilters {
+                episode_id: Some("storm-episode".to_string()),
+                historical_mode: mnemara_core::RecallHistoricalMode::IncludeHistorical,
+                ..RecallFilters::default()
+            },
+            include_explanation: true,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(result.hits.len(), 1);
+    let recalled = &result.hits[0].record;
+    assert_eq!(recalled.historical_state, MemoryHistoricalState::Historical);
+    assert_eq!(recalled.lineage.len(), 1);
+    assert_eq!(
+        recalled.lineage[0].relation,
+        LineageRelationKind::DerivedFrom
+    );
+    assert_eq!(
+        recalled
+            .episode
+            .as_ref()
+            .map(|episode| episode.episode_id.as_str()),
+        Some("storm-episode")
+    );
+    assert_eq!(
+        recalled
+            .episode
+            .as_ref()
+            .map(|episode| episode.continuity_state),
+        Some(EpisodeContinuityState::Open)
+    );
+
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn file_store_repair_recovers_missing_idempotency_after_restart_without_losing_lineage() {
+    let dir = temp_store_dir("repair-restart");
+    let record = episodic_fixture_record();
+    let scope = record.scope.clone();
+    let scoped_key = idempotency_scoped_key(&scope, "repair-key");
+    let idempotency_path = dir
+        .join("idempotency")
+        .join(format!("{}.txt", hex_key(&scoped_key)));
+
+    let store = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    store
+        .upsert(UpsertRequest {
+            record,
+            idempotency_key: Some("repair-key".to_string()),
+        })
+        .await
+        .unwrap();
+    drop(store);
+
+    fs::remove_file(&idempotency_path).unwrap();
+
+    let reopened = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    let integrity_before = reopened
+        .integrity_check(IntegrityCheckRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+        })
+        .await
+        .unwrap();
+    assert!(!integrity_before.healthy);
+    assert_eq!(integrity_before.missing_idempotency_keys, 1);
+
+    let dry_run = reopened
+        .repair(RepairRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: true,
+            reason: "test".to_string(),
+            remove_stale_idempotency_keys: false,
+            rebuild_missing_idempotency_keys: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(dry_run.rebuilt_missing_idempotency_keys, 1);
+
+    let integrity_after_dry_run = reopened
+        .integrity_check(IntegrityCheckRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+        })
+        .await
+        .unwrap();
+    assert_eq!(integrity_after_dry_run.missing_idempotency_keys, 1);
+
+    let repaired = reopened
+        .repair(RepairRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: false,
+            reason: "test".to_string(),
+            remove_stale_idempotency_keys: false,
+            rebuild_missing_idempotency_keys: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(repaired.rebuilt_missing_idempotency_keys, 1);
+    drop(reopened);
+
+    let final_store = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    let integrity_after = final_store
+        .integrity_check(IntegrityCheckRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+        })
+        .await
+        .unwrap();
+    assert!(integrity_after.healthy);
+
+    let result = final_store
+        .recall(RecallQuery {
+            scope,
+            query_text: "reconnect rollout follow-up incident root".to_string(),
+            max_items: 3,
+            token_budget: None,
+            filters: RecallFilters {
+                lineage_record_id: Some("incident-root".to_string()),
+                historical_mode: RecallHistoricalMode::IncludeHistorical,
+                ..RecallFilters::default()
+            },
+            include_explanation: true,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(result.hits.len(), 1);
+    let recalled = &result.hits[0].record;
+    assert_eq!(recalled.scope.tenant_id, "default");
+    assert_eq!(recalled.scope.namespace, "conversation");
+    assert_eq!(recalled.historical_state, MemoryHistoricalState::Historical);
+    assert_eq!(recalled.lineage.len(), 1);
+    assert_eq!(
+        recalled.lineage[0].relation,
+        LineageRelationKind::DerivedFrom
+    );
+
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn file_store_snapshot_and_repair_preserve_lineage_and_scope() {
+    let dir = temp_store_dir("snapshot-repair");
+    let record = episodic_fixture_record();
+    let scope = record.scope.clone();
+    let scoped_key = idempotency_scoped_key(&scope, "snapshot-repair-key");
+    let idempotency_path = dir
+        .join("idempotency")
+        .join(format!("{}.txt", hex_key(&scoped_key)));
+
+    let store = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    store
+        .upsert(UpsertRequest {
+            record,
+            idempotency_key: Some("snapshot-repair-key".to_string()),
+        })
+        .await
+        .unwrap();
+
+    let snapshot_before = store.snapshot().await.unwrap();
+    assert_eq!(snapshot_before.record_count, 1);
+    assert_eq!(snapshot_before.namespaces, vec!["conversation".to_string()]);
+    drop(store);
+
+    fs::remove_file(&idempotency_path).unwrap();
+
+    let reopened = FileMemoryStore::open(FileStoreConfig::new(&dir)).unwrap();
+    let repaired = reopened
+        .repair(RepairRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: false,
+            reason: "snapshot-repair-test".to_string(),
+            remove_stale_idempotency_keys: false,
+            rebuild_missing_idempotency_keys: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(repaired.rebuilt_missing_idempotency_keys, 1);
+
+    let snapshot_after = reopened.snapshot().await.unwrap();
+    assert_eq!(snapshot_after.record_count, 1);
+    assert_eq!(snapshot_after.namespaces, vec!["conversation".to_string()]);
+
+    let result = reopened
+        .recall(RecallQuery {
+            scope,
+            query_text: "reconnect rollout follow-up incident root".to_string(),
+            max_items: 3,
+            token_budget: None,
+            filters: RecallFilters {
+                lineage_record_id: Some("incident-root".to_string()),
+                historical_mode: RecallHistoricalMode::IncludeHistorical,
+                ..RecallFilters::default()
+            },
+            include_explanation: true,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(result.hits.len(), 1);
+    let recalled = &result.hits[0].record;
+    assert_eq!(recalled.scope.tenant_id, "default");
+    assert_eq!(recalled.scope.namespace, "conversation");
+    assert_eq!(recalled.scope.actor_id, "ava");
+    assert_eq!(recalled.historical_state, MemoryHistoricalState::Historical);
+    assert_eq!(recalled.lineage.len(), 1);
+    assert_eq!(recalled.lineage[0].record_id, "incident-root");
+    assert_eq!(
+        recalled.lineage[0].relation,
+        LineageRelationKind::DerivedFrom
+    );
+
+    fs::remove_dir_all(dir).unwrap();
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -437,6 +770,7 @@ async fn compaction_can_roll_up_duplicate_clusters_and_cold_archive_stale_record
             filters: RecallFilters {
                 states: vec![MemoryQualityState::Archived],
                 include_archived: true,
+                historical_mode: mnemara_core::RecallHistoricalMode::IncludeHistorical,
                 ..RecallFilters::default()
             },
             include_explanation: false,
@@ -486,6 +820,9 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         expires_at_unix_ms: None,
         importance_score: 0.1,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     };
     let importance_favorite = MemoryRecord {
         id: "importance-favorite".to_string(),
@@ -501,6 +838,9 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         expires_at_unix_ms: None,
         importance_score: 0.95,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     };
 
     for store in [&lexical_store, &importance_store] {
@@ -559,6 +899,9 @@ async fn semantic_embedding_can_surface_semantic_channel_in_explanations() {
         expires_at_unix_ms: None,
         importance_score: 0.3,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     };
 
     store

@@ -1,10 +1,31 @@
-use crate::config::{EngineTuningInfo, RecallScorerKind, RecallScoringProfile};
+use crate::config::{
+    EngineTuningInfo, RecallPlanningProfile, RecallPolicyProfile, RecallScorerKind,
+    RecallScoringProfile,
+};
 use crate::model::{
-    MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryTrustLevel,
+    EpisodeContinuityState, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
+    MemoryTrustLevel,
 };
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum RecallTemporalOrder {
+    #[default]
+    Relevance,
+    ChronologicalAsc,
+    ChronologicalDesc,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum RecallHistoricalMode {
+    #[default]
+    CurrentOnly,
+    IncludeHistorical,
+    HistoricalOnly,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
 pub struct RecallFilters {
     pub kinds: Vec<MemoryRecordKind>,
     pub required_labels: Vec<String>,
@@ -15,6 +36,12 @@ pub struct RecallFilters {
     pub trust_levels: Vec<MemoryTrustLevel>,
     pub states: Vec<MemoryQualityState>,
     pub include_archived: bool,
+    pub episode_id: Option<String>,
+    pub continuity_states: Vec<EpisodeContinuityState>,
+    pub unresolved_only: bool,
+    pub temporal_order: RecallTemporalOrder,
+    pub historical_mode: RecallHistoricalMode,
+    pub lineage_record_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -34,6 +61,8 @@ pub struct RecallScoreBreakdown {
     pub graph: f32,
     pub temporal: f32,
     pub metadata: f32,
+    pub episodic: f32,
+    pub salience: f32,
     pub curation: f32,
     pub policy: f32,
     pub total: f32,
@@ -45,8 +74,29 @@ pub struct RecallExplanation {
     pub policy_notes: Vec<String>,
     pub trace_id: Option<String>,
     pub planning_trace: Option<RecallPlanningTrace>,
+    pub planning_profile: Option<RecallPlanningProfile>,
+    pub policy_profile: Option<RecallPolicyProfile>,
     pub scorer_kind: Option<RecallScorerKind>,
     pub scoring_profile: Option<RecallScoringProfile>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum RecallPlannerStage {
+    #[default]
+    CandidateGeneration,
+    GraphExpansion,
+    Selection,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RecallCandidateSource {
+    Lexical,
+    Semantic,
+    Metadata,
+    Episode,
+    Graph,
+    Temporal,
+    Provenance,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -61,6 +111,8 @@ pub struct RecallTraceCandidate {
     pub record_id: String,
     pub kind: MemoryRecordKind,
     pub selected: bool,
+    pub planner_stage: RecallPlannerStage,
+    pub candidate_sources: Vec<RecallCandidateSource>,
     pub selection_rank: Option<u32>,
     pub matched_terms: Vec<String>,
     pub selected_channels: Vec<String>,
@@ -97,6 +149,8 @@ pub struct CompactionReport {
     pub archived_records: u64,
     pub summarized_clusters: u64,
     pub pruned_graph_edges: u64,
+    pub superseded_records: u64,
+    pub lineage_links_created: u64,
     pub dry_run: bool,
 }
 
@@ -134,6 +188,9 @@ pub struct MaintenanceStats {
     pub tombstoned_records: u64,
     pub expired_records: u64,
     pub stale_idempotency_keys: u64,
+    pub historical_records: u64,
+    pub superseded_records: u64,
+    pub lineage_links: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -194,6 +251,9 @@ pub enum TraceOperationKind {
     Repair,
     Compact,
     Delete,
+    Archive,
+    Suppress,
+    Recover,
     Export,
     Import,
 }

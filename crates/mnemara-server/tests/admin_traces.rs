@@ -45,6 +45,9 @@ fn fixture_record() -> MemoryRecord {
         importance_score: 0.75,
         source_id: None,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     }
 }
 

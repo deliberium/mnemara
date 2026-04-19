@@ -71,6 +71,9 @@ fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
         expires_at_unix_ms: None,
         importance_score: record.importance_score,
         artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
     }
 }
 
