@@ -165,7 +165,7 @@ The release evidence now includes:
 
 ## Published roadmap-era benchmark evidence
 
-The checked-in `benchmark-report-v1.*` artifacts now include the expanded
+The checked-in `benchmark-report-v1.*` artifacts include the expanded
 episodic, continuity-aware, and lifecycle-sensitive corpus slices.
 
 That published artifact revision is complemented by checked-in tests for
