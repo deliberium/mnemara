@@ -10,6 +10,14 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.2.0] - 2026-04-19
+
+### Added
+
 - additive episodic record fields for continuity state, salience, causal links, and optional affective annotations
 - retrieval-planner profiles with planner-stage and candidate-source traces for explainable continuity-aware recall
 - lifecycle-aware historical-state and lineage-link model fields across the core, protocol, daemon, and backend layers
