@@ -20,6 +20,7 @@ Usage: $(basename "$0") <phase>
 Phases:
   preflight     Run fmt, clippy, and tests against the workspace manifest.
   release-candidate Run the release-candidate validation gate, including serial tests and website verification.
+  bump-version  Update the workspace and internal crate dependency versions across Cargo.toml files.
   foundation    Package crates that can verify before the internal dependency graph is published.
   storage       Package mnemara-store-file and mnemara-store-sled.
   server        Package mnemara-server.
@@ -34,6 +35,37 @@ Notes:
   - storage, server, and facade require earlier crates to already exist on crates.io for Cargo verification.
   - dry-run-publish all continues past expected publish-order gating failures and reports skipped crates.
 EOF
+}
+
+bump_version() {
+  local new_version="${2:-}"
+  local cargo_tomls=()
+  local manifest
+
+  if [[ -z "$new_version" ]]; then
+    printf 'Usage: %s bump-version <semver>\n' "$(basename "$0")" >&2
+    exit 1
+  fi
+
+  if [[ ! "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+    printf 'Invalid version: %s\n' "$new_version" >&2
+    printf 'Expected a semver value like 0.2.0 or 0.2.0-rc.1\n' >&2
+    exit 1
+  fi
+
+  while IFS= read -r manifest; do
+    cargo_tomls+=("$manifest")
+  done < <(find "$repo_root" \( -path "$repo_root/target" -o -path "$repo_root/.git" \) -prune -o -name Cargo.toml -type f -print | sort)
+
+  if [[ ${#cargo_tomls[@]} -eq 0 ]]; then
+    printf 'No Cargo.toml files found under %s\n' "$repo_root" >&2
+    exit 1
+  fi
+
+  for manifest in "${cargo_tomls[@]}"; do
+    run perl -0pi -e 's/^version = "[^"]+"$/version = "'"$new_version"'"/m' "$manifest"
+    run perl -0pi -e 's/(mnemara(?:-[a-z0-9]+)*\s*=\s*\{[^\n]*version\s*=\s*")[^"]+("[^\n]*\})/${1}'"$new_version"'${2}/g' "$manifest"
+  done
 }
 
 preflight() {
@@ -85,15 +117,17 @@ dry_run_publish_crate_or_skip() {
     return 0
   fi
 
-  cat "$output_file"
   for dependency in "${required_dependencies[@]}"; do
-    if grep -Fq "no matching package named \`$dependency\` found" "$output_file"; then
+    if grep -Fq "no matching package named \`$dependency\` found" "$output_file" \
+      || { grep -Fq "failed to select a version for the requirement \`$dependency =" "$output_file" \
+        && grep -Fq "candidate versions found which didn't match" "$output_file"; }; then
       printf '\n==> skipping %s: crates.io does not yet have required dependency %s\n' "$crate_name" "$dependency"
       rm -f "$output_file"
       return 0
     fi
   done
 
+  cat "$output_file"
   rm -f "$output_file"
   return 1
 }
@@ -162,6 +196,7 @@ Recommended publish order:
 Recommended verification flow:
   $(basename "$0") preflight
   $(basename "$0") release-candidate
+  $(basename "$0") bump-version 0.2.0
   $(basename "$0") foundation
   $(basename "$0") dry-run-publish foundation
   # publish mnemara-core and mnemara-protocol first, then continue
@@ -180,6 +215,9 @@ case "$phase" in
     ;;
   release-candidate)
     release_candidate
+    ;;
+  bump-version)
+    bump_version "$@"
     ;;
   foundation)
     foundation

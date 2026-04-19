@@ -18,7 +18,7 @@ path = "src/lib.rs"
 
 [dependencies]
 async-trait.workspace = true
-mnemara-core = { version = "0.1.0", path = "../mnemara-core" }
+mnemara-core = { version = "0.2.0", path = "../mnemara-core" }
 serde.workspace = true
 serde_json.workspace = true
 

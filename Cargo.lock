@@ -841,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "mnemara"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "mnemara-core",
  "mnemara-protocol",
@@ -852,7 +852,7 @@ dependencies = [
 
 [[package]]
 name = "mnemara-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "serde",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "mnemara-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "prost",
  "protoc-bin-vendored",
@@ -872,7 +872,7 @@ dependencies = [
 
 [[package]]
 name = "mnemara-server"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "hyper-util",
@@ -891,7 +891,7 @@ dependencies = [
 
 [[package]]
 name = "mnemara-store-file"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "mnemara-core",
@@ -903,7 +903,7 @@ dependencies = [
 
 [[package]]
 name = "mnemara-store-sled"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "criterion",
