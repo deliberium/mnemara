@@ -19,9 +19,9 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 
 - product-neutral memory domain model and store traits
 - embedded sled-backed storage
-- protobuf/gRPC protocol surface
+- protobuf/gRPC schema and generated service types
 - tonic-based daemon mode
-- HTTP/JSON memory, health, and admin endpoints for daemon operations
+- HTTP/JSON memory, lifecycle, trace, runtime, health, and admin endpoints for daemon operations
 - reference JavaScript HTTP SDK for non-Rust consumers
 - explicit memory scope, trust, and quality state concepts
 - optional episodic context with continuity state, salience, and causal links
@@ -46,7 +46,7 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 The current release includes:
 
 - native Rust embedding through direct crate dependencies
-- a local gRPC daemon backed by the sled store
+- a local gRPC and HTTP daemon backed by the sled store
 - typed memory records, recall filters, explanations, and planning traces
 - episodic continuity fields, continuity-aware planner profiles, and lifecycle-aware historical recall
 - recurrence and duration-aware episodic timeline cues with additive boundary labeling
@@ -184,7 +184,7 @@ Applications can depend on `mnemara` and enable only the product surfaces they n
 
 ```toml
 [dependencies]
-mnemara = { version = "0.1.0", features = ["sled"] }
+mnemara = { version = "0.2.0", features = ["sled"] }
 ```
 
 Available facade features:
@@ -199,7 +199,7 @@ Available facade features:
 
 - local-first by default
 - explainable retrieval over opaque ranking
-- explicit memory classes rather than transcript blobs only
+- explicit typed memory records rather than transcript-oriented storage only
 - additive episodic and lifecycle schema evolution
 - stable namespace and tenant isolation
 - support for both embedded and service-based deployment modes

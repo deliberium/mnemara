@@ -2,7 +2,7 @@
 
 ## Installation
 
-Mnemara can be used either as a Rust library dependency or as a standalone daemon.
+Mnemara can be used either as an embedded Rust library dependency or as a local gRPC or HTTP daemon.
 
 ### Develop from a checked-out repository
 
@@ -330,7 +330,7 @@ For recall requests, the additive episodic and lifecycle query controls are:
 
 Compatibility rules for clients and packages are intentionally conservative:
 
-- clients may omit all episodic fields and keep record-only behavior
+- clients may omit all episodic fields and keep baseline non-episodic behavior
 - missing `episode.schema_version` defaults to `1`
 - missing additive episodic fields deserialize to safe defaults
 - missing `episode` stays `None`
