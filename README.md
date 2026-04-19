@@ -206,7 +206,7 @@ Available facade features:
 
 ## Project Status
 
-Mnemara now ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, episodic continuity fields, continuity-aware planner traces, lifecycle-aware historical recall, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
+Mnemara ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, episodic continuity fields, continuity-aware planner traces, lifecycle-aware historical recall, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
 
 ## Open Source and Contributions
 
