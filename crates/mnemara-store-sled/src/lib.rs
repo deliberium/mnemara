@@ -8,23 +8,61 @@ use mnemara_core::{
     PortableStorePackage, RecallExplanation, RecallHistoricalMode, RecallHit, RecallPlanner,
     RecallPlanningProfile, RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer,
     RecallTemporalOrder, RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport,
-    RepairRequest, Result, SnapshotManifest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
-    SuppressRequest, UpsertReceipt, UpsertRequest,
+    RepairRequest, Result, SemanticEmbedder, SnapshotManifest, StoreStatsReport, StoreStatsRequest,
+    SuppressReceipt, SuppressRequest, UpsertReceipt, UpsertRequest,
 };
 use serde::{Deserialize, Serialize};
 use sled::{Db, Tree};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const RECORDS_TREE: &str = "records";
 const IDEMPOTENCY_TREE: &str = "idempotency";
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SledStoreConfig {
     pub data_dir: PathBuf,
     pub engine_config: EngineConfig,
+    pub shared_embedder: Option<SharedEmbedderConfig>,
+}
+
+#[derive(Clone)]
+pub struct SharedEmbedderConfig {
+    pub embedder: Arc<dyn SemanticEmbedder>,
+    pub provider_note: String,
+}
+
+impl SharedEmbedderConfig {
+    fn new(embedder: Arc<dyn SemanticEmbedder>, provider_note: impl Into<String>) -> Self {
+        Self {
+            embedder,
+            provider_note: provider_note.into(),
+        }
+    }
+}
+
+impl fmt::Debug for SharedEmbedderConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SharedEmbedderConfig")
+            .field("provider_note", &self.provider_note)
+            .finish()
+    }
+}
+
+impl fmt::Debug for SledStoreConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SledStoreConfig")
+            .field("data_dir", &self.data_dir)
+            .field("engine_config", &self.engine_config)
+            .field("shared_embedder", &self.shared_embedder)
+            .finish()
+    }
 }
 
 impl SledStoreConfig {
@@ -32,12 +70,38 @@ impl SledStoreConfig {
         Self {
             data_dir: data_dir.as_ref().to_path_buf(),
             engine_config: EngineConfig::default(),
+            shared_embedder: None,
         }
     }
 
     pub fn with_engine_config(mut self, engine_config: EngineConfig) -> Self {
         self.engine_config = engine_config;
         self
+    }
+
+    pub fn with_shared_embedder(
+        mut self,
+        embedder: Arc<dyn SemanticEmbedder>,
+        provider_note: impl Into<String>,
+    ) -> Self {
+        self.shared_embedder = Some(SharedEmbedderConfig::new(embedder, provider_note));
+        self
+    }
+
+    fn recall_planner(&self) -> RecallPlanner {
+        if let Some(shared_embedder) = &self.shared_embedder {
+            RecallPlanner::with_shared_embedder(
+                self.engine_config.recall_planning_profile,
+                self.engine_config.graph_expansion_max_hops,
+                self.engine_config.recall_scorer_kind,
+                self.engine_config.recall_scoring_profile,
+                self.engine_config.recall_policy_profile,
+                Arc::clone(&shared_embedder.embedder),
+                shared_embedder.provider_note.clone(),
+            )
+        } else {
+            RecallPlanner::from_engine_config(&self.engine_config)
+        }
     }
 }
 
@@ -46,7 +110,7 @@ pub struct SledMemoryStore {
     db: Db,
     records: Tree,
     idempotency: Tree,
-    engine_config: EngineConfig,
+    config: SledStoreConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,7 +169,7 @@ impl SledMemoryStore {
             db,
             records,
             idempotency,
-            engine_config: config.engine_config,
+            config,
         })
     }
 
@@ -118,7 +182,7 @@ impl SledMemoryStore {
     }
 
     fn retention_exempt(&self, record: &MemoryRecord) -> bool {
-        self.engine_config.retention.pinned_records_exempt && Self::is_pinned(record)
+        self.config.engine_config.retention.pinned_records_exempt && Self::is_pinned(record)
     }
 
     fn validate_delete_request(request: &DeleteRequest) -> Result<()> {
@@ -738,7 +802,7 @@ impl SledMemoryStore {
                 superseded_records,
                 lineage_links,
             },
-            engine: self.engine_config.tuning_info(),
+            engine: self.config.engine_config.tuning_info(),
         })
     }
 
@@ -904,14 +968,15 @@ impl SledMemoryStore {
         namespace: Option<&str>,
         now_unix_ms: u64,
     ) -> Result<Vec<StoredRecord>> {
-        let cold_archive_after_days = self.engine_config.compaction.cold_archive_after_days;
+        let cold_archive_after_days = self.config.engine_config.compaction.cold_archive_after_days;
         if cold_archive_after_days == 0 {
             return Ok(Vec::new());
         }
         let archive_threshold_ms =
             u64::from(cold_archive_after_days).saturating_mul(24 * 60 * 60 * 1_000);
         let max_importance = f32::from(
-            self.engine_config
+            self.config
+                .engine_config
                 .compaction
                 .cold_archive_importance_threshold_per_mille,
         ) / 1000.0;
@@ -990,7 +1055,7 @@ impl SledMemoryStore {
         namespace: &str,
     ) -> Result<(u64, u64)> {
         let now_unix_ms = Self::now_unix_ms()?;
-        let retention = &self.engine_config.retention;
+        let retention = &self.config.engine_config.retention;
         let ttl_window_ms = u64::from(retention.ttl_days).saturating_mul(24 * 60 * 60 * 1_000);
         let archive_window_ms =
             u64::from(retention.archive_after_days).saturating_mul(24 * 60 * 60 * 1_000);
@@ -1092,13 +1157,17 @@ impl MemoryStore for SledMemoryStore {
     async fn upsert(&self, request: UpsertRequest) -> Result<UpsertReceipt> {
         Self::validate_record(&request.record)?;
         if request.idempotency_key.is_none()
-            && self.engine_config.ingestion.idempotent_writes_required
+            && self
+                .config
+                .engine_config
+                .ingestion
+                .idempotent_writes_required
         {
             return Err(Error::InvalidRequest(
                 "idempotency_key is required by the current ingestion policy".to_string(),
             ));
         }
-        if self.engine_config.ingestion.require_source_labels
+        if self.config.engine_config.ingestion.require_source_labels
             && request.record.scope.labels.is_empty()
         {
             return Err(Error::InvalidRequest(
@@ -1168,11 +1237,11 @@ impl MemoryStore for SledMemoryStore {
     }
 
     async fn batch_upsert(&self, request: BatchUpsertRequest) -> Result<Vec<UpsertReceipt>> {
-        if request.requests.len() > self.engine_config.max_batch_size {
+        if request.requests.len() > self.config.engine_config.max_batch_size {
             return Err(Error::InvalidRequest(format!(
                 "batch size {} exceeds configured max_batch_size {}",
                 request.requests.len(),
-                self.engine_config.max_batch_size
+                self.config.engine_config.max_batch_size
             )));
         }
         let mut receipts = Vec::with_capacity(request.requests.len());
@@ -1184,7 +1253,7 @@ impl MemoryStore for SledMemoryStore {
 
     async fn recall(&self, query: RecallQuery) -> Result<RecallResult> {
         let empty_query = query.query_text.trim().is_empty();
-        let planner = RecallPlanner::from_engine_config(&self.engine_config);
+        let planner = self.config.recall_planner();
         let scorer = planner.scorer();
         let planning_profile = planner.effective_profile(&query);
         let records = self
@@ -1484,8 +1553,18 @@ impl MemoryStore for SledMemoryStore {
             });
 
             let signature = Self::dedup_signature(&group[0].record);
-            if self.engine_config.compaction.summarize_after_record_count > 0
-                && group.len() >= self.engine_config.compaction.summarize_after_record_count
+            if self
+                .config
+                .engine_config
+                .compaction
+                .summarize_after_record_count
+                > 0
+                && group.len()
+                    >= self
+                        .config
+                        .engine_config
+                        .compaction
+                        .summarize_after_record_count
             {
                 summarized_clusters += 1;
                 lineage_links_created += group.len() as u64;
@@ -1754,7 +1833,7 @@ impl MemoryStore for SledMemoryStore {
             namespaces,
             record_count: records.len() as u64,
             storage_bytes,
-            engine: self.engine_config.tuning_info(),
+            engine: self.config.engine_config.tuning_info(),
         })
     }
 
@@ -1953,7 +2032,7 @@ impl MemoryStore for SledMemoryStore {
                 namespaces: namespaces.into_iter().collect(),
                 record_count: records.len() as u64,
                 storage_bytes,
-                engine: self.engine_config.tuning_info(),
+                engine: self.config.engine_config.tuning_info(),
             },
             records,
         })

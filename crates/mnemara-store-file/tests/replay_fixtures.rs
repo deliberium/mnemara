@@ -2,17 +2,18 @@
 
 use mnemara_core::{
     BatchUpsertRequest, CompactionRequest, DeleteRequest, EPISODE_SCHEMA_VERSION,
-    EmbeddingProviderKind, EngineConfig, EpisodeContext, EpisodeContinuityState, EpisodeSalience,
-    IngestionPolicy, IntegrityCheckRequest, LineageLink, LineageRelationKind,
+    EmbeddingProviderKind, EmbeddingVector, EngineConfig, EpisodeContext, EpisodeContinuityState,
+    EpisodeSalience, IngestionPolicy, IntegrityCheckRequest, LineageLink, LineageRelationKind,
     MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
     MemoryStore, MemoryTrustLevel, RecallFilters, RecallHistoricalMode, RecallQuery,
-    RecallScoringProfile, RepairRequest, RetentionPolicy, UpsertRequest,
+    RecallScoringProfile, RepairRequest, RetentionPolicy, SemanticEmbedder, UpsertRequest,
 };
 use mnemara_store_file::{FileMemoryStore, FileStoreConfig};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 struct ReplayFixtureSet {
@@ -93,6 +94,32 @@ fn temp_store_dir(label: &str) -> PathBuf {
     ));
     fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+#[derive(Debug)]
+struct FixedEmbedder;
+
+impl SemanticEmbedder for FixedEmbedder {
+    fn provider_kind(&self) -> EmbeddingProviderKind {
+        EmbeddingProviderKind::DeterministicLocal
+    }
+
+    fn dimensions(&self) -> usize {
+        2
+    }
+
+    fn embed(&self, text: &str) -> EmbeddingVector {
+        let normalized = text.to_ascii_lowercase();
+        if normalized.contains("storm") || normalized.contains("checklist") {
+            EmbeddingVector {
+                values: vec![1.0, 0.0],
+            }
+        } else {
+            EmbeddingVector {
+                values: vec![0.0, 1.0],
+            }
+        }
+    }
 }
 
 fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
@@ -930,5 +957,61 @@ async fn semantic_embedding_can_surface_semantic_channel_in_explanations() {
             .policy_notes
             .iter()
             .any(|note| note == "embedding_provider=deterministic_local")
+    }));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn shared_embedder_injection_can_enable_semantic_recall_without_engine_embedding() {
+    let store = FileMemoryStore::open(
+        FileStoreConfig::new(temp_store_dir("shared-embedder"))
+            .with_shared_embedder(Arc::new(FixedEmbedder), "embedding_provider=fixed_test"),
+    )
+    .unwrap();
+
+    let semantic_match = MemoryRecord {
+        id: "semantic-match".to_string(),
+        scope: query_for("").scope,
+        kind: MemoryRecordKind::Fact,
+        content: "storm checklist mitigation runbook".to_string(),
+        summary: Some("storm mitigation runbook".to_string()),
+        source_id: None,
+        metadata: BTreeMap::new(),
+        quality_state: MemoryQualityState::Active,
+        created_at_unix_ms: 10,
+        updated_at_unix_ms: 10,
+        expires_at_unix_ms: None,
+        importance_score: 0.3,
+        artifact: None,
+        episode: None,
+        historical_state: Default::default(),
+        lineage: Vec::new(),
+    };
+
+    store
+        .upsert(UpsertRequest {
+            record: semantic_match,
+            idempotency_key: Some("semantic-match".to_string()),
+        })
+        .await
+        .unwrap();
+
+    let result = store
+        .recall(query_for("verified storm checklist"))
+        .await
+        .unwrap();
+
+    assert!(!result.hits.is_empty());
+    assert!(result.hits[0].breakdown.semantic > 0.0);
+    assert!(result.hits[0].explanation.as_ref().is_some_and(|value| {
+        value
+            .selected_channels
+            .iter()
+            .any(|channel| channel == "semantic")
+    }));
+    assert!(result.explanation.as_ref().is_some_and(|value| {
+        value
+            .policy_notes
+            .iter()
+            .any(|note| note == "embedding_provider=fixed_test")
     }));
 }
