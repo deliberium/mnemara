@@ -2,9 +2,9 @@
 
 use mnemara_core::{
     AffectiveAnnotation, AffectiveAnnotationProvenance, BatchUpsertRequest, CompactionRequest,
-    EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineConfig, EpisodeContext,
-    EpisodeContinuityState, EpisodeSalience, ExportRequest, ImportMode, ImportRequest,
-    IntegrityCheckRequest, LineageLink, LineageRelationKind, MemoryHistoricalState,
+    DeterministicLocalEmbedder, EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineConfig,
+    EpisodeContext, EpisodeContinuityState, EpisodeSalience, ExportRequest, ImportMode,
+    ImportRequest, IntegrityCheckRequest, LineageLink, LineageRelationKind, MemoryHistoricalState,
     MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryStore, MemoryTrustLevel,
     RecallFilters, RecallHistoricalMode, RecallPlanner, RecallPlanningProfile, RecallPolicyProfile,
     RecallQuery, RecallScorerKind, RecallScoringProfile, RecallTemporalOrder, RepairRequest,
@@ -191,6 +191,7 @@ struct BenchmarkReport {
     measurement: MeasurementConfig,
     profiles: Vec<ProfileBenchmark>,
     salience_profiles: Vec<SalienceBenchmark>,
+    shared_embedder_profiles: Vec<SharedEmbedderBenchmark>,
     planner_stage_profiles: Vec<PlannerStageBenchmark>,
     provenance_policy_profiles: Vec<PolicyProfileBenchmark>,
     maintenance_profiles: Vec<MaintenanceBenchmark>,
@@ -207,6 +208,21 @@ struct SalienceBenchmark {
 
 #[derive(Debug, Serialize)]
 struct SalienceConditionBenchmark {
+    condition: String,
+    backend_results: Vec<BackendBenchmark>,
+}
+
+#[derive(Debug, Serialize)]
+struct SharedEmbedderBenchmark {
+    scorer_kind: RecallScorerKind,
+    scoring_profile: RecallScoringProfile,
+    planning_profile: RecallPlanningProfile,
+    policy_profile: RecallPolicyProfile,
+    condition_results: Vec<SharedEmbedderConditionBenchmark>,
+}
+
+#[derive(Debug, Serialize)]
+struct SharedEmbedderConditionBenchmark {
     condition: String,
     backend_results: Vec<BackendBenchmark>,
 }
@@ -622,6 +638,17 @@ fn engine_config(
     config.recall_policy_profile = policy_profile;
     config.embedding_provider_kind = EmbeddingProviderKind::DeterministicLocal;
     config.embedding_dimensions = 64;
+    config
+}
+
+fn shared_embedder_engine_config(
+    kind: RecallScorerKind,
+    profile: RecallScoringProfile,
+    planning_profile: RecallPlanningProfile,
+    policy_profile: RecallPolicyProfile,
+) -> EngineConfig {
+    let mut config = engine_config(kind, profile, planning_profile, policy_profile);
+    config.embedding_provider_kind = EmbeddingProviderKind::Disabled;
     config
 }
 
@@ -1188,6 +1215,32 @@ fn markdown_summary(report: &BenchmarkReport) -> String {
     }
     output.push('\n');
 
+    output.push_str("## Shared embedder injection comparison\n\n");
+    output.push_str("| scorer / profile | planner | policy | condition | backend | hit@3 | recall@3 | mrr | ndcg@3 | ingest mean ms | recall p95 ms |\n");
+    output.push_str("| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+    for profile in &report.shared_embedder_profiles {
+        for condition in &profile.condition_results {
+            for backend in &condition.backend_results {
+                output.push_str(&format!(
+                    "| {:?} / {:?} | {:?} | {:?} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
+                    profile.scorer_kind,
+                    profile.scoring_profile,
+                    profile.planning_profile,
+                    profile.policy_profile,
+                    condition.condition,
+                    backend.backend,
+                    backend.quality_overall.hit_rate_at_3,
+                    backend.quality_overall.recall_at_3,
+                    backend.quality_overall.mrr,
+                    backend.quality_overall.ndcg_at_3,
+                    backend.ingest.mean_ms,
+                    backend.recall.p95_ms,
+                ));
+            }
+        }
+    }
+    output.push('\n');
+
     output.push_str("## Planner stage timings\n\n");
     output.push_str("| scorer / profile | planner | policy | candidate mean ms | graph p95 ms | total mean ms | mean seeded | mean expanded | max hops |\n");
     output.push_str("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |\n");
@@ -1378,6 +1431,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }])
     })?;
 
+    let shared_embedder_profiles = runtime.block_on(async {
+        let baseline = engine_config(
+            RecallScorerKind::Profile,
+            RecallScoringProfile::Balanced,
+            RecallPlanningProfile::ContinuityAware,
+            RecallPolicyProfile::General,
+        );
+        let injected = shared_embedder_engine_config(
+            RecallScorerKind::Profile,
+            RecallScoringProfile::Balanced,
+            RecallPlanningProfile::ContinuityAware,
+            RecallPolicyProfile::General,
+        );
+        Ok::<_, mnemara_core::Error>(vec![SharedEmbedderBenchmark {
+            scorer_kind: baseline.recall_scorer_kind,
+            scoring_profile: baseline.recall_scoring_profile,
+            planning_profile: baseline.recall_planning_profile,
+            policy_profile: baseline.recall_policy_profile,
+            condition_results: vec![
+                SharedEmbedderConditionBenchmark {
+                    condition: "engine_config_deterministic_local".to_string(),
+                    backend_results: vec![
+                        benchmark_backend("sled", baseline.clone(), &corpus, |path, engine| {
+                            SledMemoryStore::open(
+                                SledStoreConfig::new(path).with_engine_config(engine),
+                            )
+                        })
+                        .await?,
+                        benchmark_backend("file", baseline.clone(), &corpus, |path, engine| {
+                            FileMemoryStore::open(
+                                FileStoreConfig::new(path).with_engine_config(engine),
+                            )
+                        })
+                        .await?,
+                    ],
+                },
+                SharedEmbedderConditionBenchmark {
+                    condition: "shared_injected_deterministic_local".to_string(),
+                    backend_results: vec![
+                        benchmark_backend("sled", injected.clone(), &corpus, |path, engine| {
+                            SledMemoryStore::open(
+                                SledStoreConfig::new(path)
+                                    .with_engine_config(engine.clone())
+                                    .with_shared_embedder(
+                                        Arc::new(DeterministicLocalEmbedder::new(
+                                            engine.embedding_dimensions,
+                                        )),
+                                        "embedding_provider=benchmark_shared_deterministic_local",
+                                    ),
+                            )
+                        })
+                        .await?,
+                        benchmark_backend("file", injected.clone(), &corpus, |path, engine| {
+                            FileMemoryStore::open(
+                                FileStoreConfig::new(path)
+                                    .with_engine_config(engine.clone())
+                                    .with_shared_embedder(
+                                        Arc::new(DeterministicLocalEmbedder::new(
+                                            engine.embedding_dimensions,
+                                        )),
+                                        "embedding_provider=benchmark_shared_deterministic_local",
+                                    ),
+                            )
+                        })
+                        .await?,
+                    ],
+                },
+            ],
+        }])
+    })?;
+
     let planner_stage_profiles = [
         engine_config(
             RecallScorerKind::Profile,
@@ -1484,6 +1608,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         profiles,
         salience_profiles,
+        shared_embedder_profiles,
         planner_stage_profiles,
         provenance_policy_profiles,
         maintenance_profiles,

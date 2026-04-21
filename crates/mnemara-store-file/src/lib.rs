@@ -9,20 +9,58 @@ use mnemara_core::{
     RecallExplanation, RecallHistoricalMode, RecallHit, RecallPlanner, RecallPlanningProfile,
     RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer, RecallTemporalOrder,
     RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, Result,
-    SnapshotManifest, StoreStatsReport, StoreStatsRequest, SuppressReceipt, SuppressRequest,
-    UpsertReceipt, UpsertRequest,
+    SemanticEmbedder, SnapshotManifest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
+    SuppressRequest, UpsertReceipt, UpsertRequest,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FileStoreConfig {
     pub data_dir: PathBuf,
     pub engine_config: EngineConfig,
+    pub shared_embedder: Option<SharedEmbedderConfig>,
+}
+
+#[derive(Clone)]
+pub struct SharedEmbedderConfig {
+    pub embedder: Arc<dyn SemanticEmbedder>,
+    pub provider_note: String,
+}
+
+impl SharedEmbedderConfig {
+    fn new(embedder: Arc<dyn SemanticEmbedder>, provider_note: impl Into<String>) -> Self {
+        Self {
+            embedder,
+            provider_note: provider_note.into(),
+        }
+    }
+}
+
+impl fmt::Debug for SharedEmbedderConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SharedEmbedderConfig")
+            .field("provider_note", &self.provider_note)
+            .finish()
+    }
+}
+
+impl fmt::Debug for FileStoreConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("FileStoreConfig")
+            .field("data_dir", &self.data_dir)
+            .field("engine_config", &self.engine_config)
+            .field("shared_embedder", &self.shared_embedder)
+            .finish()
+    }
 }
 
 impl FileStoreConfig {
@@ -30,12 +68,38 @@ impl FileStoreConfig {
         Self {
             data_dir: data_dir.as_ref().to_path_buf(),
             engine_config: EngineConfig::default(),
+            shared_embedder: None,
         }
     }
 
     pub fn with_engine_config(mut self, engine_config: EngineConfig) -> Self {
         self.engine_config = engine_config;
         self
+    }
+
+    pub fn with_shared_embedder(
+        mut self,
+        embedder: Arc<dyn SemanticEmbedder>,
+        provider_note: impl Into<String>,
+    ) -> Self {
+        self.shared_embedder = Some(SharedEmbedderConfig::new(embedder, provider_note));
+        self
+    }
+
+    fn recall_planner(&self) -> RecallPlanner {
+        if let Some(shared_embedder) = &self.shared_embedder {
+            RecallPlanner::with_shared_embedder(
+                self.engine_config.recall_planning_profile,
+                self.engine_config.graph_expansion_max_hops,
+                self.engine_config.recall_scorer_kind,
+                self.engine_config.recall_scoring_profile,
+                self.engine_config.recall_policy_profile,
+                Arc::clone(&shared_embedder.embedder),
+                shared_embedder.provider_note.clone(),
+            )
+        } else {
+            RecallPlanner::from_engine_config(&self.engine_config)
+        }
     }
 }
 
@@ -1363,7 +1427,7 @@ impl MemoryStore for FileMemoryStore {
 
     async fn recall(&self, query: RecallQuery) -> Result<RecallResult> {
         let empty_query = query.query_text.trim().is_empty();
-        let planner = RecallPlanner::from_engine_config(&self.config.engine_config);
+        let planner = self.config.recall_planner();
         let scorer = planner.scorer();
         let planning_profile = planner.effective_profile(&query);
         let records = self

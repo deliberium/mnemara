@@ -82,6 +82,37 @@ The JSON artifact also contains:
 - snapshot, stats, export, dry-run compaction, and replace-import timings
 - exported storage-byte totals
 
+## Shared embedder injection comparison
+
+The current artifact revision now also publishes a seam-isolation slice for the
+embedded custom embedder path. It runs the same `Profile / Balanced /
+ContinuityAware / General` configuration twice on both backends:
+
+- once with `DeterministicLocal` supplied through `EngineConfig`
+- once with the same `DeterministicLocal` implementation injected through
+  `with_shared_embedder(...)` while `EngineConfig` embedding is disabled
+
+That keeps the provider algorithm fixed and measures only the cost of using the
+shared-embedder seam in the embedded file and sled stores.
+
+On the current checked-in artifact:
+
+- sled quality stayed flat at `1.00` for Hit@3, Recall@3, MRR, and NDCG@3 in
+  both conditions
+- file quality stayed flat at `1.00` for Hit@3, Recall@3, MRR, and NDCG@3 in
+  both conditions
+- sled ingest mean moved from `39.72` ms to `39.41` ms and recall p95 moved
+  from `2.80` ms to `2.77` ms
+- file ingest mean moved from `36.62` ms to `36.45` ms and recall p95 moved
+  from `3.01` ms to `3.00` ms
+
+Those figures support a narrow public claim: the shared embedder injection seam
+does not currently show a measurable regression on the shipped corpus when the
+same deterministic local provider is used through both configuration paths.
+They are not a generic claim about the runtime posture of arbitrary custom or
+remote embedding providers, which still depends on the host-supplied
+implementation.
+
 ## Salience-isolated comparison
 
 The current artifact revision now publishes a salience-isolated slice with the
@@ -176,6 +207,7 @@ Current repository evidence includes:
 - the expanded ranked corpus in `data/evaluation/ranking-corpus-v1.json`, including chronology, unresolved continuity, contradiction, preference-change, drift, and long-horizon task slices
 - the expanded ranked corpus in `data/evaluation/ranking-corpus-v1.json`, including chronology, recurrence-pattern, duration-boundary, unresolved continuity, contradiction, preference-change, drift, and long-horizon task slices
 - published planner-profile and scenario-stratified benchmark artifacts in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
+- published engine-config versus shared-embedder seam comparisons using the same deterministic local provider in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
 - published salience-enabled versus salience-neutralized quality and recall latency comparisons in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
 - published planner-stage timing slices for candidate generation, graph expansion, and total planning in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
 - published provenance-policy comparisons with semantic mode held constant in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
@@ -196,5 +228,5 @@ cargo test --manifest-path /Users/kabudu/projex/deliberium-group/mnemara/Cargo.t
 That means the current public claim boundary is:
 
 - shipped: episodic fields, planner traces, historical recall controls, lineage-preserving lifecycle behavior
-- published in checked-in benchmark artifacts: planner-profile latency comparison, salience-isolated quality and latency comparison, planner-stage timing slices, provenance-policy comparisons, lifecycle-specific quantitative scenario tables, and lifecycle maintenance timings
+- published in checked-in benchmark artifacts: planner-profile latency comparison, shared-embedder seam comparison, salience-isolated quality and latency comparison, planner-stage timing slices, provenance-policy comparisons, lifecycle-specific quantitative scenario tables, and lifecycle maintenance timings
 - still validated separately by focused suites: explanation payload stability, transport trace behavior, backend lifecycle parity, and restart-safe repair behavior

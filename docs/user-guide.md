@@ -227,6 +227,31 @@ let planner = RecallPlanner::with_shared_embedder(
 The final string becomes part of explanation policy notes, so the active custom
 provider remains inspectable in traces and downstream tooling.
 
+Embedded file and sled stores can now reuse the same seam directly through their
+store configs:
+
+```rust
+use std::sync::Arc;
+
+use mnemara_core::EngineConfig;
+use mnemara_store_file::FileStoreConfig;
+use mnemara_store_sled::SledStoreConfig;
+
+let engine = EngineConfig::default();
+let embedder = Arc::new(my_embedder);
+
+let file_config = FileStoreConfig::new("./mnemara-file")
+  .with_engine_config(engine.clone())
+  .with_shared_embedder(Arc::clone(&embedder), "embedding_provider=my_custom_provider");
+
+let sled_config = SledStoreConfig::new("./mnemara-sled")
+  .with_engine_config(engine)
+  .with_shared_embedder(embedder, "embedding_provider=my_custom_provider");
+```
+
+If `with_shared_embedder(...)` is not used, both embedded stores continue to
+derive their semantic provider from `EngineConfig` exactly as before.
+
 ## Historical and lifecycle-aware recall
 
 Mnemara now separates lifecycle visibility into two axes:
