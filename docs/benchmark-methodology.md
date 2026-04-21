@@ -91,6 +91,7 @@ Each published report should break out at least:
 - chronology and continuity-sensitive retrieval quality
 - recurrence and duration-sensitive retrieval quality
 - salience-enabled versus salience-neutralized quality and recall latency on the same corpus
+- shared-embedder injection versus engine-config-derived embedding on the same corpus and backend
 - explanation fidelity and planner-trace parity
 - historical-versus-current lifecycle behavior
 - recall latency by planner profile
@@ -124,6 +125,7 @@ The runner publishes:
 - scorer family comparisons: `Profile` and `Curated`
 - profile comparisons: `Balanced`, `LexicalFirst`, `ImportanceFirst`
 - salience-isolated comparisons with the same scorer and planner profile while episodic salience is enabled versus neutralized
+- shared-embedder seam comparisons with the same deterministic local embedder supplied through `EngineConfig` versus `with_shared_embedder(...)`
 - planner-profile comparisons: `FastPath` and `ContinuityAware`
 - planner-stage timings for candidate generation, graph expansion, and total planning
 - fixed policy-profile comparisons with semantic mode held constant
@@ -152,6 +154,13 @@ Latency summaries are published as mean, p50, p95, and max. Ingest throughput is
 Lifecycle maintenance summaries now also publish consolidation throughput as
 records per second on the fixed corpus and separate timing for integrity,
 repair, and recovery flows.
+
+For the shared-embedder comparison slice, the benchmark runner injects the same
+`DeterministicLocal` implementation through `with_shared_embedder(...)` while
+setting the `EngineConfig` embedding mode to `Disabled`. That keeps the corpus,
+planner profile, scorer profile, and backend fixed so the published delta
+measures the embedded seam overhead rather than making a misleading claim about
+arbitrary third-party provider runtimes.
 
 ## Portability and admin validation
 

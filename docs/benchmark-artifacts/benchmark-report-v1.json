@@ -1,11 +1,11 @@
 {
   "report_version": 1,
-  "generated_at_unix_ms": 1776623424542,
-  "corpus_path": "/Users/kabudu/projex/deliberium-group/mnemara/crates/mnemara-store-sled/../../data/evaluation/ranking-corpus-v1.json",
+  "generated_at_unix_ms": 1776804950333,
+  "corpus_path": "/home/runner/work/mnemara/mnemara/crates/mnemara-store-sled/../../data/evaluation/ranking-corpus-v1.json",
   "environment": {
-    "os": "macos",
-    "arch": "aarch64",
-    "logical_cpus": 10
+    "os": "linux",
+    "arch": "x86_64",
+    "logical_cpus": 4
   },
   "measurement": {
     "upsert_runs": 6,
@@ -202,59 +202,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 175.43397883333333,
-            "p50_ms": 174.733125,
-            "p95_ms": 187.437916,
-            "max_ms": 187.437916,
-            "throughput_per_sec": 165.30435091796397
+            "mean_ms": 39.898722666666664,
+            "p50_ms": 39.910142,
+            "p95_ms": 41.389038000000006,
+            "max_ms": 41.389038000000006,
+            "throughput_per_sec": 726.840311211968
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9853494722222228,
-            "p50_ms": 1.01275,
-            "p95_ms": 1.414209,
-            "max_ms": 1.6255,
+            "mean_ms": 2.2413427129629633,
+            "p50_ms": 2.462761,
+            "p95_ms": 2.767486,
+            "max_ms": 2.840666,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.48321875000000003,
-              "p50_ms": 0.49816699999999997,
-              "p95_ms": 0.528542,
-              "max_ms": 0.528542,
+              "mean_ms": 1.00225325,
+              "p50_ms": 0.978673,
+              "p95_ms": 1.081387,
+              "max_ms": 1.081387,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.587604,
-              "p50_ms": 1.561375,
-              "p95_ms": 1.702208,
-              "max_ms": 1.702208,
+              "mean_ms": 3.29488675,
+              "p50_ms": 3.3061309999999997,
+              "p95_ms": 3.376586,
+              "max_ms": 3.376586,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.46532275,
-              "p50_ms": 0.48466600000000004,
-              "p95_ms": 0.487416,
-              "max_ms": 0.487416,
+              "mean_ms": 0.97843225,
+              "p50_ms": 0.982258,
+              "p95_ms": 0.9882770000000001,
+              "max_ms": 0.9882770000000001,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.532396,
-              "p50_ms": 0.48454200000000003,
-              "p95_ms": 0.677417,
-              "max_ms": 0.677417,
+              "mean_ms": 1.05055525,
+              "p50_ms": 1.0529739999999999,
+              "p95_ms": 1.055077,
+              "max_ms": 1.055077,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 11.31878125,
-              "p50_ms": 12.898791999999998,
-              "p95_ms": 13.812750000000001,
-              "max_ms": 13.812750000000001,
+              "mean_ms": 3.26704275,
+              "p50_ms": 3.2960760000000002,
+              "p95_ms": 3.337709,
+              "max_ms": 3.337709,
               "throughput_per_sec": null
             }
           },
@@ -443,59 +443,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 100.88508333333334,
-            "p50_ms": 48.04325,
-            "p95_ms": 357.15625,
-            "max_ms": 357.15625,
-            "throughput_per_sec": 287.4557768285863
+            "mean_ms": 36.618899500000005,
+            "p50_ms": 36.537912,
+            "p95_ms": 37.009998,
+            "max_ms": 37.009998,
+            "throughput_per_sec": 791.9407845667237
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.218231111111111,
-            "p50_ms": 1.294583,
-            "p95_ms": 1.51375,
-            "max_ms": 1.5760830000000001,
+            "mean_ms": 2.4403381944444438,
+            "p50_ms": 2.6641920000000003,
+            "p95_ms": 2.9657020000000003,
+            "max_ms": 3.005592,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.945021,
-              "p50_ms": 0.949458,
-              "p95_ms": 0.999083,
-              "max_ms": 0.999083,
+              "mean_ms": 1.485175,
+              "p50_ms": 1.4752750000000001,
+              "p95_ms": 1.550458,
+              "max_ms": 1.550458,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.146167,
-              "p50_ms": 3.2227089999999996,
-              "p95_ms": 3.260875,
-              "max_ms": 3.260875,
+              "mean_ms": 4.5968935,
+              "p50_ms": 4.5938159999999995,
+              "p95_ms": 4.682169,
+              "max_ms": 4.682169,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7574275,
-              "p50_ms": 0.773709,
-              "p95_ms": 0.799375,
-              "max_ms": 0.799375,
+              "mean_ms": 1.1641325,
+              "p50_ms": 1.170219,
+              "p95_ms": 1.174275,
+              "max_ms": 1.174275,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.7755625,
-              "p50_ms": 0.77425,
-              "p95_ms": 0.782416,
-              "max_ms": 0.782416,
+              "mean_ms": 1.2552885,
+              "p50_ms": 1.259051,
+              "p95_ms": 1.265241,
+              "max_ms": 1.265241,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 6.2867605,
-              "p50_ms": 4.03575,
-              "p95_ms": 13.641375,
-              "max_ms": 13.641375,
+              "mean_ms": 3.0543497499999996,
+              "p50_ms": 3.041696,
+              "p95_ms": 3.1248299999999998,
+              "max_ms": 3.1248299999999998,
               "throughput_per_sec": null
             }
           },
@@ -692,59 +692,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 174.756215,
-            "p50_ms": 178.858833,
-            "p95_ms": 180.671083,
-            "max_ms": 180.671083,
-            "throughput_per_sec": 165.94545721878904
+            "mean_ms": 39.90611666666667,
+            "p50_ms": 39.893406999999996,
+            "p95_ms": 41.358146,
+            "max_ms": 41.358146,
+            "throughput_per_sec": 726.7056386928151
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9902558148148147,
-            "p50_ms": 1.0273750000000001,
-            "p95_ms": 1.378708,
-            "max_ms": 1.540625,
+            "mean_ms": 2.2910279814814807,
+            "p50_ms": 2.4885129999999998,
+            "p95_ms": 2.804908,
+            "max_ms": 3.698128,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.46621875,
-              "p50_ms": 0.452833,
-              "p95_ms": 0.5165000000000001,
-              "max_ms": 0.5165000000000001,
+              "mean_ms": 1.00087925,
+              "p50_ms": 0.981362,
+              "p95_ms": 1.086961,
+              "max_ms": 1.086961,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.58586475,
-              "p50_ms": 1.56175,
-              "p95_ms": 1.737709,
-              "max_ms": 1.737709,
+              "mean_ms": 3.2958195,
+              "p50_ms": 3.290747,
+              "p95_ms": 3.360281,
+              "max_ms": 3.360281,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.44056274999999995,
-              "p50_ms": 0.44075000000000003,
-              "p95_ms": 0.442834,
-              "max_ms": 0.442834,
+              "mean_ms": 0.97904375,
+              "p50_ms": 0.9817929999999999,
+              "p95_ms": 0.9988690000000001,
+              "max_ms": 0.9988690000000001,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.48479174999999997,
-              "p50_ms": 0.486541,
-              "p95_ms": 0.48891699999999993,
-              "max_ms": 0.48891699999999993,
+              "mean_ms": 1.05207075,
+              "p50_ms": 1.055584,
+              "p95_ms": 1.056905,
+              "max_ms": 1.056905,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 13.582989499999998,
-              "p50_ms": 14.751459,
-              "p95_ms": 15.469125,
-              "max_ms": 15.469125,
+              "mean_ms": 3.17339925,
+              "p50_ms": 3.2026239999999997,
+              "p95_ms": 3.264157,
+              "max_ms": 3.264157,
               "throughput_per_sec": null
             }
           },
@@ -933,59 +933,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 44.88920133333334,
-            "p50_ms": 43.930625,
-            "p95_ms": 72.615292,
-            "max_ms": 72.615292,
-            "throughput_per_sec": 646.0351073001937
+            "mean_ms": 36.54928683333333,
+            "p50_ms": 36.516531,
+            "p95_ms": 36.818073,
+            "max_ms": 36.818073,
+            "throughput_per_sec": 793.4491343768627
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2309760462962964,
-            "p50_ms": 1.311041,
-            "p95_ms": 1.511541,
-            "max_ms": 1.5720420000000002,
+            "mean_ms": 2.45673037037037,
+            "p50_ms": 2.6787780000000003,
+            "p95_ms": 2.985769,
+            "max_ms": 3.0253390000000002,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 1.020854,
-              "p50_ms": 0.966333,
-              "p95_ms": 1.296958,
-              "max_ms": 1.296958,
+              "mean_ms": 1.4774687499999999,
+              "p50_ms": 1.48691,
+              "p95_ms": 1.5276420000000002,
+              "max_ms": 1.5276420000000002,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.0788019999999996,
-              "p50_ms": 3.027583,
-              "p95_ms": 3.31975,
-              "max_ms": 3.31975,
+              "mean_ms": 4.572877500000001,
+              "p50_ms": 4.581252,
+              "p95_ms": 4.657928,
+              "max_ms": 4.657928,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7309374999999999,
-              "p50_ms": 0.733542,
-              "p95_ms": 0.73825,
-              "max_ms": 0.73825,
+              "mean_ms": 1.169309,
+              "p50_ms": 1.155213,
+              "p95_ms": 1.216545,
+              "max_ms": 1.216545,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.85537475,
-              "p50_ms": 0.809708,
-              "p95_ms": 1.023958,
-              "max_ms": 1.023958,
+              "mean_ms": 1.26797475,
+              "p50_ms": 1.267401,
+              "p95_ms": 1.277597,
+              "max_ms": 1.277597,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 10.865437499999999,
-              "p50_ms": 13.273,
-              "p95_ms": 21.132583,
-              "max_ms": 21.132583,
+              "mean_ms": 3.0249505,
+              "p50_ms": 3.021863,
+              "p95_ms": 3.088844,
+              "max_ms": 3.088844,
               "throughput_per_sec": null
             }
           },
@@ -1182,59 +1182,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 184.15722233333335,
-            "p50_ms": 189.234792,
-            "p95_ms": 191.431208,
-            "max_ms": 191.431208,
-            "throughput_per_sec": 157.47413885027336
+            "mean_ms": 39.36174183333333,
+            "p50_ms": 39.527488,
+            "p95_ms": 40.243483,
+            "max_ms": 40.243483,
+            "throughput_per_sec": 736.7560135624249
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.3047279351851853,
-            "p50_ms": 1.1364999999999998,
-            "p95_ms": 2.747167,
-            "max_ms": 3.033625,
+            "mean_ms": 2.2361727870370367,
+            "p50_ms": 2.453731,
+            "p95_ms": 2.759179,
+            "max_ms": 2.796335,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.56810425,
-              "p50_ms": 0.567584,
-              "p95_ms": 0.617375,
-              "max_ms": 0.617375,
+              "mean_ms": 1.01140225,
+              "p50_ms": 0.985969,
+              "p95_ms": 1.0959839999999998,
+              "max_ms": 1.0959839999999998,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.8964375,
-              "p50_ms": 1.830875,
-              "p95_ms": 2.2326249999999996,
-              "max_ms": 2.2326249999999996,
+              "mean_ms": 3.2949355,
+              "p50_ms": 3.2831449999999998,
+              "p95_ms": 3.364187,
+              "max_ms": 3.364187,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.5135832499999999,
-              "p50_ms": 0.5105,
-              "p95_ms": 0.538458,
-              "max_ms": 0.538458,
+              "mean_ms": 0.9813222500000001,
+              "p50_ms": 0.984417,
+              "p95_ms": 0.9888239999999999,
+              "max_ms": 0.9888239999999999,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.6374372500000001,
-              "p50_ms": 0.563458,
-              "p95_ms": 0.888625,
-              "max_ms": 0.888625,
+              "mean_ms": 1.04364575,
+              "p50_ms": 1.04701,
+              "p95_ms": 1.047482,
+              "max_ms": 1.047482,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 11.8528645,
-              "p50_ms": 12.928875,
-              "p95_ms": 14.659708,
-              "max_ms": 14.659708,
+              "mean_ms": 3.0989527500000005,
+              "p50_ms": 3.1398810000000004,
+              "p95_ms": 3.301863,
+              "max_ms": 3.301863,
               "throughput_per_sec": null
             }
           },
@@ -1423,59 +1423,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 49.495396,
-            "p50_ms": 50.281916,
-            "p95_ms": 71.01670899999999,
-            "max_ms": 71.01670899999999,
-            "throughput_per_sec": 585.9130816934974
+            "mean_ms": 36.59419283333333,
+            "p50_ms": 36.609501,
+            "p95_ms": 36.80888,
+            "max_ms": 36.80888,
+            "throughput_per_sec": 792.475465494737
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2333430185185188,
-            "p50_ms": 1.307959,
-            "p95_ms": 1.529917,
-            "max_ms": 1.618042,
+            "mean_ms": 2.458266768518519,
+            "p50_ms": 2.664367,
+            "p95_ms": 2.9791689999999997,
+            "max_ms": 3.28642,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.935729,
-              "p50_ms": 0.938667,
-              "p95_ms": 0.9684999999999999,
-              "max_ms": 0.9684999999999999,
+              "mean_ms": 1.47958475,
+              "p50_ms": 1.4605709999999998,
+              "p95_ms": 1.54649,
+              "max_ms": 1.54649,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.12954175,
-              "p50_ms": 3.147917,
-              "p95_ms": 3.296125,
-              "max_ms": 3.296125,
+              "mean_ms": 4.6525695,
+              "p50_ms": 4.694022,
+              "p95_ms": 4.848644,
+              "max_ms": 4.848644,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7554062500000001,
-              "p50_ms": 0.760625,
-              "p95_ms": 0.7780419999999999,
-              "max_ms": 0.7780419999999999,
+              "mean_ms": 1.16022075,
+              "p50_ms": 1.15987,
+              "p95_ms": 1.172509,
+              "max_ms": 1.172509,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.80574975,
-              "p50_ms": 0.816875,
-              "p95_ms": 0.817625,
-              "max_ms": 0.817625,
+              "mean_ms": 1.2553082500000001,
+              "p50_ms": 1.25302,
+              "p95_ms": 1.267532,
+              "max_ms": 1.267532,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 14.6706565,
-              "p50_ms": 19.817792,
-              "p95_ms": 26.340709,
-              "max_ms": 26.340709,
+              "mean_ms": 3.08247175,
+              "p50_ms": 3.081964,
+              "p95_ms": 3.109255,
+              "max_ms": 3.109255,
               "throughput_per_sec": null
             }
           },
@@ -1672,59 +1672,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 185.46001366666667,
-            "p50_ms": 185.97625000000002,
-            "p95_ms": 204.844458,
-            "max_ms": 204.844458,
-            "throughput_per_sec": 156.36793843940205
+            "mean_ms": 39.471621166666665,
+            "p50_ms": 39.467969,
+            "p95_ms": 40.041174,
+            "max_ms": 40.041174,
+            "throughput_per_sec": 734.7050651289228
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.0095958148148145,
-            "p50_ms": 1.047708,
-            "p95_ms": 1.401292,
-            "max_ms": 1.614167,
+            "mean_ms": 2.2965690833333343,
+            "p50_ms": 2.51344,
+            "p95_ms": 2.84635,
+            "max_ms": 2.877146,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.47759375000000004,
-              "p50_ms": 0.47645800000000005,
-              "p95_ms": 0.535917,
-              "max_ms": 0.535917,
+              "mean_ms": 1.000095,
+              "p50_ms": 0.9801799999999999,
+              "p95_ms": 1.090185,
+              "max_ms": 1.090185,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.60042675,
-              "p50_ms": 1.533083,
-              "p95_ms": 1.835125,
-              "max_ms": 1.835125,
+              "mean_ms": 3.29089,
+              "p50_ms": 3.276736,
+              "p95_ms": 3.3640570000000003,
+              "max_ms": 3.3640570000000003,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.4746355,
-              "p50_ms": 0.4505,
-              "p95_ms": 0.56575,
-              "max_ms": 0.56575,
+              "mean_ms": 0.9779247500000001,
+              "p50_ms": 0.9759340000000001,
+              "p95_ms": 0.99955,
+              "max_ms": 0.99955,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.50292675,
-              "p50_ms": 0.49216600000000005,
-              "p95_ms": 0.557083,
-              "max_ms": 0.557083,
+              "mean_ms": 1.0528647500000001,
+              "p50_ms": 1.0520880000000001,
+              "p95_ms": 1.0725699999999998,
+              "max_ms": 1.0725699999999998,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 14.279218750000002,
-              "p50_ms": 14.805125,
-              "p95_ms": 19.630666,
-              "max_ms": 19.630666,
+              "mean_ms": 3.181152,
+              "p50_ms": 3.250075,
+              "p95_ms": 3.2683880000000003,
+              "max_ms": 3.2683880000000003,
               "throughput_per_sec": null
             }
           },
@@ -1913,59 +1913,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 42.074944,
-            "p50_ms": 47.046791,
-            "p95_ms": 55.870708,
-            "max_ms": 55.870708,
-            "throughput_per_sec": 689.246312484694
+            "mean_ms": 36.5697295,
+            "p50_ms": 36.5357,
+            "p95_ms": 36.841088,
+            "max_ms": 36.841088,
+            "throughput_per_sec": 793.0055922344188
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2573981944444443,
-            "p50_ms": 1.329458,
-            "p95_ms": 1.548416,
-            "max_ms": 1.606125,
+            "mean_ms": 2.5114675462962954,
+            "p50_ms": 2.737437,
+            "p95_ms": 3.057788,
+            "max_ms": 3.1247979999999997,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 1.00314575,
-              "p50_ms": 0.963958,
-              "p95_ms": 1.193459,
-              "max_ms": 1.193459,
+              "mean_ms": 1.47467725,
+              "p50_ms": 1.4697950000000002,
+              "p95_ms": 1.5351029999999999,
+              "max_ms": 1.5351029999999999,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.08894775,
-              "p50_ms": 3.113625,
-              "p95_ms": 3.191083,
-              "max_ms": 3.191083,
+              "mean_ms": 4.5925372499999995,
+              "p50_ms": 4.590567,
+              "p95_ms": 4.662915,
+              "max_ms": 4.662915,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.75120825,
-              "p50_ms": 0.755,
-              "p95_ms": 0.7576250000000001,
-              "max_ms": 0.7576250000000001,
+              "mean_ms": 1.1583982499999999,
+              "p50_ms": 1.161883,
+              "p95_ms": 1.164898,
+              "max_ms": 1.164898,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.8466250000000001,
-              "p50_ms": 0.820958,
-              "p95_ms": 0.974708,
-              "max_ms": 0.974708,
+              "mean_ms": 1.25150475,
+              "p50_ms": 1.257146,
+              "p95_ms": 1.26688,
+              "max_ms": 1.26688,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 6.61328125,
-              "p50_ms": 9.034792,
-              "p95_ms": 9.234542,
-              "max_ms": 9.234542,
+              "mean_ms": 3.0300330000000004,
+              "p50_ms": 3.0116880000000004,
+              "p95_ms": 3.0935300000000003,
+              "max_ms": 3.0935300000000003,
               "throughput_per_sec": null
             }
           },
@@ -2162,59 +2162,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 184.96776383333335,
-            "p50_ms": 188.976334,
-            "p95_ms": 192.822708,
-            "max_ms": 192.822708,
-            "throughput_per_sec": 156.78407631143054
+            "mean_ms": 39.482352166666665,
+            "p50_ms": 39.601604,
+            "p95_ms": 39.815851,
+            "max_ms": 39.815851,
+            "throughput_per_sec": 734.505377936513
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9765574629629626,
-            "p50_ms": 1.029458,
-            "p95_ms": 1.297917,
-            "max_ms": 1.503041,
+            "mean_ms": 2.2995928981481484,
+            "p50_ms": 2.519619,
+            "p95_ms": 2.840922,
+            "max_ms": 2.909554,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.4688335,
-              "p50_ms": 0.46570900000000004,
-              "p95_ms": 0.514125,
-              "max_ms": 0.514125,
+              "mean_ms": 0.999795,
+              "p50_ms": 0.9783179999999999,
+              "p95_ms": 1.0709359999999999,
+              "max_ms": 1.0709359999999999,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.586073,
-              "p50_ms": 1.559083,
-              "p95_ms": 1.739625,
-              "max_ms": 1.739625,
+              "mean_ms": 3.30043125,
+              "p50_ms": 3.2882330000000004,
+              "p95_ms": 3.3654990000000002,
+              "max_ms": 3.3654990000000002,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.4404685,
-              "p50_ms": 0.440666,
-              "p95_ms": 0.442625,
-              "max_ms": 0.442625,
+              "mean_ms": 0.9743389999999998,
+              "p50_ms": 0.974672,
+              "p95_ms": 0.9821929999999999,
+              "max_ms": 0.9821929999999999,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.48635425,
-              "p50_ms": 0.485084,
-              "p95_ms": 0.49708300000000005,
-              "max_ms": 0.49708300000000005,
+              "mean_ms": 1.04655475,
+              "p50_ms": 1.048493,
+              "p95_ms": 1.0649170000000001,
+              "max_ms": 1.0649170000000001,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 15.045927500000001,
-              "p50_ms": 15.080084000000001,
-              "p95_ms": 19.6345,
-              "max_ms": 19.6345,
+              "mean_ms": 3.1714512499999996,
+              "p50_ms": 3.220861,
+              "p95_ms": 3.237637,
+              "max_ms": 3.237637,
               "throughput_per_sec": null
             }
           },
@@ -2403,59 +2403,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 50.46265966666666,
-            "p50_ms": 56.380583,
-            "p95_ms": 65.425083,
-            "max_ms": 65.425083,
-            "throughput_per_sec": 574.6823530816804
+            "mean_ms": 36.591449,
+            "p50_ms": 36.632045000000005,
+            "p95_ms": 36.746627,
+            "max_ms": 36.746627,
+            "throughput_per_sec": 792.534889777117
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.251651601851852,
-            "p50_ms": 1.318709,
-            "p95_ms": 1.531541,
-            "max_ms": 1.681708,
+            "mean_ms": 2.5029629259259263,
+            "p50_ms": 2.726329,
+            "p95_ms": 3.052459,
+            "max_ms": 3.1907170000000002,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.953344,
-              "p50_ms": 0.959625,
-              "p95_ms": 0.997834,
-              "max_ms": 0.997834,
+              "mean_ms": 1.4793189999999998,
+              "p50_ms": 1.4706759999999999,
+              "p95_ms": 1.533771,
+              "max_ms": 1.533771,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.1952292500000006,
-              "p50_ms": 3.2854170000000003,
-              "p95_ms": 3.291042,
-              "max_ms": 3.291042,
+              "mean_ms": 4.57024625,
+              "p50_ms": 4.572089,
+              "p95_ms": 4.647812,
+              "max_ms": 4.647812,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7890625,
-              "p50_ms": 0.772625,
-              "p95_ms": 0.902416,
-              "max_ms": 0.902416,
+              "mean_ms": 1.1604554999999999,
+              "p50_ms": 1.161201,
+              "p95_ms": 1.1709559999999999,
+              "max_ms": 1.1709559999999999,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.8021875,
-              "p50_ms": 0.810417,
-              "p95_ms": 0.817208,
-              "max_ms": 0.817208,
+              "mean_ms": 1.253295,
+              "p50_ms": 1.251197,
+              "p95_ms": 1.27311,
+              "max_ms": 1.27311,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 5.20155175,
-              "p50_ms": 4.099374999999999,
-              "p95_ms": 8.961916,
-              "max_ms": 8.961916,
+              "mean_ms": 3.0292045000000005,
+              "p50_ms": 3.014462,
+              "p95_ms": 3.113271,
+              "max_ms": 3.113271,
               "throughput_per_sec": null
             }
           },
@@ -2657,59 +2657,59 @@
               ],
               "ingest": {
                 "samples": 6,
-                "mean_ms": 178.86365966666668,
-                "p50_ms": 182.648708,
-                "p95_ms": 189.688875,
-                "max_ms": 189.688875,
-                "throughput_per_sec": 162.13466756771547
+                "mean_ms": 39.35580266666667,
+                "p50_ms": 39.584053000000004,
+                "p95_ms": 39.93481,
+                "max_ms": 39.93481,
+                "throughput_per_sec": 736.8671970845671
               },
               "recall": {
                 "samples": 108,
-                "mean_ms": 0.9979329537037034,
-                "p50_ms": 1.019292,
-                "p95_ms": 1.433375,
-                "max_ms": 1.5213329999999998,
+                "mean_ms": 2.2584640462962957,
+                "p50_ms": 2.501648,
+                "p95_ms": 2.777211,
+                "max_ms": 2.8377310000000002,
                 "throughput_per_sec": null
               },
               "admin_operations": {
                 "snapshot": {
                   "samples": 4,
-                  "mean_ms": 0.53102075,
-                  "p50_ms": 0.537041,
-                  "p95_ms": 0.660584,
-                  "max_ms": 0.660584,
+                  "mean_ms": 0.9975585,
+                  "p50_ms": 0.970511,
+                  "p95_ms": 1.097891,
+                  "max_ms": 1.097891,
                   "throughput_per_sec": null
                 },
                 "stats": {
                   "samples": 4,
-                  "mean_ms": 1.54163575,
-                  "p50_ms": 1.540584,
-                  "p95_ms": 1.557459,
-                  "max_ms": 1.557459,
+                  "mean_ms": 3.28329175,
+                  "p50_ms": 3.2672830000000004,
+                  "p95_ms": 3.356125,
+                  "max_ms": 3.356125,
                   "throughput_per_sec": null
                 },
                 "export": {
                   "samples": 4,
-                  "mean_ms": 0.44969824999999997,
-                  "p50_ms": 0.45325,
-                  "p95_ms": 0.463959,
-                  "max_ms": 0.463959,
+                  "mean_ms": 0.97886775,
+                  "p50_ms": 0.980886,
+                  "p95_ms": 0.986434,
+                  "max_ms": 0.986434,
                   "throughput_per_sec": null
                 },
                 "compact_dry_run": {
                   "samples": 4,
-                  "mean_ms": 0.5329685,
-                  "p50_ms": 0.486708,
-                  "p95_ms": 0.674708,
-                  "max_ms": 0.674708,
+                  "mean_ms": 1.0558352500000001,
+                  "p50_ms": 1.059884,
+                  "p95_ms": 1.060905,
+                  "max_ms": 1.060905,
                   "throughput_per_sec": null
                 },
                 "import_replace": {
                   "samples": 4,
-                  "mean_ms": 15.01581275,
-                  "p50_ms": 15.332875,
-                  "p95_ms": 15.345417,
-                  "max_ms": 15.345417,
+                  "mean_ms": 3.1456809999999997,
+                  "p50_ms": 3.158951,
+                  "p95_ms": 3.237478,
+                  "max_ms": 3.237478,
                   "throughput_per_sec": null
                 }
               },
@@ -2898,59 +2898,59 @@
               ],
               "ingest": {
                 "samples": 6,
-                "mean_ms": 43.752236,
-                "p50_ms": 45.534417,
-                "p95_ms": 57.245208,
-                "max_ms": 57.245208,
-                "throughput_per_sec": 662.8232669068615
+                "mean_ms": 36.4688975,
+                "p50_ms": 36.511483,
+                "p95_ms": 36.590701,
+                "max_ms": 36.590701,
+                "throughput_per_sec": 795.1981548112332
               },
               "recall": {
                 "samples": 108,
-                "mean_ms": 1.2488333240740743,
-                "p50_ms": 1.30325,
-                "p95_ms": 1.532,
-                "max_ms": 2.401417,
+                "mean_ms": 2.4794658703703707,
+                "p50_ms": 2.691142,
+                "p95_ms": 3.016638,
+                "max_ms": 3.550055,
                 "throughput_per_sec": null
               },
               "admin_operations": {
                 "snapshot": {
                   "samples": 4,
-                  "mean_ms": 0.9329062499999999,
-                  "p50_ms": 0.9326249999999999,
-                  "p95_ms": 0.975333,
-                  "max_ms": 0.975333,
+                  "mean_ms": 1.4663640000000002,
+                  "p50_ms": 1.455034,
+                  "p95_ms": 1.527273,
+                  "max_ms": 1.527273,
                   "throughput_per_sec": null
                 },
                 "stats": {
                   "samples": 4,
-                  "mean_ms": 3.15498975,
-                  "p50_ms": 3.2405,
-                  "p95_ms": 3.35375,
-                  "max_ms": 3.35375,
+                  "mean_ms": 4.5410635,
+                  "p50_ms": 4.521848,
+                  "p95_ms": 4.643879,
+                  "max_ms": 4.643879,
                   "throughput_per_sec": null
                 },
                 "export": {
                   "samples": 4,
-                  "mean_ms": 0.7489795,
-                  "p50_ms": 0.750459,
-                  "p95_ms": 0.763709,
-                  "max_ms": 0.763709,
+                  "mean_ms": 1.1519892500000002,
+                  "p50_ms": 1.152963,
+                  "p95_ms": 1.1554270000000002,
+                  "max_ms": 1.1554270000000002,
                   "throughput_per_sec": null
                 },
                 "compact_dry_run": {
                   "samples": 4,
-                  "mean_ms": 0.8424272500000001,
-                  "p50_ms": 0.801917,
-                  "p95_ms": 1.0028750000000002,
-                  "max_ms": 1.0028750000000002,
+                  "mean_ms": 1.24072925,
+                  "p50_ms": 1.24459,
+                  "p95_ms": 1.25165,
+                  "max_ms": 1.25165,
                   "throughput_per_sec": null
                 },
                 "import_replace": {
                   "samples": 4,
-                  "mean_ms": 10.7378125,
-                  "p50_ms": 13.443958,
-                  "p95_ms": 13.980167,
-                  "max_ms": 13.980167,
+                  "mean_ms": 3.04192575,
+                  "p50_ms": 3.054865,
+                  "p95_ms": 3.083729,
+                  "max_ms": 3.083729,
                   "throughput_per_sec": null
                 }
               },
@@ -3144,59 +3144,59 @@
               ],
               "ingest": {
                 "samples": 6,
-                "mean_ms": 172.63022899999999,
-                "p50_ms": 174.497791,
-                "p95_ms": 181.106583,
-                "max_ms": 181.106583,
-                "throughput_per_sec": 167.98911852222588
+                "mean_ms": 39.7803665,
+                "p50_ms": 39.650974999999995,
+                "p95_ms": 41.357785,
+                "max_ms": 41.357785,
+                "throughput_per_sec": 729.0028361101198
               },
               "recall": {
                 "samples": 108,
-                "mean_ms": 0.9975797962962959,
-                "p50_ms": 1.027333,
-                "p95_ms": 1.384333,
-                "max_ms": 1.6197920000000001,
+                "mean_ms": 2.255043787037038,
+                "p50_ms": 2.489771,
+                "p95_ms": 2.7864240000000002,
+                "max_ms": 2.845162,
                 "throughput_per_sec": null
               },
               "admin_operations": {
                 "snapshot": {
                   "samples": 4,
-                  "mean_ms": 0.51915625,
-                  "p50_ms": 0.522666,
-                  "p95_ms": 0.6557919999999999,
-                  "max_ms": 0.6557919999999999,
+                  "mean_ms": 0.99527225,
+                  "p50_ms": 0.9645009999999999,
+                  "p95_ms": 1.094496,
+                  "max_ms": 1.094496,
                   "throughput_per_sec": null
                 },
                 "stats": {
                   "samples": 4,
-                  "mean_ms": 1.544104,
-                  "p50_ms": 1.558542,
-                  "p95_ms": 1.561125,
-                  "max_ms": 1.561125,
+                  "mean_ms": 3.30730525,
+                  "p50_ms": 3.2850800000000002,
+                  "p95_ms": 3.415023,
+                  "max_ms": 3.415023,
                   "throughput_per_sec": null
                 },
                 "export": {
                   "samples": 4,
-                  "mean_ms": 0.44954150000000004,
-                  "p50_ms": 0.443,
-                  "p95_ms": 0.475208,
-                  "max_ms": 0.475208,
+                  "mean_ms": 0.97542525,
+                  "p50_ms": 0.9779610000000001,
+                  "p95_ms": 0.9840000000000001,
+                  "max_ms": 0.9840000000000001,
                   "throughput_per_sec": null
                 },
                 "compact_dry_run": {
                   "samples": 4,
-                  "mean_ms": 0.4900105,
-                  "p50_ms": 0.49291700000000005,
-                  "p95_ms": 0.502,
-                  "max_ms": 0.502,
+                  "mean_ms": 1.0482015,
+                  "p50_ms": 1.056158,
+                  "p95_ms": 1.059083,
+                  "max_ms": 1.059083,
                   "throughput_per_sec": null
                 },
                 "import_replace": {
                   "samples": 4,
-                  "mean_ms": 15.00509375,
-                  "p50_ms": 19.028833,
-                  "p95_ms": 19.140417,
-                  "max_ms": 19.140417,
+                  "mean_ms": 3.1794409999999997,
+                  "p50_ms": 3.198289,
+                  "p95_ms": 3.2505770000000003,
+                  "max_ms": 3.2505770000000003,
                   "throughput_per_sec": null
                 }
               },
@@ -3385,59 +3385,1043 @@
               ],
               "ingest": {
                 "samples": 6,
-                "mean_ms": 47.928083333333326,
-                "p50_ms": 52.743458,
-                "p95_ms": 74.04075,
-                "max_ms": 74.04075,
-                "throughput_per_sec": 605.0732260313629
+                "mean_ms": 37.599655,
+                "p50_ms": 36.583200000000005,
+                "p95_ms": 42.625435,
+                "max_ms": 42.625435,
+                "throughput_per_sec": 771.283672682635
               },
               "recall": {
                 "samples": 108,
-                "mean_ms": 1.2261998333333335,
-                "p50_ms": 1.304792,
-                "p95_ms": 1.500417,
-                "max_ms": 1.5738340000000002,
+                "mean_ms": 2.467676824074074,
+                "p50_ms": 2.699124,
+                "p95_ms": 2.998831,
+                "max_ms": 3.030188,
                 "throughput_per_sec": null
               },
               "admin_operations": {
                 "snapshot": {
                   "samples": 4,
-                  "mean_ms": 0.9935105000000001,
-                  "p50_ms": 0.984167,
-                  "p95_ms": 1.130125,
-                  "max_ms": 1.130125,
+                  "mean_ms": 1.4670572499999999,
+                  "p50_ms": 1.453923,
+                  "p95_ms": 1.536356,
+                  "max_ms": 1.536356,
                   "throughput_per_sec": null
                 },
                 "stats": {
                   "samples": 4,
-                  "mean_ms": 3.16939575,
-                  "p50_ms": 3.289208,
-                  "p95_ms": 3.36525,
-                  "max_ms": 3.36525,
+                  "mean_ms": 4.60350225,
+                  "p50_ms": 4.637891,
+                  "p95_ms": 4.7059429999999995,
+                  "max_ms": 4.7059429999999995,
                   "throughput_per_sec": null
                 },
                 "export": {
                   "samples": 4,
-                  "mean_ms": 0.7854684999999999,
-                  "p50_ms": 0.763666,
-                  "p95_ms": 0.918833,
-                  "max_ms": 0.918833,
+                  "mean_ms": 1.1613705,
+                  "p50_ms": 1.158772,
+                  "p95_ms": 1.182787,
+                  "max_ms": 1.182787,
                   "throughput_per_sec": null
                 },
                 "compact_dry_run": {
                   "samples": 4,
-                  "mean_ms": 0.80222925,
-                  "p50_ms": 0.814917,
-                  "p95_ms": 0.82825,
-                  "max_ms": 0.82825,
+                  "mean_ms": 1.2454735,
+                  "p50_ms": 1.254104,
+                  "p95_ms": 1.2609839999999999,
+                  "max_ms": 1.2609839999999999,
                   "throughput_per_sec": null
                 },
                 "import_replace": {
                   "samples": 4,
-                  "mean_ms": 5.3473957500000004,
-                  "p50_ms": 4.13675,
-                  "p95_ms": 9.718333,
-                  "max_ms": 9.718333,
+                  "mean_ms": 3.0654934999999996,
+                  "p50_ms": 3.057088,
+                  "p95_ms": 3.1253409999999997,
+                  "max_ms": 3.1253409999999997,
+                  "throughput_per_sec": null
+                }
+              },
+              "exported_storage_bytes": 3724
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "shared_embedder_profiles": [
+    {
+      "scorer_kind": "Profile",
+      "scoring_profile": "Balanced",
+      "planning_profile": "ContinuityAware",
+      "policy_profile": "General",
+      "condition_results": [
+        {
+          "condition": "engine_config_deterministic_local",
+          "backend_results": [
+            {
+              "backend": "sled",
+              "quality_overall": {
+                "cases": 18,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              },
+              "quality_by_scenario": [
+                {
+                  "scenario": "archival_cold_tier",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "chronology_reconstruction",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "continuity_unresolved",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "contradiction_handling",
+                  "metrics": {
+                    "cases": 2,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "deployment_transport",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duplicate_heavy",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "durable_high_trust",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duration_boundary",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "exact_lookup",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "fairness_runtime",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "long_horizon_task",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "noisy_distractor",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "operational_drift",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "portability_regression",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "preference_change",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recent_thread",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recurrence_pattern",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                }
+              ],
+              "ingest": {
+                "samples": 6,
+                "mean_ms": 39.72192933333333,
+                "p50_ms": 40.147637,
+                "p95_ms": 40.448232,
+                "max_ms": 40.448232,
+                "throughput_per_sec": 730.0753132266453
+              },
+              "recall": {
+                "samples": 108,
+                "mean_ms": 2.2517696018518527,
+                "p50_ms": 2.47619,
+                "p95_ms": 2.795928,
+                "max_ms": 2.9153870000000004,
+                "throughput_per_sec": null
+              },
+              "admin_operations": {
+                "snapshot": {
+                  "samples": 4,
+                  "mean_ms": 0.9934747500000001,
+                  "p50_ms": 0.964021,
+                  "p95_ms": 1.086063,
+                  "max_ms": 1.086063,
+                  "throughput_per_sec": null
+                },
+                "stats": {
+                  "samples": 4,
+                  "mean_ms": 3.33451825,
+                  "p50_ms": 3.319461,
+                  "p95_ms": 3.505729,
+                  "max_ms": 3.505729,
+                  "throughput_per_sec": null
+                },
+                "export": {
+                  "samples": 4,
+                  "mean_ms": 0.9815395,
+                  "p50_ms": 0.9886579999999999,
+                  "p95_ms": 0.9890280000000001,
+                  "max_ms": 0.9890280000000001,
+                  "throughput_per_sec": null
+                },
+                "compact_dry_run": {
+                  "samples": 4,
+                  "mean_ms": 1.0465692500000001,
+                  "p50_ms": 1.046915,
+                  "p95_ms": 1.052583,
+                  "max_ms": 1.052583,
+                  "throughput_per_sec": null
+                },
+                "import_replace": {
+                  "samples": 4,
+                  "mean_ms": 3.1047295000000004,
+                  "p50_ms": 3.1401820000000003,
+                  "p95_ms": 3.161765,
+                  "max_ms": 3.161765,
+                  "throughput_per_sec": null
+                }
+              },
+              "exported_storage_bytes": 3724
+            },
+            {
+              "backend": "file",
+              "quality_overall": {
+                "cases": 18,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              },
+              "quality_by_scenario": [
+                {
+                  "scenario": "archival_cold_tier",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "chronology_reconstruction",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "continuity_unresolved",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "contradiction_handling",
+                  "metrics": {
+                    "cases": 2,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "deployment_transport",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duplicate_heavy",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "durable_high_trust",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duration_boundary",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "exact_lookup",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "fairness_runtime",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "long_horizon_task",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "noisy_distractor",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "operational_drift",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "portability_regression",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "preference_change",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recent_thread",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recurrence_pattern",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                }
+              ],
+              "ingest": {
+                "samples": 6,
+                "mean_ms": 36.616555,
+                "p50_ms": 36.662158,
+                "p95_ms": 36.739935,
+                "max_ms": 36.739935,
+                "throughput_per_sec": 791.9914912803786
+              },
+              "recall": {
+                "samples": 108,
+                "mean_ms": 2.462919231481482,
+                "p50_ms": 2.684756,
+                "p95_ms": 3.0068289999999998,
+                "max_ms": 3.056504,
+                "throughput_per_sec": null
+              },
+              "admin_operations": {
+                "snapshot": {
+                  "samples": 4,
+                  "mean_ms": 1.4742935000000001,
+                  "p50_ms": 1.462053,
+                  "p95_ms": 1.5468000000000002,
+                  "max_ms": 1.5468000000000002,
+                  "throughput_per_sec": null
+                },
+                "stats": {
+                  "samples": 4,
+                  "mean_ms": 4.58183325,
+                  "p50_ms": 4.549853000000001,
+                  "p95_ms": 4.7313149999999995,
+                  "max_ms": 4.7313149999999995,
+                  "throughput_per_sec": null
+                },
+                "export": {
+                  "samples": 4,
+                  "mean_ms": 1.16088125,
+                  "p50_ms": 1.167481,
+                  "p95_ms": 1.169645,
+                  "max_ms": 1.169645,
+                  "throughput_per_sec": null
+                },
+                "compact_dry_run": {
+                  "samples": 4,
+                  "mean_ms": 1.253034,
+                  "p50_ms": 1.257566,
+                  "p95_ms": 1.2794690000000002,
+                  "max_ms": 1.2794690000000002,
+                  "throughput_per_sec": null
+                },
+                "import_replace": {
+                  "samples": 4,
+                  "mean_ms": 3.0438045000000002,
+                  "p50_ms": 3.0387169999999997,
+                  "p95_ms": 3.119588,
+                  "max_ms": 3.119588,
+                  "throughput_per_sec": null
+                }
+              },
+              "exported_storage_bytes": 3724
+            }
+          ]
+        },
+        {
+          "condition": "shared_injected_deterministic_local",
+          "backend_results": [
+            {
+              "backend": "sled",
+              "quality_overall": {
+                "cases": 18,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              },
+              "quality_by_scenario": [
+                {
+                  "scenario": "archival_cold_tier",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "chronology_reconstruction",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "continuity_unresolved",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "contradiction_handling",
+                  "metrics": {
+                    "cases": 2,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "deployment_transport",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duplicate_heavy",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "durable_high_trust",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duration_boundary",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "exact_lookup",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "fairness_runtime",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "long_horizon_task",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "noisy_distractor",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "operational_drift",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "portability_regression",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "preference_change",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recent_thread",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recurrence_pattern",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                }
+              ],
+              "ingest": {
+                "samples": 6,
+                "mean_ms": 39.407539166666666,
+                "p50_ms": 39.328098,
+                "p95_ms": 40.124311000000006,
+                "max_ms": 40.124311000000006,
+                "throughput_per_sec": 735.8997951470666
+              },
+              "recall": {
+                "samples": 108,
+                "mean_ms": 2.2556278055555565,
+                "p50_ms": 2.502553,
+                "p95_ms": 2.773349,
+                "max_ms": 2.8253269999999997,
+                "throughput_per_sec": null
+              },
+              "admin_operations": {
+                "snapshot": {
+                  "samples": 4,
+                  "mean_ms": 0.9978340000000001,
+                  "p50_ms": 0.9859389999999999,
+                  "p95_ms": 1.08715,
+                  "max_ms": 1.08715,
+                  "throughput_per_sec": null
+                },
+                "stats": {
+                  "samples": 4,
+                  "mean_ms": 3.2883285,
+                  "p50_ms": 3.279187,
+                  "p95_ms": 3.3785659999999997,
+                  "max_ms": 3.3785659999999997,
+                  "throughput_per_sec": null
+                },
+                "export": {
+                  "samples": 4,
+                  "mean_ms": 0.9808884999999999,
+                  "p50_ms": 0.987691,
+                  "p95_ms": 0.987901,
+                  "max_ms": 0.987901,
+                  "throughput_per_sec": null
+                },
+                "compact_dry_run": {
+                  "samples": 4,
+                  "mean_ms": 1.0560565000000002,
+                  "p50_ms": 1.052919,
+                  "p95_ms": 1.078978,
+                  "max_ms": 1.078978,
+                  "throughput_per_sec": null
+                },
+                "import_replace": {
+                  "samples": 4,
+                  "mean_ms": 3.1340725,
+                  "p50_ms": 3.177895,
+                  "p95_ms": 3.203785,
+                  "max_ms": 3.203785,
+                  "throughput_per_sec": null
+                }
+              },
+              "exported_storage_bytes": 3724
+            },
+            {
+              "backend": "file",
+              "quality_overall": {
+                "cases": 18,
+                "hit_rate_at_3": 1.0,
+                "recall_at_3": 1.0,
+                "mrr": 1.0,
+                "ndcg_at_3": 1.0
+              },
+              "quality_by_scenario": [
+                {
+                  "scenario": "archival_cold_tier",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "chronology_reconstruction",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "continuity_unresolved",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "contradiction_handling",
+                  "metrics": {
+                    "cases": 2,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "deployment_transport",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duplicate_heavy",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "durable_high_trust",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "duration_boundary",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "exact_lookup",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "fairness_runtime",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "long_horizon_task",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "noisy_distractor",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "operational_drift",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "portability_regression",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "preference_change",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recent_thread",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                },
+                {
+                  "scenario": "recurrence_pattern",
+                  "metrics": {
+                    "cases": 1,
+                    "hit_rate_at_3": 1.0,
+                    "recall_at_3": 1.0,
+                    "mrr": 1.0,
+                    "ndcg_at_3": 1.0
+                  }
+                }
+              ],
+              "ingest": {
+                "samples": 6,
+                "mean_ms": 36.45394566666667,
+                "p50_ms": 36.439436,
+                "p95_ms": 36.801688999999996,
+                "max_ms": 36.801688999999996,
+                "throughput_per_sec": 795.5243107337344
+              },
+              "recall": {
+                "samples": 108,
+                "mean_ms": 2.4664538055555547,
+                "p50_ms": 2.68784,
+                "p95_ms": 2.999498,
+                "max_ms": 3.019618,
+                "throughput_per_sec": null
+              },
+              "admin_operations": {
+                "snapshot": {
+                  "samples": 4,
+                  "mean_ms": 1.4815767499999999,
+                  "p50_ms": 1.454241,
+                  "p95_ms": 1.5892330000000001,
+                  "max_ms": 1.5892330000000001,
+                  "throughput_per_sec": null
+                },
+                "stats": {
+                  "samples": 4,
+                  "mean_ms": 4.569993500000001,
+                  "p50_ms": 4.5654770000000005,
+                  "p95_ms": 4.679647999999999,
+                  "max_ms": 4.679647999999999,
+                  "throughput_per_sec": null
+                },
+                "export": {
+                  "samples": 4,
+                  "mean_ms": 1.1579617500000001,
+                  "p50_ms": 1.162814,
+                  "p95_ms": 1.176294,
+                  "max_ms": 1.176294,
+                  "throughput_per_sec": null
+                },
+                "compact_dry_run": {
+                  "samples": 4,
+                  "mean_ms": 1.25334175,
+                  "p50_ms": 1.259989,
+                  "p95_ms": 1.2637749999999999,
+                  "max_ms": 1.2637749999999999,
+                  "throughput_per_sec": null
+                },
+                "import_replace": {
+                  "samples": 4,
+                  "mean_ms": 3.0475600000000003,
+                  "p50_ms": 3.049243,
+                  "p95_ms": 3.105677,
+                  "max_ms": 3.105677,
                   "throughput_per_sec": null
                 }
               },
@@ -3457,26 +4441,26 @@
       "stage_timings": {
         "candidate_generation": {
           "samples": 108,
-          "mean_ms": 0.5632137037037036,
-          "p50_ms": 0.554208,
-          "p95_ms": 0.641625,
-          "max_ms": 0.77025,
+          "mean_ms": 1.5257038425925924,
+          "p50_ms": 1.529384,
+          "p95_ms": 1.78078,
+          "max_ms": 1.804346,
           "throughput_per_sec": null
         },
         "graph_expansion": {
           "samples": 108,
-          "mean_ms": 0.002094888888888889,
+          "mean_ms": 0.004105333333333333,
           "p50_ms": 0.0,
-          "p95_ms": 0.012542,
-          "max_ms": 0.016292,
+          "p95_ms": 0.025468,
+          "max_ms": 0.032068,
           "throughput_per_sec": null
         },
         "total_planning": {
           "samples": 108,
-          "mean_ms": 0.5735282037037037,
-          "p50_ms": 0.564084,
-          "p95_ms": 0.649,
-          "max_ms": 0.796209,
+          "mean_ms": 1.5483418055555556,
+          "p50_ms": 1.566529,
+          "p95_ms": 1.819338,
+          "max_ms": 1.842022,
           "throughput_per_sec": null
         },
         "mean_seeded_candidates": 28.77777777777778,
@@ -3492,26 +4476,26 @@
       "stage_timings": {
         "candidate_generation": {
           "samples": 108,
-          "mean_ms": 0.5647037500000001,
-          "p50_ms": 0.548667,
-          "p95_ms": 0.689625,
-          "max_ms": 0.836459,
+          "mean_ms": 1.523685833333333,
+          "p50_ms": 1.524366,
+          "p95_ms": 1.779829,
+          "max_ms": 1.795953,
           "throughput_per_sec": null
         },
         "graph_expansion": {
           "samples": 108,
-          "mean_ms": 0.013748870370370371,
-          "p50_ms": 0.0115,
-          "p95_ms": 0.029917,
-          "max_ms": 0.036875,
+          "mean_ms": 0.026987212962962966,
+          "p50_ms": 0.021542,
+          "p95_ms": 0.06702,
+          "max_ms": 0.070696,
           "throughput_per_sec": null
         },
         "total_planning": {
           "samples": 108,
-          "mean_ms": 0.5868341574074073,
-          "p50_ms": 0.568709,
-          "p95_ms": 0.712959,
-          "max_ms": 0.857167,
+          "mean_ms": 1.5686719259259263,
+          "p50_ms": 1.565007,
+          "p95_ms": 1.820811,
+          "max_ms": 1.839609,
           "throughput_per_sec": null
         },
         "mean_seeded_candidates": 28.77777777777778,
@@ -3527,26 +4511,26 @@
       "stage_timings": {
         "candidate_generation": {
           "samples": 108,
-          "mean_ms": 0.5668391111111111,
-          "p50_ms": 0.56075,
-          "p95_ms": 0.710792,
-          "max_ms": 0.7695,
+          "mean_ms": 1.524913231481481,
+          "p50_ms": 1.520801,
+          "p95_ms": 1.780099,
+          "max_ms": 1.84061,
           "throughput_per_sec": null
         },
         "graph_expansion": {
           "samples": 108,
-          "mean_ms": 0.013881175925925929,
-          "p50_ms": 0.011458,
-          "p95_ms": 0.030292,
-          "max_ms": 0.033292,
+          "mean_ms": 0.02682733333333334,
+          "p50_ms": 0.021622,
+          "p95_ms": 0.065959,
+          "max_ms": 0.067791,
           "throughput_per_sec": null
         },
         "total_planning": {
           "samples": 108,
-          "mean_ms": 0.5892631388888889,
-          "p50_ms": 0.580709,
-          "p95_ms": 0.732833,
-          "max_ms": 0.795958,
+          "mean_ms": 1.5697803888888888,
+          "p50_ms": 1.564757,
+          "p95_ms": 1.822733,
+          "max_ms": 1.885437,
           "throughput_per_sec": null
         },
         "mean_seeded_candidates": 28.77777777777778,
@@ -3745,59 +4729,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 172.75336116666668,
-            "p50_ms": 179.439,
-            "p95_ms": 182.25050000000002,
-            "max_ms": 182.25050000000002,
-            "throughput_per_sec": 167.86938213041057
+            "mean_ms": 39.754763833333335,
+            "p50_ms": 39.660992,
+            "p95_ms": 41.138117,
+            "max_ms": 41.138117,
+            "throughput_per_sec": 729.4723249162972
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.987393148148148,
-            "p50_ms": 1.0260420000000001,
-            "p95_ms": 1.4375,
-            "max_ms": 1.5198749999999999,
+            "mean_ms": 2.2457240555555553,
+            "p50_ms": 2.463434,
+            "p95_ms": 2.7731980000000003,
+            "max_ms": 2.836855,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.50698975,
-              "p50_ms": 0.505625,
-              "p95_ms": 0.6272909999999999,
-              "max_ms": 0.6272909999999999,
+              "mean_ms": 0.994494,
+              "p50_ms": 0.9727089999999999,
+              "p95_ms": 1.0796189999999999,
+              "max_ms": 1.0796189999999999,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.5357395,
-              "p50_ms": 1.545333,
-              "p95_ms": 1.554708,
-              "max_ms": 1.554708,
+              "mean_ms": 3.283632,
+              "p50_ms": 3.2946910000000003,
+              "p95_ms": 3.343685,
+              "max_ms": 3.343685,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.44054175,
-              "p50_ms": 0.442084,
-              "p95_ms": 0.44316700000000003,
-              "max_ms": 0.44316700000000003,
+              "mean_ms": 1.0045865,
+              "p50_ms": 0.994862,
+              "p95_ms": 1.06014,
+              "max_ms": 1.06014,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.48373975,
-              "p50_ms": 0.484417,
-              "p95_ms": 0.485958,
-              "max_ms": 0.485958,
+              "mean_ms": 1.0468025,
+              "p50_ms": 1.054872,
+              "p95_ms": 1.059539,
+              "max_ms": 1.059539,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 14.47144775,
-              "p50_ms": 15.008833,
-              "p95_ms": 15.115125,
-              "max_ms": 15.115125,
+              "mean_ms": 3.09851625,
+              "p50_ms": 3.053298,
+              "p95_ms": 3.304936,
+              "max_ms": 3.304936,
               "throughput_per_sec": null
             }
           },
@@ -3986,59 +4970,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 43.32878466666667,
-            "p50_ms": 43.183375000000005,
-            "p95_ms": 54.863541000000005,
-            "max_ms": 54.863541000000005,
-            "throughput_per_sec": 669.3010252445422
+            "mean_ms": 36.50113266666667,
+            "p50_ms": 36.507587,
+            "p95_ms": 36.565815,
+            "max_ms": 36.565815,
+            "throughput_per_sec": 794.495893177671
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.225689453703704,
-            "p50_ms": 1.296417,
-            "p95_ms": 1.4773340000000001,
-            "max_ms": 1.642291,
+            "mean_ms": 2.4575229074074088,
+            "p50_ms": 2.6855070000000003,
+            "p95_ms": 2.9887720000000004,
+            "max_ms": 3.068772,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.937073,
-              "p50_ms": 0.9472499999999999,
-              "p95_ms": 0.954333,
-              "max_ms": 0.954333,
+              "mean_ms": 1.47422575,
+              "p50_ms": 1.4660879999999998,
+              "p95_ms": 1.537025,
+              "max_ms": 1.537025,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.0968539999999996,
-              "p50_ms": 3.055625,
-              "p95_ms": 3.299,
-              "max_ms": 3.299,
+              "mean_ms": 4.571803249999999,
+              "p50_ms": 4.538035,
+              "p95_ms": 4.702972,
+              "max_ms": 4.702972,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.8460415000000001,
-              "p50_ms": 0.832167,
-              "p95_ms": 1.055833,
-              "max_ms": 1.055833,
+              "mean_ms": 1.172383,
+              "p50_ms": 1.156825,
+              "p95_ms": 1.2266899999999998,
+              "max_ms": 1.2266899999999998,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.84109375,
-              "p50_ms": 0.824625,
-              "p95_ms": 0.94175,
-              "max_ms": 0.94175,
+              "mean_ms": 1.248507,
+              "p50_ms": 1.256093,
+              "p95_ms": 1.256685,
+              "max_ms": 1.256685,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 3.9899579999999997,
-              "p50_ms": 4.090208,
-              "p95_ms": 4.265166,
-              "max_ms": 4.265166,
+              "mean_ms": 3.079696,
+              "p50_ms": 3.050915,
+              "p95_ms": 3.193489,
+              "max_ms": 3.193489,
               "throughput_per_sec": null
             }
           },
@@ -4235,59 +5219,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 174.42765966666664,
-            "p50_ms": 175.456625,
-            "p95_ms": 184.91870799999998,
-            "max_ms": 184.91870799999998,
-            "throughput_per_sec": 166.2580353105657
+            "mean_ms": 39.55470316666667,
+            "p50_ms": 39.391823,
+            "p95_ms": 40.347872,
+            "max_ms": 40.347872,
+            "throughput_per_sec": 733.1618664361189
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9782542870370371,
-            "p50_ms": 1.017042,
-            "p95_ms": 1.339458,
-            "max_ms": 1.498375,
+            "mean_ms": 2.2483054351851854,
+            "p50_ms": 2.464305,
+            "p95_ms": 2.774711,
+            "max_ms": 2.8145499999999997,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.469198,
-              "p50_ms": 0.45525,
-              "p95_ms": 0.522667,
-              "max_ms": 0.522667,
+              "mean_ms": 0.991136,
+              "p50_ms": 0.9812410000000001,
+              "p95_ms": 1.0658779999999999,
+              "max_ms": 1.0658779999999999,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.5981977499999998,
-              "p50_ms": 1.59225,
-              "p95_ms": 1.751375,
-              "max_ms": 1.751375,
+              "mean_ms": 3.28652125,
+              "p50_ms": 3.2796879999999997,
+              "p95_ms": 3.3584959999999997,
+              "max_ms": 3.3584959999999997,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.44495850000000003,
-              "p50_ms": 0.44179199999999996,
-              "p95_ms": 0.46045800000000003,
-              "max_ms": 0.46045800000000003,
+              "mean_ms": 0.99369275,
+              "p50_ms": 0.99365,
+              "p95_ms": 1.031066,
+              "max_ms": 1.031066,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.49415624999999996,
-              "p50_ms": 0.485583,
-              "p95_ms": 0.5232089999999999,
-              "max_ms": 0.5232089999999999,
+              "mean_ms": 1.0462465,
+              "p50_ms": 1.052038,
+              "p95_ms": 1.0608309999999999,
+              "max_ms": 1.0608309999999999,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 14.433073,
-              "p50_ms": 14.705292,
-              "p95_ms": 15.011375000000001,
-              "max_ms": 15.011375000000001,
+              "mean_ms": 3.1634614999999995,
+              "p50_ms": 3.178196,
+              "p95_ms": 3.20732,
+              "max_ms": 3.20732,
               "throughput_per_sec": null
             }
           },
@@ -4476,59 +5460,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 48.268785,
-            "p50_ms": 48.10075,
-            "p95_ms": 56.635834,
-            "max_ms": 56.635834,
-            "throughput_per_sec": 600.8023611947141
+            "mean_ms": 36.42250516666666,
+            "p50_ms": 36.402570000000004,
+            "p95_ms": 36.655159,
+            "max_ms": 36.655159,
+            "throughput_per_sec": 796.2110202826017
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2354313240740749,
-            "p50_ms": 1.3040420000000001,
-            "p95_ms": 1.526334,
-            "max_ms": 1.645541,
+            "mean_ms": 2.4621005370370366,
+            "p50_ms": 2.682833,
+            "p95_ms": 2.988642,
+            "max_ms": 3.034771,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.93084425,
-              "p50_ms": 0.9512919999999999,
-              "p95_ms": 0.9706670000000001,
-              "max_ms": 0.9706670000000001,
+              "mean_ms": 1.4713842499999998,
+              "p50_ms": 1.4550120000000002,
+              "p95_ms": 1.543084,
+              "max_ms": 1.543084,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.1362505,
-              "p50_ms": 3.304084,
-              "p95_ms": 3.326875,
-              "max_ms": 3.326875,
+              "mean_ms": 4.5723245,
+              "p50_ms": 4.562092,
+              "p95_ms": 4.65419,
+              "max_ms": 4.65419,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7383230000000001,
-              "p50_ms": 0.739542,
-              "p95_ms": 0.746167,
-              "max_ms": 0.746167,
+              "mean_ms": 1.16712275,
+              "p50_ms": 1.1680810000000001,
+              "p95_ms": 1.183375,
+              "max_ms": 1.183375,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.8697915,
-              "p50_ms": 0.777167,
-              "p95_ms": 1.148541,
-              "max_ms": 1.148541,
+              "mean_ms": 1.2461912499999999,
+              "p50_ms": 1.2517369999999999,
+              "p95_ms": 1.252618,
+              "max_ms": 1.252618,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 7.09064575,
-              "p50_ms": 3.862833,
-              "p95_ms": 17.102041,
-              "max_ms": 17.102041,
+              "mean_ms": 3.02077025,
+              "p50_ms": 3.014831,
+              "p95_ms": 3.093149,
+              "max_ms": 3.093149,
               "throughput_per_sec": null
             }
           },
@@ -4725,59 +5709,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 183.393104,
-            "p50_ms": 183.326333,
-            "p95_ms": 207.014333,
-            "max_ms": 207.014333,
-            "throughput_per_sec": 158.13026426555274
+            "mean_ms": 39.69618766666667,
+            "p50_ms": 39.563590000000005,
+            "p95_ms": 40.792519,
+            "max_ms": 40.792519,
+            "throughput_per_sec": 730.5487429552744
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9898360555555554,
-            "p50_ms": 1.017917,
-            "p95_ms": 1.399083,
-            "max_ms": 1.5407909999999998,
+            "mean_ms": 2.2449313796296297,
+            "p50_ms": 2.463129,
+            "p95_ms": 2.779954,
+            "max_ms": 2.798582,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.47156300000000007,
-              "p50_ms": 0.461167,
-              "p95_ms": 0.534209,
-              "max_ms": 0.534209,
+              "mean_ms": 0.9835855,
+              "p50_ms": 0.962882,
+              "p95_ms": 1.058996,
+              "max_ms": 1.058996,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.6366667499999998,
-              "p50_ms": 1.697667,
-              "p95_ms": 1.754959,
-              "max_ms": 1.754959,
+              "mean_ms": 3.27569875,
+              "p50_ms": 3.287674,
+              "p95_ms": 3.314615,
+              "max_ms": 3.314615,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.45481250000000006,
-              "p50_ms": 0.444792,
-              "p95_ms": 0.498458,
-              "max_ms": 0.498458,
+              "mean_ms": 0.9794619999999999,
+              "p50_ms": 0.9852559999999999,
+              "p95_ms": 0.988871,
+              "max_ms": 0.988871,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.48846875,
-              "p50_ms": 0.49316699999999997,
-              "p95_ms": 0.495958,
-              "max_ms": 0.495958,
+              "mean_ms": 1.051262,
+              "p50_ms": 1.056112,
+              "p95_ms": 1.063342,
+              "max_ms": 1.063342,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 13.13537475,
-              "p50_ms": 14.637083,
-              "p95_ms": 14.836291,
-              "max_ms": 14.836291,
+              "mean_ms": 3.1682142499999997,
+              "p50_ms": 3.2117560000000003,
+              "p95_ms": 3.2352510000000003,
+              "max_ms": 3.2352510000000003,
               "throughput_per_sec": null
             }
           },
@@ -4966,59 +5950,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 48.753597500000005,
-            "p50_ms": 48.210125,
-            "p95_ms": 75.105292,
-            "max_ms": 75.105292,
-            "throughput_per_sec": 594.8278996232021
+            "mean_ms": 36.33552716666667,
+            "p50_ms": 36.308053,
+            "p95_ms": 36.584707,
+            "max_ms": 36.584707,
+            "throughput_per_sec": 798.1169467276615
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2396874814814818,
-            "p50_ms": 1.313917,
-            "p95_ms": 1.553334,
-            "max_ms": 1.634042,
+            "mean_ms": 2.4554291203703706,
+            "p50_ms": 2.6794729999999998,
+            "p95_ms": 2.9870840000000003,
+            "max_ms": 3.036548,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 1.04415675,
-              "p50_ms": 1.1576250000000001,
-              "p95_ms": 1.2062089999999999,
-              "max_ms": 1.2062089999999999,
+              "mean_ms": 1.4665065,
+              "p50_ms": 1.453557,
+              "p95_ms": 1.52867,
+              "max_ms": 1.52867,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.0998437500000002,
-              "p50_ms": 3.182,
-              "p95_ms": 3.199292,
-              "max_ms": 3.199292,
+              "mean_ms": 4.569699,
+              "p50_ms": 4.565408,
+              "p95_ms": 4.6892130000000005,
+              "max_ms": 4.6892130000000005,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7492395,
-              "p50_ms": 0.754208,
-              "p95_ms": 0.762625,
-              "max_ms": 0.762625,
+              "mean_ms": 1.1721955,
+              "p50_ms": 1.16865,
+              "p95_ms": 1.213608,
+              "max_ms": 1.213608,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.7880205,
-              "p50_ms": 0.790833,
-              "p95_ms": 0.791625,
-              "max_ms": 0.791625,
+              "mean_ms": 1.2491557500000001,
+              "p50_ms": 1.249702,
+              "p95_ms": 1.2611890000000001,
+              "max_ms": 1.2611890000000001,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 9.60306275,
-              "p50_ms": 9.619834,
-              "p95_ms": 20.423083000000002,
-              "max_ms": 20.423083000000002,
+              "mean_ms": 3.02417975,
+              "p50_ms": 3.025933,
+              "p95_ms": 3.072301,
+              "max_ms": 3.072301,
               "throughput_per_sec": null
             }
           },
@@ -5215,59 +6199,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 175.61922933333332,
-            "p50_ms": 175.358625,
-            "p95_ms": 188.306209,
-            "max_ms": 188.306209,
-            "throughput_per_sec": 165.1299809826444
+            "mean_ms": 39.348514,
+            "p50_ms": 39.503814,
+            "p95_ms": 39.914254,
+            "max_ms": 39.914254,
+            "throughput_per_sec": 737.0036896437819
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9687369814814822,
-            "p50_ms": 1.0145,
-            "p95_ms": 1.3096670000000001,
-            "max_ms": 1.569209,
+            "mean_ms": 2.2471998518518514,
+            "p50_ms": 2.476699,
+            "p95_ms": 2.778762,
+            "max_ms": 2.8325820000000004,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.46892725,
-              "p50_ms": 0.46487500000000004,
-              "p95_ms": 0.5116670000000001,
-              "max_ms": 0.5116670000000001,
+              "mean_ms": 0.99271925,
+              "p50_ms": 0.980348,
+              "p95_ms": 1.065686,
+              "max_ms": 1.065686,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.56199975,
-              "p50_ms": 1.5498750000000001,
-              "p95_ms": 1.674333,
-              "max_ms": 1.674333,
+              "mean_ms": 3.29510325,
+              "p50_ms": 3.294665,
+              "p95_ms": 3.370208,
+              "max_ms": 3.370208,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.4414165,
-              "p50_ms": 0.44170800000000005,
-              "p95_ms": 0.44583300000000003,
-              "max_ms": 0.44583300000000003,
+              "mean_ms": 0.9802655,
+              "p50_ms": 0.9815100000000001,
+              "p95_ms": 0.990143,
+              "max_ms": 0.990143,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.48402075,
-              "p50_ms": 0.486,
-              "p95_ms": 0.489333,
-              "max_ms": 0.489333,
+              "mean_ms": 1.0593694999999999,
+              "p50_ms": 1.055491,
+              "p95_ms": 1.0857160000000001,
+              "max_ms": 1.0857160000000001,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 14.019145749999998,
-              "p50_ms": 14.150125,
-              "p95_ms": 14.849207999999999,
-              "max_ms": 14.849207999999999,
+              "mean_ms": 3.1693219999999998,
+              "p50_ms": 3.194585,
+              "p95_ms": 3.255025,
+              "max_ms": 3.255025,
               "throughput_per_sec": null
             }
           },
@@ -5456,59 +6440,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 49.13489583333334,
-            "p50_ms": 41.770334,
-            "p95_ms": 75.66675000000001,
-            "max_ms": 75.66675000000001,
-            "throughput_per_sec": 590.2118953985097
+            "mean_ms": 36.354006500000004,
+            "p50_ms": 36.360872,
+            "p95_ms": 36.519669,
+            "max_ms": 36.519669,
+            "throughput_per_sec": 797.7112508905999
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2336601296296297,
-            "p50_ms": 1.3034999999999999,
-            "p95_ms": 1.538125,
-            "max_ms": 1.569958,
+            "mean_ms": 2.456879138888888,
+            "p50_ms": 2.683229,
+            "p95_ms": 2.99119,
+            "max_ms": 3.021696,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 1.00027075,
-              "p50_ms": 0.974417,
-              "p95_ms": 1.1340000000000001,
-              "max_ms": 1.1340000000000001,
+              "mean_ms": 1.4735845,
+              "p50_ms": 1.469911,
+              "p95_ms": 1.531474,
+              "max_ms": 1.531474,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.1674687500000003,
-              "p50_ms": 3.233167,
-              "p95_ms": 3.369791,
-              "max_ms": 3.369791,
+              "mean_ms": 4.5703105,
+              "p50_ms": 4.557847000000001,
+              "p95_ms": 4.6928090000000005,
+              "max_ms": 4.6928090000000005,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7515732500000001,
-              "p50_ms": 0.757792,
-              "p95_ms": 0.766459,
-              "max_ms": 0.766459,
+              "mean_ms": 1.1523607500000002,
+              "p50_ms": 1.153227,
+              "p95_ms": 1.15551,
+              "max_ms": 1.15551,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.7931250000000001,
-              "p50_ms": 0.7893340000000001,
-              "p95_ms": 0.815166,
-              "max_ms": 0.815166,
+              "mean_ms": 1.2441735,
+              "p50_ms": 1.2495710000000002,
+              "p95_ms": 1.253768,
+              "max_ms": 1.253768,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 6.81789575,
-              "p50_ms": 4.98925,
-              "p95_ms": 14.281708,
-              "max_ms": 14.281708,
+              "mean_ms": 3.0290419999999996,
+              "p50_ms": 3.0151459999999997,
+              "p95_ms": 3.1065329999999998,
+              "max_ms": 3.1065329999999998,
               "throughput_per_sec": null
             }
           },
@@ -5705,59 +6689,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 169.13915283333333,
-            "p50_ms": 175.12249999999997,
-            "p95_ms": 180.15475,
-            "max_ms": 180.15475,
-            "throughput_per_sec": 171.4564576811856
+            "mean_ms": 39.3065995,
+            "p50_ms": 39.257405000000006,
+            "p95_ms": 40.266101,
+            "max_ms": 40.266101,
+            "throughput_per_sec": 737.7895917961563
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 0.9912226296296291,
-            "p50_ms": 1.033958,
-            "p95_ms": 1.379417,
-            "max_ms": 1.588584,
+            "mean_ms": 2.244407314814815,
+            "p50_ms": 2.468938,
+            "p95_ms": 2.76417,
+            "max_ms": 2.799513,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.518521,
-              "p50_ms": 0.544542,
-              "p95_ms": 0.6231249999999999,
-              "max_ms": 0.6231249999999999,
+              "mean_ms": 1.0105885,
+              "p50_ms": 0.9755010000000001,
+              "p95_ms": 1.143903,
+              "max_ms": 1.143903,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 1.53822875,
-              "p50_ms": 1.55725,
-              "p95_ms": 1.563083,
-              "max_ms": 1.563083,
+              "mean_ms": 3.30826025,
+              "p50_ms": 3.3349949999999997,
+              "p95_ms": 3.356037,
+              "max_ms": 3.356037,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.44126025,
-              "p50_ms": 0.442083,
-              "p95_ms": 0.44337499999999996,
-              "max_ms": 0.44337499999999996,
+              "mean_ms": 0.9818929999999999,
+              "p50_ms": 0.980708,
+              "p95_ms": 1.0025819999999999,
+              "max_ms": 1.0025819999999999,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.48883325,
-              "p50_ms": 0.494208,
-              "p95_ms": 0.49525,
-              "max_ms": 0.49525,
+              "mean_ms": 1.0525864999999999,
+              "p50_ms": 1.058635,
+              "p95_ms": 1.062973,
+              "max_ms": 1.062973,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 14.362708500000002,
-              "p50_ms": 14.880709000000001,
-              "p95_ms": 14.8815,
-              "max_ms": 14.8815,
+              "mean_ms": 3.08381525,
+              "p50_ms": 3.075927,
+              "p95_ms": 3.183764,
+              "max_ms": 3.183764,
               "throughput_per_sec": null
             }
           },
@@ -5946,59 +6930,59 @@
           ],
           "ingest": {
             "samples": 6,
-            "mean_ms": 47.17813883333334,
-            "p50_ms": 48.36825,
-            "p95_ms": 69.154833,
-            "max_ms": 69.154833,
-            "throughput_per_sec": 614.6914803580655
+            "mean_ms": 36.31293516666666,
+            "p50_ms": 36.301303,
+            "p95_ms": 36.411698,
+            "max_ms": 36.411698,
+            "throughput_per_sec": 798.6134931505192
           },
           "recall": {
             "samples": 108,
-            "mean_ms": 1.2341805370370367,
-            "p50_ms": 1.309625,
-            "p95_ms": 1.5491249999999999,
-            "max_ms": 1.7510830000000002,
+            "mean_ms": 2.452488472222223,
+            "p50_ms": 2.677661,
+            "p95_ms": 2.983158,
+            "max_ms": 3.036659,
             "throughput_per_sec": null
           },
           "admin_operations": {
             "snapshot": {
               "samples": 4,
-              "mean_ms": 0.9930414999999999,
-              "p50_ms": 1.007125,
-              "p95_ms": 1.144958,
-              "max_ms": 1.144958,
+              "mean_ms": 1.475245,
+              "p50_ms": 1.469852,
+              "p95_ms": 1.5283390000000001,
+              "max_ms": 1.5283390000000001,
               "throughput_per_sec": null
             },
             "stats": {
               "samples": 4,
-              "mean_ms": 3.1381147499999997,
-              "p50_ms": 3.226417,
-              "p95_ms": 3.3566249999999997,
-              "max_ms": 3.3566249999999997,
+              "mean_ms": 4.6009665,
+              "p50_ms": 4.657617,
+              "p95_ms": 4.662433,
+              "max_ms": 4.662433,
               "throughput_per_sec": null
             },
             "export": {
               "samples": 4,
-              "mean_ms": 0.7336875,
-              "p50_ms": 0.735167,
-              "p95_ms": 0.737958,
-              "max_ms": 0.737958,
+              "mean_ms": 1.16024575,
+              "p50_ms": 1.169011,
+              "p95_ms": 1.169252,
+              "max_ms": 1.169252,
               "throughput_per_sec": null
             },
             "compact_dry_run": {
               "samples": 4,
-              "mean_ms": 0.7848335000000001,
-              "p50_ms": 0.791334,
-              "p95_ms": 0.7999580000000001,
-              "max_ms": 0.7999580000000001,
+              "mean_ms": 1.238758,
+              "p50_ms": 1.2390560000000002,
+              "p95_ms": 1.240949,
+              "max_ms": 1.240949,
               "throughput_per_sec": null
             },
             "import_replace": {
               "samples": 4,
-              "mean_ms": 10.036042,
-              "p50_ms": 12.910084000000001,
-              "p95_ms": 19.397833,
-              "max_ms": 19.397833,
+              "mean_ms": 3.01457275,
+              "p50_ms": 3.005802,
+              "p95_ms": 3.05811,
+              "max_ms": 3.05811,
               "throughput_per_sec": null
             }
           },
@@ -6013,42 +6997,42 @@
       "records_benchmarked": 29,
       "consolidation_apply": {
         "samples": 4,
-        "mean_ms": 8.763718749999999,
-        "p50_ms": 9.268792,
-        "p95_ms": 9.470958,
-        "max_ms": 9.470958,
-        "throughput_per_sec": 3309.097522099281
+        "mean_ms": 4.277522,
+        "p50_ms": 4.318669,
+        "p95_ms": 4.353951,
+        "max_ms": 4.353951,
+        "throughput_per_sec": 6779.626148036175
       },
       "recall_during_maintenance": {
         "samples": 108,
-        "mean_ms": 1.1707931944444443,
-        "p50_ms": 1.121459,
-        "p95_ms": 2.0114170000000002,
-        "max_ms": 2.86125,
+        "mean_ms": 2.290578685185185,
+        "p50_ms": 2.5200050000000003,
+        "p95_ms": 2.826844,
+        "max_ms": 2.848897,
         "throughput_per_sec": null
       },
       "integrity_check": {
         "samples": 4,
-        "mean_ms": 3.28484375,
-        "p50_ms": 3.572041,
-        "p95_ms": 3.64875,
-        "max_ms": 3.64875,
+        "mean_ms": 2.626722,
+        "p50_ms": 2.643049,
+        "p95_ms": 2.6603849999999998,
+        "max_ms": 2.6603849999999998,
         "throughput_per_sec": null
       },
       "repair_rebuild": {
         "samples": 4,
-        "mean_ms": 8.344823,
-        "p50_ms": 8.725958,
-        "p95_ms": 8.961291999999998,
-        "max_ms": 8.961291999999998,
+        "mean_ms": 3.67314425,
+        "p50_ms": 3.685911,
+        "p95_ms": 3.722596,
+        "max_ms": 3.722596,
         "throughput_per_sec": null
       },
       "recovery_import_replace": {
         "samples": 4,
-        "mean_ms": 13.81533325,
-        "p50_ms": 13.656417000000001,
-        "p95_ms": 14.614083,
-        "max_ms": 14.614083,
+        "mean_ms": 3.150867,
+        "p50_ms": 3.1340339999999998,
+        "p95_ms": 3.2798879999999997,
+        "max_ms": 3.2798879999999997,
         "throughput_per_sec": null
       }
     },
@@ -6057,42 +7041,42 @@
       "records_benchmarked": 29,
       "consolidation_apply": {
         "samples": 4,
-        "mean_ms": 6.15980175,
-        "p50_ms": 5.25425,
-        "p95_ms": 12.644041,
-        "max_ms": 12.644041,
-        "throughput_per_sec": 4707.943725623962
+        "mean_ms": 4.670939,
+        "p50_ms": 4.687501,
+        "p95_ms": 4.710546000000001,
+        "max_ms": 4.710546000000001,
+        "throughput_per_sec": 6208.601739393299
       },
       "recall_during_maintenance": {
         "samples": 108,
-        "mean_ms": 1.314989175925926,
-        "p50_ms": 1.3823329999999998,
-        "p95_ms": 1.6814580000000001,
-        "max_ms": 1.880792,
+        "mean_ms": 2.5174424629629635,
+        "p50_ms": 2.718461,
+        "p95_ms": 3.025742,
+        "max_ms": 4.250567,
         "throughput_per_sec": null
       },
       "integrity_check": {
         "samples": 4,
-        "mean_ms": 2.224052,
-        "p50_ms": 2.22025,
-        "p95_ms": 2.3770000000000002,
-        "max_ms": 2.3770000000000002,
+        "mean_ms": 3.1367632500000004,
+        "p50_ms": 3.013524,
+        "p95_ms": 3.523447,
+        "max_ms": 3.523447,
         "throughput_per_sec": null
       },
       "repair_rebuild": {
         "samples": 4,
-        "mean_ms": 4.4390730000000005,
-        "p50_ms": 4.1361669999999995,
-        "p95_ms": 6.471291,
-        "max_ms": 6.471291,
+        "mean_ms": 5.055965250000001,
+        "p50_ms": 4.938968,
+        "p95_ms": 5.414750000000001,
+        "max_ms": 5.414750000000001,
         "throughput_per_sec": null
       },
       "recovery_import_replace": {
         "samples": 4,
-        "mean_ms": 5.45335425,
-        "p50_ms": 3.892333,
-        "p95_ms": 10.471,
-        "max_ms": 10.471,
+        "mean_ms": 3.0099034999999996,
+        "p50_ms": 3.013043,
+        "p95_ms": 3.030239,
+        "max_ms": 3.030239,
         "throughput_per_sec": null
       }
     }
