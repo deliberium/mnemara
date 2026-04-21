@@ -10,6 +10,8 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Added
 
+- optional `with_shared_embedder(...)` builders on embedded file and sled store configs so host applications can inject a shared semantic provider while preserving existing `EngineConfig` fallback behavior
+
 ### Changed
 
 ### Fixed
