@@ -32,6 +32,7 @@ behavior.
 ### Retrieval and Ranking Expansion
 
 - [ ] optional advanced scoring or embedding plug-ins
+- [ ] embedded-store shared embedder injection for caller-owned local text embedders, tracked in `docs/embedded-store-shared-embedder-proposal.md`
 - [ ] broader typed graph expansion and multi-hop retrieval improvements beyond
       the now-shipped bounded continuity-aware hop expansion
 
