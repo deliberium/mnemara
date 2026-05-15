@@ -22,6 +22,20 @@ export type MemoryQualityState =
   | "Suppressed"
   | "Deleted";
 
+export type ConflictReviewState =
+  | "None"
+  | "PotentialConflict"
+  | "UnderReview"
+  | "Resolved"
+  | "Dismissed";
+
+export type ConflictResolutionKind =
+  | "None"
+  | "Accepted"
+  | "Rejected"
+  | "Superseded"
+  | "Merged";
+
 export type RecallScorerKind = "Profile" | "Curated";
 
 export type RecallScoringProfile =
@@ -35,6 +49,16 @@ export interface ArtifactPointer {
   uri: string;
   media_type?: string | null;
   checksum?: string | null;
+}
+
+export interface ConflictAnnotation {
+  state: ConflictReviewState;
+  conflicting_record_ids: string[];
+  drift_score: number;
+  resolution: ConflictResolutionKind;
+  resolved_by?: string | null;
+  resolved_at_unix_ms?: number | null;
+  note?: string | null;
 }
 
 export interface MemoryScope {
@@ -62,6 +86,10 @@ export interface MemoryRecord {
   expires_at_unix_ms?: number | null;
   importance_score: number;
   artifact?: ArtifactPointer | null;
+  episode?: unknown | null;
+  historical_state?: string | null;
+  lineage?: unknown[];
+  conflict?: ConflictAnnotation | null;
 }
 
 export interface UpsertRequest {
@@ -89,6 +117,19 @@ export interface RecallFilters {
   trust_levels: MemoryTrustLevel[];
   states: MemoryQualityState[];
   include_archived: boolean;
+  episode_id?: string | null;
+  continuity_states?: string[];
+  unresolved_only?: boolean;
+  temporal_order?: string;
+  historical_mode?: string;
+  lineage_record_id?: string | null;
+  before_record_id?: string | null;
+  after_record_id?: string | null;
+  boundary_labels?: string[];
+  recurrence_key?: string | null;
+  conflict_states?: ConflictReviewState[];
+  resolution_kinds?: ConflictResolutionKind[];
+  unresolved_conflicts_only?: boolean;
 }
 
 export interface RecallQuery {
@@ -106,6 +147,8 @@ export interface RecallScoreBreakdown {
   graph: number;
   temporal: number;
   metadata: number;
+  episodic: number;
+  salience: number;
   curation: number;
   policy: number;
   total: number;
@@ -434,6 +477,12 @@ export const MemoryQualityState: Readonly<
 >;
 export const MemoryTrustLevel: Readonly<
   Record<Exclude<MemoryTrustLevel, never>, MemoryTrustLevel>
+>;
+export const ConflictReviewState: Readonly<
+  Record<Exclude<ConflictReviewState, never>, ConflictReviewState>
+>;
+export const ConflictResolutionKind: Readonly<
+  Record<Exclude<ConflictResolutionKind, never>, ConflictResolutionKind>
 >;
 export const RecallScorerKind: Readonly<
   Record<Exclude<RecallScorerKind, never>, RecallScorerKind>

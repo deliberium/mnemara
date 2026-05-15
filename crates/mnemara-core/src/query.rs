@@ -3,8 +3,8 @@ use crate::config::{
     RecallScoringProfile,
 };
 use crate::model::{
-    EpisodeContinuityState, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
-    MemoryTrustLevel,
+    ConflictResolutionKind, ConflictReviewState, EpisodeContinuityState, MemoryQualityState,
+    MemoryRecord, MemoryRecordKind, MemoryScope, MemoryTrustLevel,
 };
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +42,13 @@ pub struct RecallFilters {
     pub temporal_order: RecallTemporalOrder,
     pub historical_mode: RecallHistoricalMode,
     pub lineage_record_id: Option<String>,
+    pub before_record_id: Option<String>,
+    pub after_record_id: Option<String>,
+    pub boundary_labels: Vec<String>,
+    pub recurrence_key: Option<String>,
+    pub conflict_states: Vec<ConflictReviewState>,
+    pub resolution_kinds: Vec<ConflictResolutionKind>,
+    pub unresolved_conflicts_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

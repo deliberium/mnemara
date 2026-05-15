@@ -211,6 +211,22 @@ export const MemoryTrustLevel = Object.freeze({
   Pinned: "Pinned",
 });
 
+export const ConflictReviewState = Object.freeze({
+  None: "None",
+  PotentialConflict: "PotentialConflict",
+  UnderReview: "UnderReview",
+  Resolved: "Resolved",
+  Dismissed: "Dismissed",
+});
+
+export const ConflictResolutionKind = Object.freeze({
+  None: "None",
+  Accepted: "Accepted",
+  Rejected: "Rejected",
+  Superseded: "Superseded",
+  Merged: "Merged",
+});
+
 export const RecallScorerKind = Object.freeze({
   Profile: "Profile",
   Curated: "Curated",

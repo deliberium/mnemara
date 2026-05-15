@@ -12,13 +12,15 @@ The current shipped release boundary includes:
 
 - episodic record fields and continuity-aware filtering
 - recurrence, duration, and boundary cues in the episode contract and temporal scoring
+- relative before/after recall anchors plus boundary-label and recurrence-key filters
+- conflict-review metadata, unresolved-conflict filtering, and operator-resolution audit filters
 - planner profiles with planner-stage and candidate-source traces
 - lifecycle-aware historical recall, lineage links, and supersession-aware compaction
 - embedded file and sled backends plus daemon transport parity for those fields
 
-The current release boundary does not claim that contradiction handling,
-preference drift resolution, or long-horizon narrative reasoning are complete
-end-to-end products.
+The current release boundary does not claim automated contradiction resolution
+or long-horizon narrative reasoning as complete end-to-end products. Conflict
+and drift workflows are explicit operator-review metadata plus recall filters.
 
 ## Release-candidate gate
 

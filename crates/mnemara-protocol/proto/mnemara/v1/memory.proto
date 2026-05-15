@@ -92,6 +92,16 @@ message LineageLink {
   float confidence = 3;
 }
 
+message ConflictAnnotation {
+  string state = 1;
+  repeated string conflicting_record_ids = 2;
+  float drift_score = 3;
+  string resolution = 4;
+  optional string resolved_by = 5;
+  optional uint64 resolved_at_unix_ms = 6;
+  optional string note = 7;
+}
+
 message MemoryRecord {
   string id = 1;
   MemoryScope scope = 2;
@@ -109,6 +119,7 @@ message MemoryRecord {
   optional EpisodeContext episode = 14;
   optional string historical_state = 15;
   repeated LineageLink lineage = 16;
+  optional ConflictAnnotation conflict = 17;
 }
 
 message UpsertMemoryRecordRequest {
@@ -146,6 +157,13 @@ message RecallFilters {
   optional string temporal_order = 13;
   optional string historical_mode = 14;
   optional string lineage_record_id = 15;
+  optional string before_record_id = 16;
+  optional string after_record_id = 17;
+  repeated string boundary_labels = 18;
+  optional string recurrence_key = 19;
+  repeated string conflict_states = 20;
+  repeated string resolution_kinds = 21;
+  bool unresolved_conflicts_only = 22;
 }
 
 message RecallRequest {

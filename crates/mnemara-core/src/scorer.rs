@@ -1604,6 +1604,7 @@ mod tests {
             episode: None,
             historical_state: MemoryHistoricalState::Current,
             lineage: Vec::new(),
+            conflict: None,
         }
     }
 

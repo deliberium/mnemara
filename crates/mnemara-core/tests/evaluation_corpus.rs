@@ -465,6 +465,7 @@ fn curated_scorer_meets_stratified_quality_baseline_on_ranked_corpus() {
                 episode: map_episode(record.episode),
                 historical_state: map_historical_state(&record.historical_state),
                 lineage: map_lineage(record.lineage),
+                conflict: None,
             }
         })
         .collect::<Vec<_>>();

@@ -90,6 +90,7 @@ fn continuity_record(
         }),
         historical_state,
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -117,6 +118,7 @@ fn policy_record(
         episode: None,
         historical_state,
         lineage,
+        conflict: None,
     }
 }
 

@@ -45,6 +45,7 @@ fn fixture_record() -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -105,6 +106,7 @@ fn episodic_fixture_record() -> MemoryRecord {
             relation: LineageRelationKind::DerivedFrom,
             confidence: 0.85,
         }],
+        conflict: None,
     }
 }
 

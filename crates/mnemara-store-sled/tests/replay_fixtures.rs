@@ -1,12 +1,13 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use mnemara_core::{
-    BatchUpsertRequest, CompactionRequest, DeleteRequest, EPISODE_SCHEMA_VERSION,
-    EmbeddingProviderKind, EmbeddingVector, EngineConfig, IngestionPolicy, IntegrityCheckRequest,
-    LineageLink, LineageRelationKind, MemoryHistoricalState, MemoryQualityState, MemoryRecord,
-    MemoryRecordKind, MemoryScope, MemoryStore, MemoryTrustLevel, RecallFilters,
-    RecallHistoricalMode, RecallQuery, RecallScoringProfile, RepairRequest, RetentionPolicy,
-    SemanticEmbedder, UpsertRequest,
+    BatchUpsertRequest, CompactionRequest, ConflictAnnotation, ConflictResolutionKind,
+    ConflictReviewState, DeleteRequest, EPISODE_SCHEMA_VERSION, EmbeddingProviderKind,
+    EmbeddingVector, EngineConfig, EpisodeContext, EpisodeContinuityState, IngestionPolicy,
+    IntegrityCheckRequest, LineageLink, LineageRelationKind, MemoryHistoricalState,
+    MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryStore, MemoryTrustLevel,
+    RecallFilters, RecallHistoricalMode, RecallQuery, RecallScoringProfile, RepairRequest,
+    RetentionPolicy, SemanticEmbedder, UpsertRequest,
 };
 use mnemara_store_sled::{SledMemoryStore, SledStoreConfig};
 use serde::Deserialize;
@@ -148,6 +149,7 @@ fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -182,6 +184,7 @@ fn map_durable_capture_fixture(record: &DurableCaptureFixture) -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -296,6 +299,59 @@ fn episodic_fixture_record() -> MemoryRecord {
             relation: LineageRelationKind::DerivedFrom,
             confidence: 0.8,
         }],
+        conflict: None,
+    }
+}
+
+fn intelligence_record(id: &str, content: &str, at: u64) -> MemoryRecord {
+    MemoryRecord {
+        id: id.to_string(),
+        scope: MemoryScope {
+            tenant_id: "default".to_string(),
+            namespace: "conversation".to_string(),
+            actor_id: "ava".to_string(),
+            conversation_id: Some("thread-a".to_string()),
+            session_id: Some("session-a".to_string()),
+            source: "test".to_string(),
+            labels: vec!["intelligence".to_string()],
+            trust_level: MemoryTrustLevel::Verified,
+        },
+        kind: MemoryRecordKind::Episodic,
+        content: content.to_string(),
+        summary: Some(content.to_string()),
+        source_id: None,
+        metadata: BTreeMap::new(),
+        quality_state: MemoryQualityState::Active,
+        created_at_unix_ms: at,
+        updated_at_unix_ms: at,
+        expires_at_unix_ms: None,
+        importance_score: 0.7,
+        artifact: None,
+        episode: Some(EpisodeContext {
+            schema_version: EPISODE_SCHEMA_VERSION,
+            episode_id: "intelligence-episode".to_string(),
+            summary: Some("Episodic intelligence timeline".to_string()),
+            continuity_state: EpisodeContinuityState::Open,
+            actor_ids: vec!["ava".to_string()],
+            goal: Some("track deployment drift".to_string()),
+            outcome: None,
+            started_at_unix_ms: Some(at),
+            ended_at_unix_ms: None,
+            last_active_unix_ms: Some(at),
+            recurrence_key: None,
+            recurrence_interval_ms: None,
+            boundary_label: None,
+            previous_record_id: None,
+            next_record_id: None,
+            causal_record_ids: Vec::new(),
+            related_record_ids: Vec::new(),
+            linked_artifact_uris: Vec::new(),
+            salience: Default::default(),
+            affective: None,
+        }),
+        historical_state: MemoryHistoricalState::Current,
+        lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -603,6 +659,142 @@ async fn repeated_idempotent_upsert_is_safe_under_retry() {
 
     let result = store.recall(query_for("CORTEX_BACKEND")).await.unwrap();
     assert_eq!(result.hits.len(), 1);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn idempotency_mapping_is_replaced_when_record_key_changes() {
+    let dir = temp_store_dir("idempotency-replace");
+    let store = SledMemoryStore::open(SledStoreConfig::new(&dir)).unwrap();
+    let record = intelligence_record("replace-key-record", "Replace stale retry key", 10);
+    let scope = record.scope.clone();
+
+    store
+        .upsert(UpsertRequest {
+            record: record.clone(),
+            idempotency_key: Some("old-key".to_string()),
+        })
+        .await
+        .unwrap();
+    store
+        .upsert(UpsertRequest {
+            record,
+            idempotency_key: Some("new-key".to_string()),
+        })
+        .await
+        .unwrap();
+    drop(store);
+
+    let db = sled::open(&dir).unwrap();
+    let idempotency = db.open_tree("idempotency").unwrap();
+    assert!(
+        idempotency
+            .get(idempotency_scoped_key(&scope, "old-key").as_bytes())
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        idempotency
+            .get(idempotency_scoped_key(&scope, "new-key").as_bytes())
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn batch_upsert_prevalidates_before_mutating_store() {
+    let store =
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("batch-prevalidate"))).unwrap();
+    let valid = intelligence_record("batch-valid", "Valid batch record", 10);
+    let mut invalid = intelligence_record("batch-invalid", "Invalid batch record", 20);
+    invalid.importance_score = 1.5;
+
+    let error = store
+        .batch_upsert(BatchUpsertRequest {
+            requests: vec![
+                UpsertRequest {
+                    record: valid,
+                    idempotency_key: Some("batch-valid".to_string()),
+                },
+                UpsertRequest {
+                    record: invalid,
+                    idempotency_key: Some("batch-invalid".to_string()),
+                },
+            ],
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("importance_score must be within")
+    );
+
+    let result = store
+        .recall(recent_query_for(Some("thread-a"), 10))
+        .await
+        .unwrap();
+    assert!(result.hits.is_empty());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn episodic_intelligence_filters_relative_boundaries_and_conflicts() {
+    let store =
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("episodic-intel"))).unwrap();
+    let mut before = intelligence_record("timeline-before", "Timeline event before deploy", 10);
+    before.episode.as_mut().unwrap().boundary_label = Some("planning".to_string());
+    let mut middle =
+        intelligence_record("timeline-middle", "Timeline event during deploy drift", 20);
+    middle.episode.as_mut().unwrap().boundary_label = Some("deploy-window".to_string());
+    middle.episode.as_mut().unwrap().recurrence_key = Some("daily-release".to_string());
+    middle.conflict = Some(ConflictAnnotation {
+        state: ConflictReviewState::UnderReview,
+        conflicting_record_ids: vec!["timeline-after".to_string()],
+        drift_score: 0.8,
+        resolution: ConflictResolutionKind::None,
+        resolved_by: None,
+        resolved_at_unix_ms: None,
+        note: Some("Observed drift from previous deployment memory".to_string()),
+    });
+    let mut after = intelligence_record("timeline-after", "Timeline event after deploy", 30);
+    after.episode.as_mut().unwrap().boundary_label = Some("post-check".to_string());
+
+    store
+        .batch_upsert(BatchUpsertRequest {
+            requests: vec![before, middle, after]
+                .into_iter()
+                .map(|record| UpsertRequest {
+                    idempotency_key: Some(record.id.clone()),
+                    record,
+                })
+                .collect(),
+        })
+        .await
+        .unwrap();
+
+    let mut query = query_for("deploy drift");
+    query.max_items = 10;
+    query.filters.after_record_id = Some("timeline-before".to_string());
+    query.filters.before_record_id = Some("timeline-after".to_string());
+    query.filters.boundary_labels = vec!["deploy-window".to_string()];
+    query.filters.recurrence_key = Some("daily-release".to_string());
+    query.filters.unresolved_conflicts_only = true;
+
+    let result = store.recall(query).await.unwrap();
+    assert_eq!(result.hits.len(), 1);
+    assert_eq!(result.hits[0].record.id, "timeline-middle");
+    let explanation = result.explanation.unwrap();
+    assert!(
+        explanation
+            .policy_notes
+            .iter()
+            .any(|note| note == "relative_temporal_filter_applied")
+    );
+    assert!(
+        explanation
+            .selected_channels
+            .iter()
+            .any(|channel| channel == "conflict")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1087,6 +1279,7 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
     let importance_favorite = MemoryRecord {
         id: "importance-favorite".to_string(),
@@ -1105,6 +1298,7 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
 
     for store in [&lexical_store, &importance_store] {
@@ -1166,6 +1360,7 @@ async fn semantic_embedding_can_surface_semantic_channel_in_explanations() {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
 
     store
@@ -1222,6 +1417,7 @@ async fn shared_embedder_injection_can_enable_semantic_recall_without_engine_emb
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
 
     store

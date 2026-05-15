@@ -91,6 +91,107 @@ pub enum LineageRelationKind {
     ConflictsWith,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum ConflictReviewState {
+    #[default]
+    None,
+    PotentialConflict,
+    UnderReview,
+    Resolved,
+    Dismissed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum ConflictResolutionKind {
+    #[default]
+    None,
+    Accepted,
+    Rejected,
+    Superseded,
+    Merged,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ConflictAnnotation {
+    pub state: ConflictReviewState,
+    pub conflicting_record_ids: Vec<String>,
+    pub drift_score: f32,
+    pub resolution: ConflictResolutionKind,
+    pub resolved_by: Option<String>,
+    pub resolved_at_unix_ms: Option<u64>,
+    pub note: Option<String>,
+}
+
+impl Default for ConflictAnnotation {
+    fn default() -> Self {
+        Self {
+            state: ConflictReviewState::None,
+            conflicting_record_ids: Vec::new(),
+            drift_score: 0.0,
+            resolution: ConflictResolutionKind::None,
+            resolved_by: None,
+            resolved_at_unix_ms: None,
+            note: None,
+        }
+    }
+}
+
+impl ConflictAnnotation {
+    pub fn validate_for_record(&self, record_id: &str) -> Result<()> {
+        if !(0.0..=1.0).contains(&self.drift_score) {
+            return Err(Error::InvalidRequest(
+                "conflict drift_score must be within 0.0..=1.0".to_string(),
+            ));
+        }
+        if self
+            .conflicting_record_ids
+            .iter()
+            .any(|value| value.trim().is_empty())
+        {
+            return Err(Error::InvalidRequest(
+                "conflicting_record_ids cannot contain empty ids".to_string(),
+            ));
+        }
+        if self
+            .conflicting_record_ids
+            .iter()
+            .any(|value| value == record_id)
+        {
+            return Err(Error::InvalidRequest(
+                "conflicting_record_ids cannot reference the current record".to_string(),
+            ));
+        }
+        if self
+            .resolved_by
+            .as_ref()
+            .is_some_and(|value| value.trim().is_empty())
+        {
+            return Err(Error::InvalidRequest(
+                "conflict resolved_by cannot be empty when provided".to_string(),
+            ));
+        }
+        if self
+            .note
+            .as_ref()
+            .is_some_and(|value| value.trim().is_empty())
+        {
+            return Err(Error::InvalidRequest(
+                "conflict note cannot be empty when provided".to_string(),
+            ));
+        }
+        if matches!(
+            self.state,
+            ConflictReviewState::Resolved | ConflictReviewState::Dismissed
+        ) && matches!(self.resolution, ConflictResolutionKind::None)
+        {
+            return Err(Error::InvalidRequest(
+                "resolved or dismissed conflicts require a resolution kind".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LineageLink {
     pub record_id: String,
@@ -400,6 +501,8 @@ pub struct MemoryRecord {
     pub historical_state: MemoryHistoricalState,
     #[serde(default)]
     pub lineage: Vec<LineageLink>,
+    #[serde(default)]
+    pub conflict: Option<ConflictAnnotation>,
 }
 
 impl MemoryRecord {
@@ -431,6 +534,14 @@ impl MemoryRecord {
         }
         if let Some(episode) = &self.episode {
             episode.validate_for_record(&self.id, &self.scope.actor_id)?;
+        }
+        if !(0.0..=1.0).contains(&self.importance_score) {
+            return Err(Error::InvalidRequest(
+                "memory record importance_score must be within 0.0..=1.0".to_string(),
+            ));
+        }
+        if let Some(conflict) = &self.conflict {
+            conflict.validate_for_record(&self.id)?;
         }
         Ok(())
     }
@@ -560,6 +671,7 @@ mod tests {
                 relation: super::LineageRelationKind::DerivedFrom,
                 confidence: 0.8,
             }],
+            conflict: None,
         };
 
         let encoded = serde_json::to_string(&record).unwrap();
@@ -608,6 +720,7 @@ mod tests {
             }),
             historical_state: MemoryHistoricalState::Current,
             lineage: vec![],
+            conflict: None,
         };
 
         let error = record.validate().unwrap_err();
@@ -680,6 +793,34 @@ mod tests {
             error
                 .to_string()
                 .contains("derived affective confidence must remain below certainty")
+        );
+    }
+
+    #[test]
+    fn conflict_annotations_validate_review_workflow_shape() {
+        let conflict = super::ConflictAnnotation {
+            state: super::ConflictReviewState::Resolved,
+            conflicting_record_ids: vec!["record-a".to_string()],
+            drift_score: 0.7,
+            resolution: super::ConflictResolutionKind::None,
+            resolved_by: Some("operator".to_string()),
+            resolved_at_unix_ms: Some(42),
+            note: Some("accepted newer fact".to_string()),
+        };
+
+        let error = conflict.validate_for_record("record-b").unwrap_err();
+        assert!(error.to_string().contains("require a resolution kind"));
+
+        let self_reference = super::ConflictAnnotation {
+            resolution: super::ConflictResolutionKind::Accepted,
+            conflicting_record_ids: vec!["record-b".to_string()],
+            ..conflict
+        };
+        let error = self_reference.validate_for_record("record-b").unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("cannot reference the current record")
         );
     }
 }

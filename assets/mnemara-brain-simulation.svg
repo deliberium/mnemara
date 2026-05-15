@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Mnemara memory engine brain simulation</title>
+  <desc id="desc">Animated brain-like memory graph showing store and recall paths between data nodes.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="78%">
+      <stop offset="0%" stop-color="#17203a"/>
+      <stop offset="42%" stop-color="#071413"/>
+      <stop offset="100%" stop-color="#030304"/>
+    </radialGradient>
+    <radialGradient id="nodeTeal" cx="34%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#eafffb"/>
+      <stop offset="22%" stop-color="#62fff0"/>
+      <stop offset="58%" stop-color="#20bda8"/>
+      <stop offset="100%" stop-color="#083a36"/>
+    </radialGradient>
+    <radialGradient id="nodeIndigo" cx="35%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#f2f4ff"/>
+      <stop offset="24%" stop-color="#aeb8ff"/>
+      <stop offset="62%" stop-color="#6874ff"/>
+      <stop offset="100%" stop-color="#15194f"/>
+    </radialGradient>
+    <radialGradient id="nodeGold" cx="35%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#fff8d6"/>
+      <stop offset="26%" stop-color="#ffd66c"/>
+      <stop offset="66%" stop-color="#c69128"/>
+      <stop offset="100%" stop-color="#3d2b0d"/>
+    </radialGradient>
+    <radialGradient id="nodeRose" cx="35%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#fff0f4"/>
+      <stop offset="28%" stop-color="#ff8198"/>
+      <stop offset="68%" stop-color="#db4260"/>
+      <stop offset="100%" stop-color="#47121f"/>
+    </radialGradient>
+    <linearGradient id="storeFlow" x1="0%" x2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="45%" stop-color="#2ee5d3"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="recallFlow" x1="0%" x2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="44%" stop-color="#2ee5d3"/>
+      <stop offset="100%" stop-color="#f6c768"/>
+    </linearGradient>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" values="0 0 0 0 0.18 0 0 0 0 0.9 0 0 0 0 0.83 0 0 0 0.9 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="deepGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feColorMatrix in="blur" values="0 0 0 0 0.35 0 0 0 0 0.45 0 0 0 0 1 0 0 0 0.75 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="3" seed="8"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.18"/>
+      </feComponentTransfer>
+    </filter>
+    <path id="storePathA" d="M214 362 C302 246 421 202 536 274 S706 398 811 309"/>
+    <path id="storePathB" d="M308 464 C406 388 468 382 581 425 S790 505 918 390"/>
+    <path id="recallPathA" d="M957 298 C838 210 715 190 611 251 S442 375 317 305"/>
+    <path id="recallPathB" d="M888 484 C775 376 661 363 559 456 S390 546 255 450"/>
+    <style>
+      .label{font-family:"JetBrains Mono","SFMono-Regular",monospace;font-size:16px;letter-spacing:.18em;text-transform:uppercase;fill:#b8fff7;opacity:.74}
+      .micro{font-family:"JetBrains Mono","SFMono-Regular",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;fill:#ffffff;opacity:.46}
+      .brain{fill:none;stroke:#ffffff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.16}
+      .synapse{fill:none;stroke:#ffffff;stroke-width:1.2;opacity:.2}
+      .flow{fill:none;stroke-linecap:round;stroke-width:3.2;stroke-dasharray:16 22;filter:url(#softGlow);animation:dash 4.6s linear infinite}
+      .flow.thin{stroke-width:2.2;opacity:.72;animation-duration:6.4s}
+      .ring{fill:none;stroke:#2ee5d3;stroke-width:1.4;opacity:.45;animation:pulse 3.2s ease-in-out infinite;transform-origin:center}
+      .ring.indigo{stroke:#818cf8;animation-delay:-1.1s}
+      .ring.gold{stroke:#f6c768;animation-delay:-.6s}
+      .ring.rose{stroke:#fb7185;animation-delay:-1.8s}
+      .node{filter:url(#deepGlow);animation:float 7s ease-in-out infinite}
+      .node:nth-of-type(2n){animation-delay:-2.2s}
+      .node:nth-of-type(3n){animation-delay:-4.1s}
+      .spark{filter:url(#softGlow)}
+      .halo{opacity:.16;animation:breathe 5.8s ease-in-out infinite;transform-origin:center}
+      .scan{opacity:.3;animation:scan 5.4s ease-in-out infinite}
+      @keyframes dash{to{stroke-dashoffset:-152}}
+      @keyframes pulse{0%,100%{transform:scale(.78);opacity:.12}48%{transform:scale(1.45);opacity:.62}}
+      @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+      @keyframes breathe{0%,100%{transform:scale(.95);opacity:.1}50%{transform:scale(1.08);opacity:.24}}
+      @keyframes scan{0%,100%{transform:translateX(-34px);opacity:.14}50%{transform:translateX(34px);opacity:.38}}
+      @media (prefers-reduced-motion: reduce){.flow,.ring,.node,.halo,.scan{animation:none}.spark{display:none}}
+    </style>
+  </defs>
+
+  <rect width="1200" height="680" rx="34" fill="url(#bg)"/>
+  <rect width="1200" height="680" rx="34" filter="url(#grain)" opacity=".34"/>
+  <g opacity=".22">
+    <path d="M-40 558 C196 474 276 632 483 522 C676 420 840 488 1240 320" fill="none" stroke="#2ee5d3" stroke-width="1"/>
+    <path d="M-60 178 C202 314 356 120 548 222 C744 326 841 146 1260 214" fill="none" stroke="#818cf8" stroke-width="1"/>
+    <path d="M80 630 L250 38 M210 680 L382 0 M360 680 L530 0 M510 680 L676 0 M660 680 L824 0 M810 680 L974 0 M960 680 L1118 0" stroke="#ffffff" stroke-width="1" opacity=".07"/>
+  </g>
+
+  <g transform="translate(0 4)">
+    <path class="brain" d="M236 350 C190 294 190 217 244 171 C253 104 320 82 374 116 C414 63 490 64 529 119 C580 71 656 81 684 144 C755 124 818 167 824 237 C884 259 904 333 860 389 C881 459 830 523 761 520 C728 575 650 586 605 536 C553 588 468 578 431 519 C355 545 289 501 284 427 C252 414 233 386 236 350 Z"/>
+    <path class="brain" d="M379 123 C350 183 371 238 430 255 C492 273 504 327 455 371 C414 408 425 470 478 507"/>
+    <path class="brain" d="M529 119 C492 176 512 225 572 246 C638 269 644 328 596 362 C548 396 553 470 605 536"/>
+    <path class="brain" d="M684 144 C631 191 643 254 704 278 C771 304 773 368 715 401 C657 434 674 488 761 520"/>
+    <path class="brain" d="M244 171 C310 191 346 230 342 285 C337 348 287 373 284 427"/>
+    <path class="brain" d="M824 237 C756 230 717 255 704 278"/>
+  </g>
+
+  <g opacity=".58">
+    <path class="synapse" d="M214 362 C302 246 421 202 536 274 S706 398 811 309"/>
+    <path class="synapse" d="M308 464 C406 388 468 382 581 425 S790 505 918 390"/>
+    <path class="synapse" d="M957 298 C838 210 715 190 611 251 S442 375 317 305"/>
+    <path class="synapse" d="M888 484 C775 376 661 363 559 456 S390 546 255 450"/>
+    <path class="synapse" d="M404 196 C471 292 476 369 421 518"/>
+    <path class="synapse" d="M708 186 C651 281 668 364 773 492"/>
+  </g>
+  <g>
+    <path class="flow" stroke="url(#storeFlow)" d="M214 362 C302 246 421 202 536 274 S706 398 811 309"/>
+    <path class="flow thin" stroke="url(#storeFlow)" d="M308 464 C406 388 468 382 581 425 S790 505 918 390"/>
+    <path class="flow" stroke="url(#recallFlow)" d="M957 298 C838 210 715 190 611 251 S442 375 317 305"/>
+    <path class="flow thin" stroke="url(#recallFlow)" d="M888 484 C775 376 661 363 559 456 S390 546 255 450"/>
+  </g>
+
+  <g class="spark">
+    <circle r="5.5" fill="#2ee5d3">
+      <animateMotion dur="3.8s" repeatCount="indefinite" rotate="auto"><mpath href="#storePathA"/></animateMotion>
+    </circle>
+    <circle r="4" fill="#34d399">
+      <animateMotion dur="4.8s" begin="-1.3s" repeatCount="indefinite" rotate="auto"><mpath href="#storePathB"/></animateMotion>
+    </circle>
+    <circle r="5" fill="#818cf8">
+      <animateMotion dur="4.2s" begin="-.7s" repeatCount="indefinite" rotate="auto"><mpath href="#recallPathA"/></animateMotion>
+    </circle>
+    <circle r="4.5" fill="#f6c768">
+      <animateMotion dur="5.2s" begin="-2.1s" repeatCount="indefinite" rotate="auto"><mpath href="#recallPathB"/></animateMotion>
+    </circle>
+  </g>
+
+  <g>
+    <circle class="halo" cx="214" cy="362" r="74" fill="#34d399"/>
+    <g class="node">
+      <circle class="ring" cx="214" cy="362" r="42"/>
+      <circle cx="214" cy="362" r="24" fill="url(#nodeTeal)"/>
+      <text class="micro" x="214" y="413" text-anchor="middle">store</text>
+    </g>
+    <circle class="halo" cx="536" cy="274" r="92" fill="#818cf8"/>
+    <g class="node">
+      <circle class="ring indigo" cx="536" cy="274" r="54"/>
+      <circle cx="536" cy="274" r="34" fill="url(#nodeIndigo)"/>
+      <text class="micro" x="536" y="337" text-anchor="middle">episode</text>
+    </g>
+    <circle class="halo" cx="811" cy="309" r="70" fill="#2ee5d3"/>
+    <g class="node">
+      <circle class="ring" cx="811" cy="309" r="40"/>
+      <circle cx="811" cy="309" r="25" fill="url(#nodeTeal)"/>
+      <text class="micro" x="811" y="360" text-anchor="middle">fact</text>
+    </g>
+    <circle class="halo" cx="957" cy="298" r="90" fill="#818cf8"/>
+    <g class="node">
+      <circle class="ring indigo" cx="957" cy="298" r="50"/>
+      <circle cx="957" cy="298" r="31" fill="url(#nodeIndigo)"/>
+      <text class="micro" x="957" y="360" text-anchor="middle">recall</text>
+    </g>
+    <circle class="halo" cx="308" cy="464" r="64" fill="#f6c768"/>
+    <g class="node">
+      <circle class="ring gold" cx="308" cy="464" r="38"/>
+      <circle cx="308" cy="464" r="24" fill="url(#nodeGold)"/>
+      <text class="micro" x="308" y="515" text-anchor="middle">scope</text>
+    </g>
+    <circle class="halo" cx="918" cy="390" r="62" fill="#34d399"/>
+    <g class="node">
+      <circle class="ring" cx="918" cy="390" r="36"/>
+      <circle cx="918" cy="390" r="23" fill="url(#nodeTeal)"/>
+      <text class="micro" x="918" y="439" text-anchor="middle">task</text>
+    </g>
+    <circle class="halo" cx="255" cy="450" r="58" fill="#fb7185"/>
+    <g class="node">
+      <circle class="ring rose" cx="255" cy="450" r="35"/>
+      <circle cx="255" cy="450" r="22" fill="url(#nodeRose)"/>
+      <text class="micro" x="255" y="497" text-anchor="middle">drift</text>
+    </g>
+    <circle class="halo" cx="888" cy="484" r="58" fill="#f6c768"/>
+    <g class="node">
+      <circle class="ring gold" cx="888" cy="484" r="35"/>
+      <circle cx="888" cy="484" r="22" fill="url(#nodeGold)"/>
+      <text class="micro" x="888" y="531" text-anchor="middle">lineage</text>
+    </g>
+  </g>
+
+  <g transform="translate(62 62)">
+    <text class="label" x="0" y="0">mnemara memory engine</text>
+    <text class="micro" x="0" y="30">write paths / recall paths / conflict review</text>
+  </g>
+  <g transform="translate(822 84)">
+    <rect x="0" y="-34" width="266" height="72" rx="22" fill="#ffffff" opacity=".055" stroke="#ffffff" stroke-opacity=".13"/>
+    <circle cx="31" cy="1" r="6" fill="#2ee5d3"/>
+    <rect class="scan" x="58" y="-10" width="154" height="4" rx="2" fill="#2ee5d3"/>
+    <text class="micro" x="58" y="18">live recall simulation</text>
+  </g>
+</svg>

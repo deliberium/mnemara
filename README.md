@@ -15,9 +15,14 @@
 
 Mnemara is a local-first, explainable AI memory engine for embedded Rust applications and service-based deployments.
 
+<p align="center">
+  <img src="assets/mnemara-brain-simulation.svg" alt="Animated Mnemara memory engine brain simulation showing store, recall, lineage, and conflict-review paths" width="920">
+</p>
+
 ## What It Provides
 
 - product-neutral memory domain model and store traits
+- embeddable animated memory-engine visualization for documentation and web surfaces
 - embedded sled-backed storage
 - protobuf/gRPC schema and generated service types
 - tonic-based daemon mode
@@ -26,6 +31,8 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - explicit memory scope, trust, and quality state concepts
 - optional episodic context with continuity state, salience, and causal links
 - explicit recurrence, duration, and boundary cues for episodic timelines
+- relative before/after episodic recall anchors plus boundary and recurrence filters
+- conflict-review and drift metadata with operator-resolution recall filters
 - retry-safe idempotent writes, batch upserts, and tombstone or hard delete flows
 - explainable recall filters plus duplicate-aware compaction, stats, integrity, and repair reporting
 - continuity-aware retrieval planning with bounded expansion, provenance-aware ranking overlays, and planner traces
@@ -177,6 +184,7 @@ Recommended release checks:
 - `crates/mnemara-protocol`: protobuf/gRPC schema package
 - `crates/mnemara-server`: tonic-based daemon implementation
 - `sdk/javascript`: reference JavaScript SDK over the HTTP API
+- `assets/mnemara-brain-simulation.svg`: embeddable animated memory-engine visualization
 
 ## Facade Crate
 

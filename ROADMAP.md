@@ -2,14 +2,6 @@
 
 This document tracks capabilities that are intentionally outside the first release scope.
 
-Detailed implementation plans for the Long-Term work live in:
-
-- `../.dev/mnemara-long-term-roadmap-implementation-index.md`
-- `../.dev/mnemara-roadmap-episodic-foundation-plan.md`
-- `../.dev/mnemara-roadmap-retrieval-planner-plan.md`
-- `../.dev/mnemara-roadmap-consolidation-lifecycle-plan.md`
-- `../.dev/mnemara-roadmap-evaluation-rollout-plan.md`
-
 ## Direction
 
 The long-term goal is not vague "human-like recall." The goal is durable,
@@ -21,13 +13,16 @@ behavior.
 
 ### Episodic Retrieval and Memory Intelligence
 
-- [ ] Deepen temporal reasoning beyond the now-shipped episode chronology,
+- [x] Deepen temporal reasoning beyond the now-shipped episode chronology,
       recurrence, duration, and boundary cues so recall can support richer
       before/after constraints, longer-horizon sequencing, and stronger task or
-      session boundary reasoning.
-- [ ] Extend contradiction and drift handling beyond the now-shipped current,
+      session boundary reasoning. Shipped as relative before/after record
+      anchors plus boundary-label and recurrence-key recall filters.
+- [x] Extend contradiction and drift handling beyond the now-shipped current,
       historical, and superseded distinction into broader conflict-review and
-      operator-resolution workflows.
+      operator-resolution workflows. Shipped as additive conflict-review
+      metadata, unresolved-conflict recall filters, resolution-kind audit
+      filters, and explanation channel disclosure.
 
 ### Retrieval and Ranking Expansion
 

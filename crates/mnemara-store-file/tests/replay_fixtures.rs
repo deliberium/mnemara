@@ -149,6 +149,7 @@ fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -183,6 +184,7 @@ fn map_durable_capture_fixture(record: &DurableCaptureFixture) -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 
@@ -277,6 +279,7 @@ fn episodic_fixture_record() -> MemoryRecord {
             relation: LineageRelationKind::DerivedFrom,
             confidence: 0.8,
         }],
+        conflict: None,
     }
 }
 
@@ -850,6 +853,7 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
     let importance_favorite = MemoryRecord {
         id: "importance-favorite".to_string(),
@@ -868,6 +872,7 @@ async fn scoring_profile_can_shift_rank_order_toward_importance() {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
 
     for store in [&lexical_store, &importance_store] {
@@ -929,6 +934,7 @@ async fn semantic_embedding_can_surface_semantic_channel_in_explanations() {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
 
     store
@@ -985,6 +991,7 @@ async fn shared_embedder_injection_can_enable_semantic_recall_without_engine_emb
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     };
 
     store

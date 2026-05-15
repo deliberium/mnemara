@@ -12,6 +12,7 @@ It is intentionally small:
 
 ```js
 import {
+  ConflictReviewState,
   MnemaraHttpClient,
   MemoryQualityState,
   MemoryRecordKind,
@@ -48,6 +49,7 @@ await client.upsert({
     expires_at_unix_ms: null,
     importance_score: 0.8,
     artifact: null,
+    conflict: null,
   },
 });
 
@@ -76,6 +78,13 @@ const recall = await client.recall({
     trust_levels: [],
     states: [],
     include_archived: false,
+    before_record_id: null,
+    after_record_id: null,
+    boundary_labels: [],
+    recurrence_key: null,
+    conflict_states: [ConflictReviewState.UnderReview],
+    resolution_kinds: [],
+    unresolved_conflicts_only: false,
   },
 });
 
@@ -140,6 +149,7 @@ Example engine tuning payload shape from `snapshot()` or `stats()`:
 - Enum values follow the daemon's JSON wire format, for example `"Episodic"` and `"Verified"`.
 - Snapshot and stats responses include `engine` tuning metadata, including scorer and embedding configuration.
 - Recall responses can include full planning traces and a `trace_id` that links directly to `/admin/traces`.
+- Episodic recall filters support relative before/after anchors, boundary labels, recurrence keys, conflict states, resolution kinds, and unresolved conflict review queues.
 - Trace APIs expose backend, admission class, correlation ID, planning trace ID, and request summary metadata.
 - Portable export/import flows support `Validate`, `Merge`, and `Replace`, plus `dry_run` previews and structured import failures.
 - Runtime status surfaces queue depth, per-class inflight usage, per-tenant inflight counts, wait timing, and trace retention state.

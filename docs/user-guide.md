@@ -142,10 +142,33 @@ Useful episodic query patterns are:
 - set `filters.episode_id` when you already know the active thread
 - set `filters.unresolved_only = true` when you want open loops and unfinished work
 - set `filters.temporal_order` to chronological order when sequence matters more than pure relevance
+- set `filters.after_record_id` and `filters.before_record_id` to retrieve
+  memories between two known episode anchors
+- set `filters.boundary_labels` or `filters.recurrence_key` to focus recall on
+  task, handoff, session, or recurring-work boundaries
 
 Continuity-sensitive queries such as “what led to this,” “what changed,” or
 “what happened next” can trigger the continuity-aware planner profile and
 enrich the resulting planning trace.
+
+## Conflict review and drift recall
+
+Records can also carry optional `conflict` metadata for operator-review
+workflows. This does not automatically adjudicate contradictions; it preserves
+review state, related conflicting record ids, drift strength, resolution kind,
+resolver, resolution time, and a short note so downstream tools can inspect and
+resolve memory drift explicitly.
+
+Useful conflict query patterns are:
+
+- set `filters.conflict_states` to inspect records in states such as
+  `PotentialConflict`, `UnderReview`, `Resolved`, or `Dismissed`
+- set `filters.unresolved_conflicts_only = true` to queue active review items
+- set `filters.resolution_kinds` to audit accepted, rejected, superseded, or
+  merged resolutions
+
+When conflict-aware records participate in recall explanations, `conflict`
+appears as a selected channel and conflict filters add a policy note.
 
 ## Ranking and evaluation
 
@@ -317,6 +340,7 @@ For record payloads, these episodic and lifecycle fields are additive:
 - `episode`
 - `historical_state`
 - `lineage`
+- `conflict`
 
 Inside `episode`, `schema_version` is explicit and currently defaults to `1`
 when omitted by older clients or legacy portable packages.
@@ -352,6 +376,13 @@ For recall requests, the additive episodic and lifecycle query controls are:
 - `temporal_order`
 - `historical_mode`
 - `lineage_record_id`
+- `before_record_id`
+- `after_record_id`
+- `boundary_labels`
+- `recurrence_key`
+- `conflict_states`
+- `resolution_kinds`
+- `unresolved_conflicts_only`
 
 Compatibility rules for clients and packages are intentionally conservative:
 

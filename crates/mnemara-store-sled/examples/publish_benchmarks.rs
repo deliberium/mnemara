@@ -464,6 +464,7 @@ fn load_corpus() -> PreparedCorpus {
                     episode: map_episode(record.episode),
                     historical_state: map_historical_state(&record.historical_state),
                     lineage: map_lineage(record.lineage),
+                    conflict: None,
                 },
             }
         })

@@ -133,6 +133,24 @@ Derived affective annotations are also validated at write time. They must keep
 confidence within `0.0..=1.0`, remain below certainty when provenance is
 `Derived`, and avoid empty tone or sentiment strings.
 
+Recall can now apply richer episodic constraints without changing baseline
+ranking behavior. `before_record_id` and `after_record_id` resolve to temporal
+anchors inside the recall scope, while `boundary_labels` and `recurrence_key`
+focus selection on explicit task, session, handoff, or recurring-work markers.
+
+## Conflict Review Model
+
+`MemoryRecord` can carry optional conflict metadata for drift and contradiction
+review workflows. The conflict annotation records the review state, conflicting
+record ids, normalized drift score, operator resolution kind, resolver,
+resolution time, and an optional note.
+
+The model is intentionally inspectable rather than autonomous: Mnemara stores,
+filters, exports, imports, and explains conflict state, but does not silently
+pick a winning memory. Write validation keeps drift scores in `0.0..=1.0`,
+rejects self-referential conflict ids, and requires resolved or dismissed
+conflicts to name a resolution kind.
+
 ## Lifecycle and Consolidation
 
 The maintenance layer now distinguishes memory quality state from historical

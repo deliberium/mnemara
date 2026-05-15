@@ -74,6 +74,7 @@ fn map_fixture_record(record: &FixtureRecord) -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 

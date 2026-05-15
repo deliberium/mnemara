@@ -21,8 +21,9 @@ pub use embedding::{
 pub use error::{Error, Result};
 pub use evaluation::{JudgedRecallCase, RankingMetrics, evaluate_rankings_at_k};
 pub use model::{
-    AffectiveAnnotation, AffectiveAnnotationProvenance, ArtifactPointer, EPISODE_SCHEMA_VERSION,
-    EpisodeContext, EpisodeContinuityState, EpisodeSalience, LineageLink, LineageRelationKind,
+    AffectiveAnnotation, AffectiveAnnotationProvenance, ArtifactPointer, ConflictAnnotation,
+    ConflictResolutionKind, ConflictReviewState, EPISODE_SCHEMA_VERSION, EpisodeContext,
+    EpisodeContinuityState, EpisodeSalience, LineageLink, LineageRelationKind,
     MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
     MemoryTrustLevel,
 };

@@ -94,6 +94,7 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
                 episode: None,
                 historical_state: None,
                 lineage: vec![],
+                conflict: None,
             }),
             idempotency_key: Some("record-1".to_string()),
         }))
@@ -264,6 +265,7 @@ async fn grpc_round_trip_preserves_present_episodic_fields() {
                     relation: "derived_from".to_string(),
                     confidence: 0.85,
                 }],
+                conflict: None,
             }),
             idempotency_key: Some("episodic-record-1".to_string()),
         }))
@@ -349,6 +351,7 @@ async fn grpc_archive_suppress_and_recover_round_trip() {
                 episode: None,
                 historical_state: Some("current".to_string()),
                 lineage: vec![],
+                conflict: None,
             }),
             idempotency_key: Some("lifecycle-record-1".to_string()),
         }))
@@ -495,6 +498,7 @@ async fn grpc_lifecycle_controls_reject_wrong_tenant() {
                 episode: None,
                 historical_state: Some("current".to_string()),
                 lineage: vec![],
+                conflict: None,
             }),
             idempotency_key: Some("tenant-boundary-record".to_string()),
         }))
@@ -544,6 +548,7 @@ async fn batch_upsert_and_delete_round_trip() {
                         episode: None,
                         historical_state: None,
                         lineage: vec![],
+                        conflict: None,
                     }),
                     idempotency_key: Some("record-a".to_string()),
                 },
@@ -565,6 +570,7 @@ async fn batch_upsert_and_delete_round_trip() {
                         episode: None,
                         historical_state: None,
                         lineage: vec![],
+                        conflict: None,
                     }),
                     idempotency_key: Some("record-b".to_string()),
                 },
@@ -645,6 +651,7 @@ async fn stats_integrity_and_repair_round_trip() {
                     episode: None,
                     historical_state: None,
                     lineage: vec![],
+                    conflict: None,
                 }),
                 idempotency_key: Some("repair-key".to_string()),
             }))
@@ -745,6 +752,7 @@ async fn http_health_snapshot_and_compact_routes_round_trip() {
                 episode: None,
                 historical_state: None,
                 lineage: vec![],
+                conflict: None,
             }),
             idempotency_key: Some("record-http".to_string()),
         }))
@@ -1261,6 +1269,7 @@ async fn grpc_recall_exposes_semantic_channel_when_embeddings_are_enabled() {
                 episode: None,
                 historical_state: None,
                 lineage: vec![],
+                conflict: None,
             }),
             idempotency_key: Some("semantic-grpc-record".to_string()),
         }))
@@ -1400,6 +1409,7 @@ async fn grpc_limits_reject_oversized_recall_and_batch_requests() {
                         episode: None,
                         historical_state: None,
                         lineage: vec![],
+                        conflict: None,
                     }),
                     idempotency_key: Some("record-1".to_string()),
                 },
@@ -1421,6 +1431,7 @@ async fn grpc_limits_reject_oversized_recall_and_batch_requests() {
                         episode: None,
                         historical_state: None,
                         lineage: vec![],
+                        conflict: None,
                     }),
                     idempotency_key: Some("record-2".to_string()),
                 },
@@ -1462,6 +1473,118 @@ async fn http_limits_reject_oversized_request_bodies() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn http_limits_reject_oversized_recall_and_batch_requests() {
+    let store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("http-semantic-limits")))
+            .unwrap(),
+    );
+    let app = http_app(
+        store,
+        ServerLimits {
+            max_http_body_bytes: 4096,
+            max_batch_upsert_requests: 1,
+            max_recall_items: 1,
+            ..ServerLimits::default()
+        },
+        AuthConfig::default(),
+    );
+    let http_scope = serde_json::json!({
+        "tenant_id": "default",
+        "namespace": "conversation",
+        "actor_id": "ava",
+        "conversation_id": "thread-a",
+        "session_id": "session-a",
+        "source": "test",
+        "labels": ["shared-fixture"],
+        "trust_level": "Verified"
+    });
+
+    let recall = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/memory/recall")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "scope": http_scope.clone(),
+                        "query_text": "anything",
+                        "max_items": 2,
+                        "token_budget": null,
+                        "filters": {},
+                        "include_explanation": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(recall.status(), StatusCode::BAD_REQUEST);
+
+    let mut second_record = serde_json::json!({
+        "id": "http-limit-record-2",
+        "scope": http_scope.clone(),
+        "kind": "Episodic",
+        "content": "small",
+        "summary": null,
+        "source_id": null,
+        "metadata": {},
+        "quality_state": "Active",
+        "created_at_unix_ms": 1,
+        "updated_at_unix_ms": 1,
+        "expires_at_unix_ms": null,
+        "importance_score": 0.5,
+        "artifact": null,
+        "episode": null,
+        "historical_state": "Current",
+        "lineage": [],
+        "conflict": null
+    });
+    second_record["id"] = serde_json::json!("http-limit-record-2");
+    let record = serde_json::json!({
+        "id": "http-limit-record",
+        "scope": http_scope.clone(),
+        "kind": "Episodic",
+        "content": "small",
+        "summary": null,
+        "source_id": null,
+        "metadata": {},
+        "quality_state": "Active",
+        "created_at_unix_ms": 1,
+        "updated_at_unix_ms": 1,
+        "expires_at_unix_ms": null,
+        "importance_score": 0.5,
+        "artifact": null,
+        "episode": null,
+        "historical_state": "Current",
+        "lineage": [],
+        "conflict": null
+    });
+    let batch = app
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/memory/batch-upsert")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "requests": [
+                            {"record": record, "idempotency_key": "one"},
+                            {"record": second_record, "idempotency_key": "two"}
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(batch.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn metrics_endpoint_reports_http_and_grpc_activity() {
     let store =
         Arc::new(SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("metrics"))).unwrap());
@@ -1491,6 +1614,7 @@ async fn metrics_endpoint_reports_http_and_grpc_activity() {
                 episode: None,
                 historical_state: None,
                 lineage: vec![],
+                conflict: None,
             }),
             idempotency_key: Some("metrics-record".to_string()),
         }))
@@ -1554,6 +1678,7 @@ async fn recall_reply_exposes_planning_trace_payload() {
                         episode: None,
                         historical_state: None,
                         lineage: vec![],
+                        conflict: None,
                     }),
                     idempotency_key: Some("trace-a".to_string()),
                 },
@@ -1576,6 +1701,7 @@ async fn recall_reply_exposes_planning_trace_payload() {
                         episode: None,
                         historical_state: None,
                         lineage: vec![],
+                        conflict: None,
                     }),
                     idempotency_key: Some("trace-b".to_string()),
                 },
@@ -1710,6 +1836,7 @@ async fn role_based_auth_policies_enforce_read_write_admin_and_metrics_permissio
             episode: None,
             historical_state: None,
             lineage: vec![],
+            conflict: None,
         }),
         idempotency_key: Some("role-record".to_string()),
     });
@@ -1761,6 +1888,7 @@ async fn role_based_auth_policies_enforce_read_write_admin_and_metrics_permissio
                     episode: None,
                     historical_state: None,
                     lineage: vec![],
+                    conflict: None,
                 }),
                 idempotency_key: Some("role-record-2".to_string()),
             });

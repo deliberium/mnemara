@@ -138,6 +138,12 @@ struct IntegritySummary {
     duplicate_active_records: u64,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct RelativeTemporalBounds {
+    after_unix_ms: Option<u64>,
+    before_unix_ms: Option<u64>,
+}
+
 const PORTABLE_PACKAGE_VERSION: u32 = 1;
 
 impl FileMemoryStore {
@@ -169,8 +175,8 @@ impl FileMemoryStore {
         Self::records_dir(&self.config.data_dir).join(format!("{}.json", hex_key(record_id)))
     }
 
-    fn idempotency_path(&self, scope: &MemoryScope, key: &str) -> PathBuf {
-        let scoped = format!(
+    fn idempotency_scope_key(scope: &MemoryScope, key: &str) -> String {
+        format!(
             "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
             scope.tenant_id,
             scope.namespace,
@@ -178,12 +184,39 @@ impl FileMemoryStore {
             scope.conversation_id.as_deref().unwrap_or(""),
             scope.session_id.as_deref().unwrap_or(""),
             key
-        );
+        )
+    }
+
+    fn idempotency_path(&self, scope: &MemoryScope, key: &str) -> PathBuf {
+        let scoped = Self::idempotency_scope_key(scope, key);
         Self::idempotency_dir(&self.config.data_dir).join(format!("{}.txt", hex_key(&scoped)))
     }
 
     fn validate_record(&self, record: &MemoryRecord) -> Result<()> {
         record.validate()
+    }
+
+    fn validate_upsert_request(&self, request: &UpsertRequest) -> Result<()> {
+        self.validate_record(&request.record)?;
+        if request.idempotency_key.is_none()
+            && self
+                .config
+                .engine_config
+                .ingestion
+                .idempotent_writes_required
+        {
+            return Err(Error::InvalidRequest(
+                "idempotency_key is required by the current ingestion policy".to_string(),
+            ));
+        }
+        if self.config.engine_config.ingestion.require_source_labels
+            && request.record.scope.labels.is_empty()
+        {
+            return Err(Error::InvalidRequest(
+                "at least one source label is required by the current ingestion policy".to_string(),
+            ));
+        }
+        Ok(())
     }
 
     fn validate_delete_request(&self, request: &DeleteRequest) -> Result<()> {
@@ -550,7 +583,7 @@ impl FileMemoryStore {
         let mut stale_idempotency_keys = 0u64;
         let mut scanned_idempotency_keys = 0u64;
         for mapping in &mappings {
-            let Some((tenant_id, namespace, _, _, _, _)) =
+            let Some((tenant_id, namespace, _, _, _, idempotency_key)) =
                 Self::parse_scope_key(&mapping.scoped_key)
             else {
                 stale_idempotency_keys += 1;
@@ -568,6 +601,9 @@ impl FileMemoryStore {
             };
             if stored.record.scope.tenant_id != tenant_id
                 || stored.record.scope.namespace != namespace
+                || stored.idempotency_key.as_deref() != Some(idempotency_key.as_str())
+                || Self::idempotency_scope_key(&stored.record.scope, &idempotency_key)
+                    != mapping.scoped_key
             {
                 stale_idempotency_keys += 1;
                 continue;
@@ -580,15 +616,7 @@ impl FileMemoryStore {
         let mut duplicate_active_records = 0u64;
         for stored in &filtered_records {
             if let Some(idempotency_key) = &stored.idempotency_key {
-                let scoped_key = format!(
-                    "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
-                    stored.record.scope.tenant_id,
-                    stored.record.scope.namespace,
-                    stored.record.scope.actor_id,
-                    stored.record.scope.conversation_id.as_deref().unwrap_or(""),
-                    stored.record.scope.session_id.as_deref().unwrap_or(""),
-                    idempotency_key
-                );
+                let scoped_key = Self::idempotency_scope_key(&stored.record.scope, idempotency_key);
                 if mapping_lookup.get(&scoped_key) != Some(&stored.record.id) {
                     missing_idempotency_keys += 1;
                 }
@@ -743,7 +771,11 @@ impl FileMemoryStore {
             && (query.session_id.is_none() || candidate.session_id == query.session_id)
     }
 
-    fn record_passes_filters(record: &MemoryRecord, query: &RecallQuery) -> bool {
+    fn record_passes_filters(
+        record: &MemoryRecord,
+        query: &RecallQuery,
+        relative_bounds: RelativeTemporalBounds,
+    ) -> bool {
         if !Self::matches_scope(&record.scope, &query.scope) {
             return false;
         }
@@ -774,6 +806,18 @@ impl FileMemoryStore {
 
         if let Some(to_unix_ms) = query.filters.to_unix_ms
             && record.updated_at_unix_ms > to_unix_ms
+        {
+            return false;
+        }
+
+        if let Some(after_unix_ms) = relative_bounds.after_unix_ms
+            && Self::record_temporal_anchor(record) <= after_unix_ms
+        {
+            return false;
+        }
+
+        if let Some(before_unix_ms) = relative_bounds.before_unix_ms
+            && Self::record_temporal_anchor(record) >= before_unix_ms
         {
             return false;
         }
@@ -839,6 +883,62 @@ impl FileMemoryStore {
             return false;
         }
 
+        if !query.filters.boundary_labels.is_empty()
+            && !record.episode.as_ref().is_some_and(|episode| {
+                episode.boundary_label.as_ref().is_some_and(|label| {
+                    query
+                        .filters
+                        .boundary_labels
+                        .iter()
+                        .any(|expected| expected == label)
+                })
+            })
+        {
+            return false;
+        }
+
+        if let Some(recurrence_key) = &query.filters.recurrence_key
+            && record
+                .episode
+                .as_ref()
+                .and_then(|episode| episode.recurrence_key.as_ref())
+                != Some(recurrence_key)
+        {
+            return false;
+        }
+
+        if !query.filters.conflict_states.is_empty()
+            && !record
+                .conflict
+                .as_ref()
+                .is_some_and(|conflict| query.filters.conflict_states.contains(&conflict.state))
+        {
+            return false;
+        }
+
+        if !query.filters.resolution_kinds.is_empty()
+            && !record.conflict.as_ref().is_some_and(|conflict| {
+                query
+                    .filters
+                    .resolution_kinds
+                    .contains(&conflict.resolution)
+            })
+        {
+            return false;
+        }
+
+        if query.filters.unresolved_conflicts_only
+            && !record.conflict.as_ref().is_some_and(|conflict| {
+                matches!(
+                    conflict.state,
+                    mnemara_core::ConflictReviewState::PotentialConflict
+                        | mnemara_core::ConflictReviewState::UnderReview
+                )
+            })
+        {
+            return false;
+        }
+
         match query.filters.historical_mode {
             RecallHistoricalMode::CurrentOnly => {
                 if !matches!(record.historical_state, MemoryHistoricalState::Current) {
@@ -866,6 +966,51 @@ impl FileMemoryStore {
         }
 
         true
+    }
+
+    fn relative_temporal_bounds(
+        records: &[StoredRecord],
+        query: &RecallQuery,
+    ) -> Result<RelativeTemporalBounds> {
+        let mut bounds = RelativeTemporalBounds::default();
+        if let Some(after_record_id) = &query.filters.after_record_id {
+            let Some(anchor) = records
+                .iter()
+                .find(|stored| {
+                    stored.record.id == *after_record_id
+                        && Self::matches_scope(&stored.record.scope, &query.scope)
+                })
+                .map(|stored| Self::record_temporal_anchor(&stored.record))
+            else {
+                return Err(Error::InvalidRequest(format!(
+                    "after_record_id '{after_record_id}' was not found in recall scope"
+                )));
+            };
+            bounds.after_unix_ms = Some(anchor);
+        }
+        if let Some(before_record_id) = &query.filters.before_record_id {
+            let Some(anchor) = records
+                .iter()
+                .find(|stored| {
+                    stored.record.id == *before_record_id
+                        && Self::matches_scope(&stored.record.scope, &query.scope)
+                })
+                .map(|stored| Self::record_temporal_anchor(&stored.record))
+            else {
+                return Err(Error::InvalidRequest(format!(
+                    "before_record_id '{before_record_id}' was not found in recall scope"
+                )));
+            };
+            bounds.before_unix_ms = Some(anchor);
+        }
+        if let (Some(after), Some(before)) = (bounds.after_unix_ms, bounds.before_unix_ms)
+            && after >= before
+        {
+            return Err(Error::InvalidRequest(
+                "after_record_id must refer to an earlier record than before_record_id".to_string(),
+            ));
+        }
+        Ok(bounds)
     }
 
     fn approximate_tokens(record: &MemoryRecord) -> usize {
@@ -906,6 +1051,9 @@ impl FileMemoryStore {
         }
         if hit.breakdown.curation > 0.0 {
             selected_channels.push("curation".to_string());
+        }
+        if hit.record.conflict.is_some() {
+            selected_channels.push("conflict".to_string());
         }
         selected_channels.sort();
         selected_channels.dedup();
@@ -1019,6 +1167,7 @@ impl FileMemoryStore {
                         confidence: 1.0,
                     })
                     .collect(),
+                conflict: canonical.conflict.clone(),
             },
             idempotency_key: None,
         }
@@ -1191,13 +1340,16 @@ impl FileMemoryStore {
             } else {
                 vec!["lexical".to_string(), "policy".to_string()]
             };
-            for channel in ["semantic", "metadata", "episodic", "salience", "curation"] {
+            for channel in [
+                "semantic", "metadata", "episodic", "salience", "curation", "conflict",
+            ] {
                 let present = planned.iter().any(|candidate| match channel {
                     "semantic" => candidate.hit.breakdown.semantic > 0.0,
                     "metadata" => candidate.hit.breakdown.metadata > 0.0,
                     "episodic" => candidate.hit.breakdown.episodic > 0.0,
                     "salience" => candidate.hit.breakdown.salience > 0.0,
                     "curation" => candidate.hit.breakdown.curation > 0.0,
+                    "conflict" => candidate.hit.record.conflict.is_some(),
                     _ => false,
                 });
                 if present && !selected_channels.iter().any(|existing| existing == channel) {
@@ -1220,6 +1372,18 @@ impl FileMemoryStore {
             }
             if query.filters.unresolved_only {
                 policy_notes.push("unresolved_only_filter_applied".to_string());
+            }
+            if query.filters.before_record_id.is_some() || query.filters.after_record_id.is_some() {
+                policy_notes.push("relative_temporal_filter_applied".to_string());
+            }
+            if !query.filters.boundary_labels.is_empty() || query.filters.recurrence_key.is_some() {
+                policy_notes.push("episodic_boundary_filter_applied".to_string());
+            }
+            if !query.filters.conflict_states.is_empty()
+                || !query.filters.resolution_kinds.is_empty()
+                || query.filters.unresolved_conflicts_only
+            {
+                policy_notes.push("conflict_review_filter_applied".to_string());
             }
             RecallExplanation {
                 selected_channels,
@@ -1335,25 +1499,7 @@ impl MemoryStore for FileMemoryStore {
     }
 
     async fn upsert(&self, request: UpsertRequest) -> Result<UpsertReceipt> {
-        self.validate_record(&request.record)?;
-        if request.idempotency_key.is_none()
-            && self
-                .config
-                .engine_config
-                .ingestion
-                .idempotent_writes_required
-        {
-            return Err(Error::InvalidRequest(
-                "idempotency_key is required by the current ingestion policy".to_string(),
-            ));
-        }
-        if self.config.engine_config.ingestion.require_source_labels
-            && request.record.scope.labels.is_empty()
-        {
-            return Err(Error::InvalidRequest(
-                "at least one source label is required by the current ingestion policy".to_string(),
-            ));
-        }
+        self.validate_upsert_request(&request)?;
 
         if let Some(idempotency_key) = &request.idempotency_key {
             let path = self.idempotency_path(&request.record.scope, idempotency_key);
@@ -1389,11 +1535,17 @@ impl MemoryStore for FileMemoryStore {
         let key = request.record.id.clone();
         let tenant_id = request.record.scope.tenant_id.clone();
         let namespace = request.record.scope.namespace.clone();
-        let deduplicated = self.load_record(&key)?.is_some();
+        let existing = self.load_record(&key)?;
+        let deduplicated = existing.is_some();
         let stored = StoredRecord {
             record: request.record,
             idempotency_key: request.idempotency_key,
         };
+        if let Some(existing) = existing
+            && existing.idempotency_key != stored.idempotency_key
+        {
+            self.remove_idempotency_mapping(&existing)?;
+        }
         self.persist_record(&stored)?;
         if let Some(idempotency_key) = &stored.idempotency_key {
             fs::write(
@@ -1418,6 +1570,9 @@ impl MemoryStore for FileMemoryStore {
                 self.config.engine_config.max_batch_size
             )));
         }
+        for request in &request.requests {
+            self.validate_upsert_request(request)?;
+        }
         let mut receipts = Vec::with_capacity(request.requests.len());
         for request in request.requests {
             receipts.push(self.upsert(request).await?);
@@ -1430,10 +1585,11 @@ impl MemoryStore for FileMemoryStore {
         let planner = self.config.recall_planner();
         let scorer = planner.scorer();
         let planning_profile = planner.effective_profile(&query);
-        let records = self
-            .iterate_records()?
+        let stored_records = self.iterate_records()?;
+        let relative_bounds = Self::relative_temporal_bounds(&stored_records, &query)?;
+        let records = stored_records
             .into_iter()
-            .filter(|stored| Self::record_passes_filters(&stored.record, &query))
+            .filter(|stored| Self::record_passes_filters(&stored.record, &query, relative_bounds))
             .map(|stored| stored.record)
             .collect::<Vec<_>>();
         let mut scored = planner.plan(&records, &query);
@@ -1855,7 +2011,7 @@ impl MemoryStore for FileMemoryStore {
 
         if request.remove_stale_idempotency_keys {
             for mapping in &mappings {
-                let Some((tenant_id, namespace, _, _, _, _)) =
+                let Some((tenant_id, namespace, _, _, _, idempotency_key)) =
                     Self::parse_scope_key(&mapping.scoped_key)
                 else {
                     continue;
@@ -1872,6 +2028,9 @@ impl MemoryStore for FileMemoryStore {
                     Some(stored) => {
                         stored.record.scope.tenant_id != tenant_id
                             || stored.record.scope.namespace != namespace
+                            || stored.idempotency_key.as_deref() != Some(idempotency_key.as_str())
+                            || Self::idempotency_scope_key(&stored.record.scope, &idempotency_key)
+                                != mapping.scoped_key
                     }
                     None => true,
                 };
@@ -1912,15 +2071,7 @@ impl MemoryStore for FileMemoryStore {
                 let Some(idempotency_key) = &stored.idempotency_key else {
                     continue;
                 };
-                let scoped_key = format!(
-                    "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
-                    stored.record.scope.tenant_id,
-                    stored.record.scope.namespace,
-                    stored.record.scope.actor_id,
-                    stored.record.scope.conversation_id.as_deref().unwrap_or(""),
-                    stored.record.scope.session_id.as_deref().unwrap_or(""),
-                    idempotency_key
-                );
+                let scoped_key = Self::idempotency_scope_key(&stored.record.scope, idempotency_key);
                 if existing_lookup.get(&scoped_key) == Some(&stored.record.id) {
                     continue;
                 }

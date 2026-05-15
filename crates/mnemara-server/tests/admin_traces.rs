@@ -48,6 +48,7 @@ fn fixture_record() -> MemoryRecord {
         episode: None,
         historical_state: Default::default(),
         lineage: Vec::new(),
+        conflict: None,
     }
 }
 

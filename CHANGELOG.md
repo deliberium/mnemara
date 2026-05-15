@@ -14,6 +14,26 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Fixed
 
+## [0.2.2] - 2026-05-15
+
+### Added
+
+- additive conflict-review metadata on memory records, including drift score, conflict state, related record ids, operator resolution, resolver, resolution timestamp, and notes
+- recall filters for relative `before_record_id` / `after_record_id` temporal anchors, boundary labels, recurrence keys, conflict states, resolution kinds, and unresolved conflict review queues
+- conflict-aware recall explanation channels and regression coverage for relative episodic retrieval, boundary filtering, and conflict-review recall
+- JavaScript SDK constants and type declarations for conflict-review and resolution enums
+- embeddable animated memory-engine visualization for README and marketing-site surfaces
+
+### Changed
+
+- HTTP memory and recall routes now enforce the same semantic request limits as gRPC for batch breadth, recall breadth, labels, content, and summaries
+- batch upsert now pre-validates all records before applying writes, avoiding partial mutation when a later item is invalid
+
+### Fixed
+
+- replacing a record with a different idempotency key now removes the old scoped idempotency mapping instead of leaving a stale retry key behind
+- memory record validation now rejects out-of-range `importance_score` values
+
 ## [0.2.1] - 2026-04-21
 
 ### Added

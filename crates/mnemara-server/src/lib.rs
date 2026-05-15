@@ -19,8 +19,9 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use mnemara_core::{
     AffectiveAnnotation, AffectiveAnnotationProvenance, ArchiveReceipt, ArchiveRequest,
-    ArtifactPointer, BatchUpsertRequest, CompactionReport, CompactionRequest, DeleteReceipt,
-    DeleteRequest, EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineTuningInfo, EpisodeContext,
+    ArtifactPointer, BatchUpsertRequest, CompactionReport, CompactionRequest, ConflictAnnotation,
+    ConflictResolutionKind, ConflictReviewState, DeleteReceipt, DeleteRequest,
+    EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineTuningInfo, EpisodeContext,
     EpisodeContinuityState, EpisodeSalience, ExportRequest, ImportMode, ImportReport,
     ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, LineageLink, LineageRelationKind,
     MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind,
@@ -38,7 +39,8 @@ use mnemara_protocol::v1::{
     AffectiveAnnotation as ProtoAffectiveAnnotation, ArchiveReply,
     ArchiveRequest as ProtoArchiveRequest, ArtifactPointer as ProtoArtifactPointer,
     BatchUpsertMemoryRecordsReply, BatchUpsertMemoryRecordsRequest, CompactReply,
-    CompactRequest as ProtoCompactRequest, DeleteReply, DeleteRequest as ProtoDeleteRequest,
+    CompactRequest as ProtoCompactRequest, ConflictAnnotation as ProtoConflictAnnotation,
+    DeleteReply, DeleteRequest as ProtoDeleteRequest,
     EmbeddingProviderKind as ProtoEmbeddingProviderKind, EngineTuningInfo as ProtoEngineTuningInfo,
     EpisodeContext as ProtoEpisodeContext, EpisodeSalience as ProtoEpisodeSalience,
     ExportReply as ProtoExportReply, ExportRequest as ProtoExportRequest,
@@ -1014,6 +1016,8 @@ where
 {
     let started_at_unix_ms = now_unix_ms();
     let correlation_id = runtime.traces().next_id("corr");
+    validate_record_limits(&request.record, runtime.limits().as_ref())
+        .map_err(map_http_validation_error)?;
     let _permit = runtime
         .admission()
         .acquire(AdmissionClass::Write, Some(&request.record.scope.tenant_id))
@@ -1062,6 +1066,21 @@ where
         .requests
         .first()
         .map(|item| item.record.scope.namespace.clone());
+    if request.requests.len() > runtime.limits().max_batch_upsert_requests {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(HttpErrorBody {
+                error: format!(
+                    "batch upsert request count exceeds configured max of {}",
+                    runtime.limits().max_batch_upsert_requests
+                ),
+            }),
+        ));
+    }
+    for item in &request.requests {
+        validate_record_limits(&item.record, runtime.limits().as_ref())
+            .map_err(map_http_validation_error)?;
+    }
     let _permit = runtime
         .admission()
         .acquire(AdmissionClass::Write, tenant_id.as_deref())
@@ -1102,6 +1121,8 @@ where
 {
     let started_at_unix_ms = now_unix_ms();
     let correlation_id = runtime.traces().next_id("corr");
+    validate_recall_limits(&request, runtime.limits().as_ref())
+        .map_err(map_http_validation_error)?;
     let _permit = runtime
         .admission()
         .acquire(AdmissionClass::Read, Some(&request.scope.tenant_id))
@@ -2224,6 +2245,80 @@ fn lineage_link_to_proto(value: LineageLink) -> ProtoLineageLink {
     }
 }
 
+fn conflict_review_state_from_proto(value: &str) -> Result<ConflictReviewState, Status> {
+    match value {
+        "" | "none" => Ok(ConflictReviewState::None),
+        "potential_conflict" => Ok(ConflictReviewState::PotentialConflict),
+        "under_review" => Ok(ConflictReviewState::UnderReview),
+        "resolved" => Ok(ConflictReviewState::Resolved),
+        "dismissed" => Ok(ConflictReviewState::Dismissed),
+        other => Err(invalid_argument(format!(
+            "unknown conflict review state: {other}"
+        ))),
+    }
+}
+
+fn conflict_review_state_to_proto(value: ConflictReviewState) -> String {
+    match value {
+        ConflictReviewState::None => "none",
+        ConflictReviewState::PotentialConflict => "potential_conflict",
+        ConflictReviewState::UnderReview => "under_review",
+        ConflictReviewState::Resolved => "resolved",
+        ConflictReviewState::Dismissed => "dismissed",
+    }
+    .to_string()
+}
+
+fn conflict_resolution_kind_from_proto(value: &str) -> Result<ConflictResolutionKind, Status> {
+    match value {
+        "" | "none" => Ok(ConflictResolutionKind::None),
+        "accepted" => Ok(ConflictResolutionKind::Accepted),
+        "rejected" => Ok(ConflictResolutionKind::Rejected),
+        "superseded" => Ok(ConflictResolutionKind::Superseded),
+        "merged" => Ok(ConflictResolutionKind::Merged),
+        other => Err(invalid_argument(format!(
+            "unknown conflict resolution kind: {other}"
+        ))),
+    }
+}
+
+fn conflict_resolution_kind_to_proto(value: ConflictResolutionKind) -> String {
+    match value {
+        ConflictResolutionKind::None => "none",
+        ConflictResolutionKind::Accepted => "accepted",
+        ConflictResolutionKind::Rejected => "rejected",
+        ConflictResolutionKind::Superseded => "superseded",
+        ConflictResolutionKind::Merged => "merged",
+    }
+    .to_string()
+}
+
+fn conflict_annotation_from_proto(
+    value: ProtoConflictAnnotation,
+) -> Result<ConflictAnnotation, Status> {
+    Ok(ConflictAnnotation {
+        state: conflict_review_state_from_proto(&value.state)?,
+        conflicting_record_ids: value.conflicting_record_ids,
+        drift_score: value.drift_score,
+        resolution: conflict_resolution_kind_from_proto(&value.resolution)?,
+        resolved_by: value.resolved_by,
+        resolved_at_unix_ms: value.resolved_at_unix_ms,
+        note: value.note,
+    })
+}
+
+fn conflict_annotation_to_proto(value: ConflictAnnotation) -> ProtoConflictAnnotation {
+    ProtoConflictAnnotation {
+        state: conflict_review_state_to_proto(value.state),
+        conflicting_record_ids: value.conflicting_record_ids,
+        drift_score: value.drift_score,
+        resolution: conflict_resolution_kind_to_proto(value.resolution),
+        resolved_by: value.resolved_by,
+        resolved_at_unix_ms: value.resolved_at_unix_ms,
+        note: value.note,
+    }
+}
+
 fn historical_mode_from_proto(value: &str) -> Result<RecallHistoricalMode, Status> {
     match value {
         "" | "current_only" => Ok(RecallHistoricalMode::CurrentOnly),
@@ -2332,6 +2427,10 @@ fn record_from_proto(record: ProtoMemoryRecord) -> Result<MemoryRecord, Status> 
             .into_iter()
             .map(lineage_link_from_proto)
             .collect::<Result<Vec<_>, _>>()?,
+        conflict: record
+            .conflict
+            .map(conflict_annotation_from_proto)
+            .transpose()?,
     })
 }
 
@@ -2357,6 +2456,7 @@ fn record_to_proto(record: MemoryRecord) -> ProtoMemoryRecord {
             .into_iter()
             .map(lineage_link_to_proto)
             .collect(),
+        conflict: record.conflict.map(conflict_annotation_to_proto),
     }
 }
 
@@ -2762,6 +2862,20 @@ fn quality_states_from_proto(values: Vec<String>) -> Result<Vec<MemoryQualitySta
         .collect()
 }
 
+fn conflict_states_from_proto(values: Vec<String>) -> Result<Vec<ConflictReviewState>, Status> {
+    values
+        .into_iter()
+        .map(|value| conflict_review_state_from_proto(&value))
+        .collect()
+}
+
+fn resolution_kinds_from_proto(values: Vec<String>) -> Result<Vec<ConflictResolutionKind>, Status> {
+    values
+        .into_iter()
+        .map(|value| conflict_resolution_kind_from_proto(&value))
+        .collect()
+}
+
 fn recall_filters_from_proto(filters: Option<ProtoRecallFilters>) -> Result<RecallFilters, Status> {
     let Some(filters) = filters else {
         return Ok(RecallFilters::default());
@@ -2789,6 +2903,13 @@ fn recall_filters_from_proto(filters: Option<ProtoRecallFilters>) -> Result<Reca
             filters.historical_mode.as_deref().unwrap_or(""),
         )?,
         lineage_record_id: filters.lineage_record_id,
+        before_record_id: filters.before_record_id,
+        after_record_id: filters.after_record_id,
+        boundary_labels: filters.boundary_labels,
+        recurrence_key: filters.recurrence_key,
+        conflict_states: conflict_states_from_proto(filters.conflict_states)?,
+        resolution_kinds: resolution_kinds_from_proto(filters.resolution_kinds)?,
+        unresolved_conflicts_only: filters.unresolved_conflicts_only,
     })
 }
 
@@ -2862,6 +2983,15 @@ fn map_http_store_error(error: mnemara_core::Error) -> (StatusCode, Json<HttpErr
         status,
         Json(HttpErrorBody {
             error: error.to_string(),
+        }),
+    )
+}
+
+fn map_http_validation_error(status: Status) -> (StatusCode, Json<HttpErrorBody>) {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(HttpErrorBody {
+            error: status.message().to_string(),
         }),
     )
 }
