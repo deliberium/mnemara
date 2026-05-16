@@ -5,8 +5,20 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 manifest_path="${MNEMARA_MANIFEST_PATH:-$repo_root/Cargo.toml}"
+publish_attempts="${MNEMARA_PUBLISH_ATTEMPTS:-8}"
+publish_initial_wait_seconds="${MNEMARA_PUBLISH_INITIAL_WAIT_SECONDS:-20}"
+publish_max_wait_seconds="${MNEMARA_PUBLISH_MAX_WAIT_SECONDS:-300}"
 
 phase="${1:-help}"
+
+publish_order=(
+  mnemara-core
+  mnemara-protocol
+  mnemara-store-file
+  mnemara-store-sled
+  mnemara-server
+  mnemara
+)
 
 run() {
   printf '\n==> %s\n' "$*"
@@ -26,6 +38,7 @@ Phases:
   server        Package mnemara-server.
   facade        Package the mnemara facade crate.
   dry-run-publish Run cargo publish --dry-run for a phase: foundation, storage, server, facade, or all.
+  publish       Build, verify, and publish crates to crates.io in dependency order.
   publish-plan  Print the recommended publish order and commands.
   help          Show this help.
 
@@ -34,6 +47,9 @@ Notes:
   - foundation can run before any crates are published.
   - storage, server, and facade require earlier crates to already exist on crates.io for Cargo verification.
   - dry-run-publish all continues past expected publish-order gating failures and reports skipped crates.
+  - publish accepts a target: foundation, storage, server, facade, all, or one crate name.
+  - publish retries crates.io 429/index propagation failures and skips versions that already exist.
+  - Tune publish retry behavior with MNEMARA_PUBLISH_ATTEMPTS, MNEMARA_PUBLISH_INITIAL_WAIT_SECONDS, and MNEMARA_PUBLISH_MAX_WAIT_SECONDS.
 EOF
 }
 
@@ -102,6 +118,178 @@ dry_run_publish_crate() {
   run cargo publish --dry-run --manifest-path "$manifest_path" -p "$crate_name" --allow-dirty
 }
 
+crate_version() {
+  local crate_name="$1"
+  local crate_manifest
+
+  crate_manifest="$(crate_manifest_path "$crate_name")"
+  awk -F\" '/^version = / { print $2; exit }' "$crate_manifest"
+}
+
+crate_manifest_path() {
+  local crate_name="$1"
+
+  case "$crate_name" in
+    mnemara-core)
+      printf '%s\n' "$repo_root/crates/mnemara-core/Cargo.toml"
+      ;;
+    mnemara-protocol)
+      printf '%s\n' "$repo_root/crates/mnemara-protocol/Cargo.toml"
+      ;;
+    mnemara-store-file)
+      printf '%s\n' "$repo_root/crates/mnemara-store-file/Cargo.toml"
+      ;;
+    mnemara-store-sled)
+      printf '%s\n' "$repo_root/crates/mnemara-store-sled/Cargo.toml"
+      ;;
+    mnemara-server)
+      printf '%s\n' "$repo_root/crates/mnemara-server/Cargo.toml"
+      ;;
+    mnemara)
+      printf '%s\n' "$repo_root/crates/mnemara/Cargo.toml"
+      ;;
+    *)
+      printf 'Unknown crate: %s\n' "$crate_name" >&2
+      return 1
+      ;;
+  esac
+}
+
+publish_targets() {
+  local target="$1"
+
+  case "$target" in
+    foundation)
+      printf '%s\n' mnemara-core mnemara-protocol
+      ;;
+    storage)
+      printf '%s\n' mnemara-store-file mnemara-store-sled
+      ;;
+    server)
+      printf '%s\n' mnemara-server
+      ;;
+    facade)
+      printf '%s\n' mnemara
+      ;;
+    all)
+      printf '%s\n' "${publish_order[@]}"
+      ;;
+    mnemara-core|mnemara-protocol|mnemara-store-file|mnemara-store-sled|mnemara-server|mnemara)
+      printf '%s\n' "$target"
+      ;;
+    *)
+      printf 'Unknown publish target: %s\n' "$target" >&2
+      printf 'Expected one of: foundation, storage, server, facade, all, or a Mnemara crate name\n' >&2
+      return 1
+      ;;
+  esac
+}
+
+output_indicates_already_published() {
+  local output_file="$1"
+  grep -Eiq 'already (uploaded|exists)|is already uploaded|crate version .* is already' "$output_file"
+}
+
+output_indicates_retryable_publish_failure() {
+  local output_file="$1"
+
+  grep -Eiq '(^|[^0-9])429([^0-9]|$)|too many requests|rate limit|try again later|Retry-After|failed to get a 200 OK response|failed to get successful HTTP response' "$output_file" \
+    || grep -Eiq 'no matching package named `mnemara|failed to select a version for the requirement `mnemara|candidate versions found which didn'\''t match' "$output_file"
+}
+
+retry_after_seconds() {
+  local output_file="$1"
+  local retry_after
+
+  retry_after="$(grep -Eio 'retry-after: *[0-9]+' "$output_file" | awk '{ print $2 }' | tail -n 1)"
+  if [[ -n "$retry_after" ]]; then
+    printf '%s\n' "$retry_after"
+  fi
+}
+
+wait_before_publish_retry() {
+  local output_file="$1"
+  local attempt="$2"
+  local wait_seconds
+  local retry_after
+
+  retry_after="$(retry_after_seconds "$output_file")"
+  if [[ -n "$retry_after" ]]; then
+    wait_seconds="$retry_after"
+  else
+    wait_seconds=$((publish_initial_wait_seconds * attempt))
+  fi
+
+  if (( wait_seconds > publish_max_wait_seconds )); then
+    wait_seconds="$publish_max_wait_seconds"
+  fi
+
+  printf '\n==> crates.io is not ready yet; retrying in %s seconds\n' "$wait_seconds"
+  sleep "$wait_seconds"
+}
+
+validate_publish_retry_config() {
+  if [[ ! "$publish_attempts" =~ ^[1-9][0-9]*$ ]]; then
+    printf 'Invalid MNEMARA_PUBLISH_ATTEMPTS: %s\n' "$publish_attempts" >&2
+    printf 'Expected a positive integer.\n' >&2
+    exit 1
+  fi
+
+  if [[ ! "$publish_initial_wait_seconds" =~ ^[1-9][0-9]*$ ]]; then
+    printf 'Invalid MNEMARA_PUBLISH_INITIAL_WAIT_SECONDS: %s\n' "$publish_initial_wait_seconds" >&2
+    printf 'Expected a positive integer.\n' >&2
+    exit 1
+  fi
+
+  if [[ ! "$publish_max_wait_seconds" =~ ^[1-9][0-9]*$ ]]; then
+    printf 'Invalid MNEMARA_PUBLISH_MAX_WAIT_SECONDS: %s\n' "$publish_max_wait_seconds" >&2
+    printf 'Expected a positive integer.\n' >&2
+    exit 1
+  fi
+}
+
+publish_crate() {
+  local crate_name="$1"
+  local crate_version
+  local output_file
+  local attempt=1
+
+  crate_version="$(crate_version "$crate_name")"
+  package_crate "$crate_name"
+
+  while (( attempt <= publish_attempts )); do
+    output_file="$(mktemp)"
+    printf '\n==> cargo publish --manifest-path %s -p %s --allow-dirty (attempt %s/%s)\n' "$manifest_path" "$crate_name" "$attempt" "$publish_attempts"
+
+    if cargo publish --manifest-path "$manifest_path" -p "$crate_name" --allow-dirty >"$output_file" 2>&1; then
+      cat "$output_file"
+      rm -f "$output_file"
+      printf '\n==> published %s %s\n' "$crate_name" "$crate_version"
+      return 0
+    fi
+
+    if output_indicates_already_published "$output_file"; then
+      cat "$output_file"
+      rm -f "$output_file"
+      printf '\n==> skipping %s %s: this version already exists on crates.io\n' "$crate_name" "$crate_version"
+      return 0
+    fi
+
+    if output_indicates_retryable_publish_failure "$output_file" && (( attempt < publish_attempts )); then
+      cat "$output_file"
+      wait_before_publish_retry "$output_file" "$attempt"
+      rm -f "$output_file"
+      attempt=$((attempt + 1))
+      continue
+    fi
+
+    cat "$output_file"
+    rm -f "$output_file"
+    printf '\n==> failed to publish %s %s after %s attempt(s)\n' "$crate_name" "$crate_version" "$attempt" >&2
+    return 1
+  done
+}
+
 dry_run_publish_crate_or_skip() {
   local crate_name="$1"
   shift
@@ -148,6 +336,40 @@ server() {
 
 facade() {
   package_crate mnemara
+}
+
+publish() {
+  local target="${2:-all}"
+  local crate_name
+  local crates=()
+  local target_file
+
+  validate_publish_retry_config
+
+  target_file="$(mktemp)"
+  if ! publish_targets "$target" >"$target_file"; then
+    rm -f "$target_file"
+    exit 1
+  fi
+
+  while IFS= read -r crate_name; do
+    crates+=("$crate_name")
+  done <"$target_file"
+  rm -f "$target_file"
+
+  if [[ ${#crates[@]} -eq 0 ]]; then
+    printf 'No crates selected for publish target: %s\n' "$target" >&2
+    exit 1
+  fi
+
+  printf 'Publishing to crates.io in this order:\n'
+  for crate_name in "${crates[@]}"; do
+    printf '  - %s %s\n' "$crate_name" "$(crate_version "$crate_name")"
+  done
+
+  for crate_name in "${crates[@]}"; do
+    publish_crate "$crate_name"
+  done
 }
 
 dry_run_publish() {
@@ -197,15 +419,8 @@ Recommended verification flow:
   $(basename "$0") preflight
   $(basename "$0") release-candidate
   $(basename "$0") bump-version 0.2.0
-  $(basename "$0") foundation
-  $(basename "$0") dry-run-publish foundation
-  # publish mnemara-core and mnemara-protocol first, then continue
-  $(basename "$0") storage
-  $(basename "$0") dry-run-publish storage
-  $(basename "$0") server
-  $(basename "$0") dry-run-publish server
-  $(basename "$0") facade
-  $(basename "$0") dry-run-publish facade
+  $(basename "$0") dry-run-publish all
+  $(basename "$0") publish all
 EOF
 }
 
@@ -233,6 +448,9 @@ case "$phase" in
     ;;
   dry-run-publish)
     dry_run_publish "$@"
+    ;;
+  publish)
+    publish "$@"
     ;;
   publish-plan)
     publish_plan
