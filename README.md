@@ -13,6 +13,8 @@
   </a>
 </p>
 
+> Note: There is also a Python project called [mnemara](https://github.com/mekickdemons-creator/mnemara) by `mekickdemons-creator` - a controlled rolling-context conversation runtime for Claude. Different project, parallel naming (both inspired by Mnemosyne). If you arrived looking for that one, head over there.
+
 Mnemara is a local-first, explainable AI memory engine for embedded Rust applications and service-based deployments.
 
 <p align="center">
