@@ -16,6 +16,7 @@ publish_order=(
   mnemara-protocol
   mnemara-store-file
   mnemara-store-sled
+  mnemara-ffi
   mnemara-server
   mnemara
 )
@@ -32,12 +33,15 @@ Usage: $(basename "$0") <phase>
 Phases:
   preflight     Run fmt, clippy, and tests against the workspace manifest.
   release-candidate Run the release-candidate validation gate, including serial tests and website verification.
+  sdk-package   Validate JavaScript and Python SDK package shapes.
+  sdk-publish   Publish SDK packages to npm and PyPI. Pass javascript, python, or all.
   bump-version  Update the workspace and internal crate dependency versions across Cargo.toml files.
   foundation    Package crates that can verify before the internal dependency graph is published.
   storage       Package mnemara-store-file and mnemara-store-sled.
+  ffi           Package the C ABI crate.
   server        Package mnemara-server.
   facade        Package the mnemara facade crate.
-  dry-run-publish Run cargo publish --dry-run for a phase: foundation, storage, server, facade, or all.
+  dry-run-publish Run cargo publish --dry-run for a phase: foundation, storage, ffi, server, facade, or all.
   publish       Build, verify, and publish crates to crates.io in dependency order.
   publish-plan  Print the recommended publish order and commands.
   help          Show this help.
@@ -47,7 +51,9 @@ Notes:
   - foundation can run before any crates are published.
   - storage, server, and facade require earlier crates to already exist on crates.io for Cargo verification.
   - dry-run-publish all continues past expected publish-order gating failures and reports skipped crates.
-  - publish accepts a target: foundation, storage, server, facade, all, or one crate name.
+  - publish accepts a target: foundation, storage, ffi, server, facade, all, or one crate name.
+  - sdk-publish uses npm and PyPI credentials from the caller's environment.
+  - Python SDK publishing requires the standard 'build' and 'twine' Python modules.
   - publish retries crates.io 429/index propagation failures and skips versions that already exist.
   - Tune publish retry behavior with MNEMARA_PUBLISH_ATTEMPTS, MNEMARA_PUBLISH_INITIAL_WAIT_SECONDS, and MNEMARA_PUBLISH_MAX_WAIT_SECONDS.
 EOF
@@ -90,12 +96,85 @@ preflight() {
   run cargo test --manifest-path "$manifest_path" --workspace
 }
 
+sdk_package() {
+  (
+    cd "$repo_root/sdk/javascript"
+    run npm pack --dry-run
+  )
+  run python3 -m compileall -q "$repo_root/sdk/python/mnemara_http"
+  (
+    cd "$repo_root/sdk/python"
+    run python3 -m unittest discover -s tests
+  )
+  run test -f "$repo_root/sdk/python/pyproject.toml"
+}
+
+sdk_publish_targets() {
+  local target="$1"
+
+  case "$target" in
+    javascript)
+      printf '%s\n' javascript
+      ;;
+    python)
+      printf '%s\n' python
+      ;;
+    all)
+      printf '%s\n' javascript python
+      ;;
+    *)
+      printf 'Unknown SDK publish target: %s\n' "$target" >&2
+      printf 'Expected one of: javascript, python, all\n' >&2
+      return 1
+      ;;
+  esac
+}
+
+publish_sdk() {
+  local target="${2:-all}"
+  local sdk
+  local target_file
+  local sdks=()
+
+  sdk_package
+
+  target_file="$(mktemp)"
+  if ! sdk_publish_targets "$target" >"$target_file"; then
+    rm -f "$target_file"
+    exit 1
+  fi
+
+  while IFS= read -r sdk; do
+    sdks+=("$sdk")
+  done <"$target_file"
+  rm -f "$target_file"
+
+  for sdk in "${sdks[@]}"; do
+    case "$sdk" in
+      javascript)
+        (
+          cd "$repo_root/sdk/javascript"
+          run npm publish --access public
+        )
+        ;;
+      python)
+        (
+          cd "$repo_root/sdk/python"
+          run python3 -m build --sdist --wheel --outdir dist
+          run python3 -m twine upload dist/*
+        )
+        ;;
+    esac
+  done
+}
+
 release_candidate() {
   local website_root="$repo_root/../mnemara-web"
 
   run cargo fmt --manifest-path "$manifest_path" --all --check
   run cargo clippy --manifest-path "$manifest_path" --workspace --all-targets
   run cargo test --manifest-path "$manifest_path" --workspace -- --test-threads=1
+  sdk_package
 
   if [[ -d "$website_root" ]]; then
     run test -f "$repo_root/docs/benchmark-methodology.md"
@@ -142,6 +221,9 @@ crate_manifest_path() {
     mnemara-store-sled)
       printf '%s\n' "$repo_root/crates/mnemara-store-sled/Cargo.toml"
       ;;
+    mnemara-ffi)
+      printf '%s\n' "$repo_root/crates/mnemara-ffi/Cargo.toml"
+      ;;
     mnemara-server)
       printf '%s\n' "$repo_root/crates/mnemara-server/Cargo.toml"
       ;;
@@ -168,18 +250,21 @@ publish_targets() {
     server)
       printf '%s\n' mnemara-server
       ;;
+    ffi)
+      printf '%s\n' mnemara-ffi
+      ;;
     facade)
       printf '%s\n' mnemara
       ;;
     all)
       printf '%s\n' "${publish_order[@]}"
       ;;
-    mnemara-core|mnemara-protocol|mnemara-store-file|mnemara-store-sled|mnemara-server|mnemara)
+    mnemara-core|mnemara-protocol|mnemara-store-file|mnemara-store-sled|mnemara-ffi|mnemara-server|mnemara)
       printf '%s\n' "$target"
       ;;
     *)
       printf 'Unknown publish target: %s\n' "$target" >&2
-      printf 'Expected one of: foundation, storage, server, facade, all, or a Mnemara crate name\n' >&2
+      printf 'Expected one of: foundation, storage, ffi, server, facade, all, or a Mnemara crate name\n' >&2
       return 1
       ;;
   esac
@@ -338,6 +423,10 @@ facade() {
   package_crate mnemara
 }
 
+ffi() {
+  package_crate mnemara-ffi
+}
+
 publish() {
   local target="${2:-all}"
   local crate_name
@@ -386,6 +475,9 @@ dry_run_publish() {
     server)
       dry_run_publish_crate mnemara-server
       ;;
+    ffi)
+      dry_run_publish_crate mnemara-ffi
+      ;;
     facade)
       dry_run_publish_crate mnemara
       ;;
@@ -394,12 +486,13 @@ dry_run_publish() {
       dry_run_publish_crate mnemara-protocol
       dry_run_publish_crate_or_skip mnemara-store-file mnemara-core
       dry_run_publish_crate_or_skip mnemara-store-sled mnemara-core
+      dry_run_publish_crate_or_skip mnemara-ffi mnemara-core mnemara-store-sled
       dry_run_publish_crate_or_skip mnemara-server mnemara-core mnemara-protocol mnemara-store-sled
       dry_run_publish_crate_or_skip mnemara mnemara-core mnemara-store-file mnemara-store-sled mnemara-protocol mnemara-server
       ;;
     *)
       printf 'Unknown dry-run-publish target: %s\n' "$target" >&2
-      printf 'Expected one of: foundation, storage, server, facade, all\n' >&2
+      printf 'Expected one of: foundation, storage, ffi, server, facade, all\n' >&2
       exit 1
       ;;
   esac
@@ -412,8 +505,9 @@ Recommended publish order:
   2. cargo publish --manifest-path "$manifest_path" -p mnemara-protocol
   3. cargo publish --manifest-path "$manifest_path" -p mnemara-store-file
   4. cargo publish --manifest-path "$manifest_path" -p mnemara-store-sled
-  5. cargo publish --manifest-path "$manifest_path" -p mnemara-server
-  6. cargo publish --manifest-path "$manifest_path" -p mnemara
+  5. cargo publish --manifest-path "$manifest_path" -p mnemara-ffi
+  6. cargo publish --manifest-path "$manifest_path" -p mnemara-server
+  7. cargo publish --manifest-path "$manifest_path" -p mnemara
 
 Recommended verification flow:
   $(basename "$0") preflight
@@ -421,6 +515,7 @@ Recommended verification flow:
   $(basename "$0") bump-version 0.2.0
   $(basename "$0") dry-run-publish all
   $(basename "$0") publish all
+  $(basename "$0") sdk-publish all
 EOF
 }
 
@@ -430,6 +525,12 @@ case "$phase" in
     ;;
   release-candidate)
     release_candidate
+    ;;
+  sdk-package)
+    sdk_package
+    ;;
+  sdk-publish)
+    publish_sdk "$@"
     ;;
   bump-version)
     bump_version "$@"
@@ -442,6 +543,9 @@ case "$phase" in
     ;;
   server)
     server
+    ;;
+  ffi)
+    ffi
     ;;
   facade)
     facade

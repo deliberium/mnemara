@@ -26,23 +26,37 @@ behavior.
 
 ### Retrieval and Ranking Expansion
 
-- [ ] optional advanced scoring or embedding plug-ins
-- [ ] broader typed graph expansion and multi-hop retrieval improvements beyond
+- [x] optional advanced scoring or embedding plug-ins. Shipped as configurable
+      scorer families/profiles plus a shared semantic embedder seam and
+      deterministic local reference embedder.
+- [x] broader typed graph expansion and multi-hop retrieval improvements beyond
       the now-shipped bounded continuity-aware hop expansion
+      (`graph_expansion_max_hops`). Shipped as trace-visible graph relation
+      reasons for same-episode, chronology, causal, related, and lineage
+      expansion candidates.
 
 ### Platform and Runtime Expansion
 
-- [ ] additional non-Rust SDKs and registry publication automation
-- [ ] C ABI / FFI surface
-- [ ] background maintenance orchestration beyond the now-shipped bounded
-      repair, integrity, compaction, and recovery tooling
-- [ ] remote replication, snapshot shipping, and controlled multi-node
-      deployments without losing local-first guarantees
+- [x] additional non-Rust SDKs and registry publication automation. Shipped as
+      JavaScript and dependency-free Python HTTP SDKs plus release validation
+      and `sdk-publish` automation for npm and PyPI registry publication.
+- [x] C ABI / FFI surface. Shipped as the `mnemara-ffi` crate with a JSON-based
+      C ABI over the sled-backed store.
+- [x] background maintenance orchestration beyond the now-shipped bounded
+      repair, integrity, compaction, and recovery tooling. Shipped as the
+      `RunMaintenance` admin operation plus daemon background scheduling env
+      controls.
+- [x] remote replication, snapshot shipping, and controlled multi-node
+      deployments without losing local-first guarantees. Shipped as portable
+      snapshot shipping to remote daemon import endpoints, defaulting to
+      validation/dry-run friendly semantics.
 
 ### Operator Experience
 
-- [ ] admin tooling for inspecting episode graphs, memory lineage, and
-      consolidation decisions
+- [x] admin tooling for inspecting episode graphs, memory lineage, and
+      consolidation decisions. Shipped first as read-only `/admin/graph`
+      inspection for episode, chronology, causal, related, lineage, and conflict
+      edges, with SDK access and trace correlation.
 
 ## Scope Rule
 

@@ -28,13 +28,16 @@ pub use model::{
     MemoryTrustLevel,
 };
 pub use query::{
-    CompactionReport, CompactionRequest, ExportRequest, ImportFailure, ImportMode, ImportReport,
-    ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, MaintenanceStats, NamespaceStats,
-    OperationTrace, OperationTraceSummary, PortableRecord, PortableStorePackage,
+    CompactionReport, CompactionRequest, ExportRequest, GraphInspectionEdge,
+    GraphInspectionEdgeKind, GraphInspectionNode, GraphInspectionReport, GraphInspectionRequest,
+    ImportFailure, ImportMode, ImportReport, ImportRequest, IntegrityCheckReport,
+    IntegrityCheckRequest, MaintenanceRunReport, MaintenanceRunRequest, MaintenanceStats,
+    NamespaceStats, OperationTrace, OperationTraceSummary, PortableRecord, PortableStorePackage,
     RecallCandidateSource, RecallExplanation, RecallFilters, RecallHistoricalMode, RecallHit,
     RecallPlannerStage, RecallPlanningTrace, RecallQuery, RecallResult, RecallScoreBreakdown,
     RecallTemporalOrder, RecallTraceCandidate, RepairReport, RepairRequest, SnapshotManifest,
-    StoreStatsReport, StoreStatsRequest, TraceListRequest, TraceOperationKind, TraceStatus,
+    SnapshotShipReport, SnapshotShipRequest, StoreStatsReport, StoreStatsRequest, TraceListRequest,
+    TraceOperationKind, TraceStatus, build_graph_inspection_report,
 };
 pub use scorer::{
     ConfiguredRecallScorer, CuratedRecallScorer, PlannedRecallCandidate, ProfileRecallScorer,

@@ -2,15 +2,15 @@ use async_trait::async_trait;
 use mnemara_core::{
     ArchiveReceipt, ArchiveRequest, BatchUpsertRequest, CompactionReport, CompactionRequest,
     ConfiguredRecallScorer, DeleteReceipt, DeleteRequest, EngineConfig, Error, ExportRequest,
-    ImportFailure, ImportMode, ImportReport, ImportRequest, IntegrityCheckReport,
-    IntegrityCheckRequest, LineageLink, LineageRelationKind, MaintenanceStats,
-    MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryScope, MemoryStore,
-    MemoryTrustLevel, NamespaceStats, PlannedRecallCandidate, PortableRecord, PortableStorePackage,
-    RecallExplanation, RecallHistoricalMode, RecallHit, RecallPlanner, RecallPlanningProfile,
-    RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer, RecallTemporalOrder,
-    RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, Result,
-    SemanticEmbedder, SnapshotManifest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
-    SuppressRequest, UpsertReceipt, UpsertRequest,
+    GraphInspectionReport, GraphInspectionRequest, ImportFailure, ImportMode, ImportReport,
+    ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, LineageLink, LineageRelationKind,
+    MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryScope,
+    MemoryStore, MemoryTrustLevel, NamespaceStats, PlannedRecallCandidate, PortableRecord,
+    PortableStorePackage, RecallExplanation, RecallHistoricalMode, RecallHit, RecallPlanner,
+    RecallPlanningProfile, RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer,
+    RecallTemporalOrder, RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport,
+    RepairRequest, Result, SemanticEmbedder, SnapshotManifest, StoreStatsReport, StoreStatsRequest,
+    SuppressReceipt, SuppressRequest, UpsertReceipt, UpsertRequest, build_graph_inspection_report,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -1317,6 +1317,7 @@ impl FileMemoryStore {
                         selected,
                         planner_stage: candidate.planner_stage,
                         candidate_sources: candidate.candidate_sources.clone(),
+                        relation_reasons: candidate.relation_reasons.clone(),
                         selection_rank,
                         matched_terms: candidate.matched_terms.clone(),
                         selected_channels,
@@ -1968,6 +1969,22 @@ impl MemoryStore for FileMemoryStore {
 
     async fn stats(&self, request: StoreStatsRequest) -> Result<StoreStatsReport> {
         self.build_stats_report(&request)
+    }
+
+    async fn inspect_graph(
+        &self,
+        request: GraphInspectionRequest,
+    ) -> Result<GraphInspectionReport> {
+        let records = self
+            .iterate_records()?
+            .into_iter()
+            .map(|stored| stored.record)
+            .collect::<Vec<_>>();
+        Ok(build_graph_inspection_report(
+            &records,
+            &request,
+            Self::now_unix_ms()?,
+        ))
     }
 
     async fn integrity_check(

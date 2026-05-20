@@ -14,6 +14,39 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Fixed
 
+## [0.4.0] - 2026-05-20
+
+### Added
+
+- platform/runtime expansion: `RunMaintenance` core, HTTP, and gRPC admin
+  operation that orchestrates integrity checks, idempotency-key repair, and
+  tenant-scoped compaction
+- daemon background maintenance scheduler controlled by
+  `MNEMARA_BACKGROUND_MAINTENANCE_*` environment variables
+- daemon-to-daemon snapshot shipping through portable export/import semantics,
+  exposed as `POST /admin/replication/ship` and gRPC `ShipSnapshot`
+- `mnemara-ffi` crate with a JSON-based C ABI over the sled-backed store for
+  FFI-capable runtimes
+- dependency-free Python HTTP SDK covering memory, recall, graph inspection,
+  integrity, repair, maintenance, traces, runtime status, portable
+  export/import, and snapshot shipping
+- JavaScript SDK helpers and type declarations for maintenance runs and
+  snapshot shipping
+- release checklist `sdk-package` and `sdk-publish` phases for JavaScript and
+  Python SDK validation plus credentialed npm/PyPI publication
+- end-to-end tests for HTTP snapshot shipping, gRPC maintenance orchestration,
+  FFI upsert/recall/maintenance, Python SDK request handling, and background
+  maintenance environment parsing
+
+### Changed
+
+- Platform and Runtime Expansion roadmap entries are now marked shipped, with
+  deployment, user-guide, SDK, FFI and server README updated to match the implemented behavior
+- JavaScript SDK package metadata now aligns with the workspace `0.3.0` release
+  line and includes public publish configuration
+
+### Fixed
+
 ## [0.3.0] - 2026-05-16
 
 ### Added

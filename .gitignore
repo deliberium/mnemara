@@ -14,6 +14,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.dev/
 
 # Environment-local files
 .env

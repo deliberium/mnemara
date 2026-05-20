@@ -14,11 +14,11 @@ use mnemara_protocol::v1::{
     AffectiveAnnotation as ProtoAffectiveAnnotation, ArchiveRequest as ProtoArchiveRequest,
     ArtifactPointer, BatchUpsertMemoryRecordsRequest, CompactRequest, DeleteRequest,
     EmbeddingProviderKind, EpisodeContext as ProtoEpisodeContext,
-    EpisodeSalience as ProtoEpisodeSalience, IntegrityCheckRequest,
-    LineageLink as ProtoLineageLink, MemoryRecord, MemoryScope, RecallFilters, RecallPolicyProfile,
-    RecallRequest, RecallScorerKind, RecallScoringProfile, RecoverRequest as ProtoRecoverRequest,
-    RepairRequest, SnapshotRequest, StoreStatsRequest, SuppressRequest as ProtoSuppressRequest,
-    UpsertMemoryRecordRequest,
+    EpisodeSalience as ProtoEpisodeSalience, GraphInspectionRequest, IntegrityCheckRequest,
+    LineageLink as ProtoLineageLink, MaintenanceRunRequest, MemoryRecord, MemoryScope,
+    RecallFilters, RecallPolicyProfile, RecallRequest, RecallScorerKind, RecallScoringProfile,
+    RecoverRequest as ProtoRecoverRequest, RepairRequest, SnapshotRequest, StoreStatsRequest,
+    SuppressRequest as ProtoSuppressRequest, UpsertMemoryRecordRequest,
 };
 use mnemara_server::{
     AuthConfig, AuthPermission, GrpcMemoryService, ServerLimits, ServerMetrics, TokenPolicy,
@@ -195,6 +195,129 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
         .into_inner();
 
     assert!(compact_reply.dry_run);
+
+    let maintenance_reply = service
+        .run_maintenance(Request::new(MaintenanceRunRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            dry_run: true,
+            reason: "test maintenance".to_string(),
+            run_integrity_check: true,
+            run_repair: true,
+            run_compaction: true,
+            remove_stale_idempotency_keys: true,
+            rebuild_missing_idempotency_keys: true,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert!(maintenance_reply.dry_run);
+    assert!(maintenance_reply.integrity_before.is_some());
+    assert!(maintenance_reply.repair.is_some());
+    assert!(maintenance_reply.compaction.is_some());
+    assert!(maintenance_reply.integrity_after.is_some());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn http_snapshot_shipping_imports_into_remote_daemon() {
+    let source_store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("ship-source"))).unwrap(),
+    );
+    let target_store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("ship-target"))).unwrap(),
+    );
+    let source_app = http_app(
+        Arc::clone(&source_store),
+        ServerLimits::default(),
+        AuthConfig::default(),
+    );
+    let target_app = http_app(
+        Arc::clone(&target_store),
+        ServerLimits::default(),
+        AuthConfig::default(),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target_addr = listener.local_addr().unwrap();
+    let target_server = tokio::spawn(async move {
+        axum::serve(listener, target_app).await.unwrap();
+    });
+
+    let upsert_body = serde_json::json!({
+        "record": {
+            "id": "ship-record-1",
+            "scope": {
+                "tenant_id": "default",
+                "namespace": "conversation",
+                "actor_id": "ava",
+                "conversation_id": "thread-a",
+                "session_id": "session-a",
+                "source": "http-ship-test",
+                "labels": [],
+                "trust_level": "Observed"
+            },
+            "kind": "Fact",
+            "content": "Snapshot shipping copies records to a remote daemon.",
+            "summary": null,
+            "source_id": null,
+            "metadata": {},
+            "quality_state": "Active",
+            "created_at_unix_ms": 1,
+            "updated_at_unix_ms": 1,
+            "expires_at_unix_ms": null,
+            "importance_score": 0.7,
+            "artifact": null,
+            "episode": null,
+            "historical_state": "Current",
+            "lineage": [],
+            "conflict": null
+        },
+        "idempotency_key": "ship-record-1"
+    });
+    let upsert_response = source_app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/memory/upsert")
+                .header("content-type", "application/json")
+                .body(Body::from(upsert_body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(upsert_response.status(), StatusCode::OK);
+
+    let ship_body = serde_json::json!({
+        "target_url": format!("http://{target_addr}"),
+        "tenant_id": "default",
+        "namespace": "conversation",
+        "include_archived": false,
+        "mode": "Merge",
+        "dry_run": false
+    });
+    let ship_response = source_app
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/replication/ship")
+                .header("content-type", "application/json")
+                .body(Body::from(ship_body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(ship_response.status(), StatusCode::OK);
+    let ship_body = to_bytes(ship_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let ship_report: serde_json::Value = serde_json::from_slice(&ship_body).unwrap();
+    assert_eq!(ship_report["exported_records"], 1);
+    assert_eq!(ship_report["imported_records"], 1);
+    assert_eq!(ship_report["dry_run"], false);
+    assert_eq!(ship_report["remote_status"], 200);
+
+    target_server.abort();
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -323,6 +446,98 @@ async fn grpc_round_trip_preserves_present_episodic_fields() {
             .map(|value| value.policy_profile),
         Some(RecallPolicyProfile::General as i32)
     );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn grpc_graph_inspection_returns_episode_edges() {
+    let store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("grpc-graph"))).unwrap(),
+    );
+    let service = GrpcMemoryService::new(Arc::clone(&store));
+
+    for (id, previous_record_id, next_record_id, causal_record_ids) in [
+        ("grpc-graph-seed", None, Some("grpc-graph-next"), vec![]),
+        (
+            "grpc-graph-next",
+            Some("grpc-graph-seed"),
+            None,
+            vec!["grpc-graph-seed".to_string()],
+        ),
+    ] {
+        service
+            .upsert_memory_record(Request::new(UpsertMemoryRecordRequest {
+                record: Some(MemoryRecord {
+                    id: id.to_string(),
+                    scope: Some(test_scope()),
+                    kind: "episodic".to_string(),
+                    content: format!("graph content {id}"),
+                    summary: Some(format!("graph summary {id}")),
+                    metadata: HashMap::new(),
+                    quality_state: "active".to_string(),
+                    created_at_unix_ms: 1,
+                    updated_at_unix_ms: 2,
+                    expires_at_unix_ms: None,
+                    importance_score: 0.5,
+                    source_id: None,
+                    artifact: None,
+                    episode: Some(ProtoEpisodeContext {
+                        schema_version: EPISODE_SCHEMA_VERSION,
+                        episode_id: "grpc-incident".to_string(),
+                        summary: Some("grpc incident graph".to_string()),
+                        continuity_state: "open".to_string(),
+                        actor_ids: vec!["ava".to_string()],
+                        goal: Some("inspect graph".to_string()),
+                        outcome: None,
+                        started_at_unix_ms: Some(1),
+                        ended_at_unix_ms: None,
+                        last_active_unix_ms: Some(2),
+                        recurrence_key: None,
+                        recurrence_interval_ms: None,
+                        boundary_label: None,
+                        previous_record_id: previous_record_id.map(str::to_string),
+                        next_record_id: next_record_id.map(str::to_string),
+                        causal_record_ids,
+                        related_record_ids: next_record_id
+                            .map(|value| vec![value.to_string()])
+                            .unwrap_or_default(),
+                        linked_artifact_uris: vec![],
+                        salience: Some(ProtoEpisodeSalience {
+                            reuse_count: 1,
+                            novelty_score: 0.1,
+                            goal_relevance: 0.8,
+                            unresolved_weight: 0.5,
+                        }),
+                        affective: None,
+                    }),
+                    historical_state: Some("current".to_string()),
+                    lineage: vec![],
+                    conflict: None,
+                }),
+                idempotency_key: Some(id.to_string()),
+            }))
+            .await
+            .unwrap();
+    }
+
+    let graph = service
+        .inspect_graph(Request::new(GraphInspectionRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            actor_id: Some("ava".to_string()),
+            conversation_id: Some("thread-a".to_string()),
+            session_id: Some("session-a".to_string()),
+            include_archived: false,
+            include_suppressed: false,
+            include_deleted: false,
+            max_nodes: None,
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(graph.nodes.len(), 2);
+    assert!(graph.edges.iter().any(|edge| edge.kind == "ChronologyNext"));
+    assert!(graph.edges.iter().any(|edge| edge.kind == "Causal"));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1073,6 +1288,140 @@ async fn http_memory_stats_integrity_and_repair_routes_round_trip() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn http_admin_graph_inspection_returns_typed_edges() {
+    let store = Arc::new(
+        SledMemoryStore::open(SledStoreConfig::new(temp_store_dir("http-graph"))).unwrap(),
+    );
+    let app = http_app(store, ServerLimits::default(), AuthConfig::default());
+
+    for (id, previous, next, causal) in [
+        ("graph-seed", serde_json::Value::Null, "graph-next", vec![]),
+        (
+            "graph-next",
+            serde_json::json!("graph-seed"),
+            "",
+            vec!["graph-seed"],
+        ),
+    ] {
+        let mut episode = serde_json::json!({
+            "schema_version": EPISODE_SCHEMA_VERSION,
+            "episode_id": "incident-42",
+            "summary": "incident graph",
+            "continuity_state": "Open",
+            "actor_ids": ["ava"],
+            "goal": "inspect graph",
+            "outcome": null,
+            "started_at_unix_ms": 1,
+            "ended_at_unix_ms": null,
+            "last_active_unix_ms": 2,
+            "previous_record_id": previous,
+            "next_record_id": null,
+            "causal_record_ids": causal,
+            "related_record_ids": [],
+            "linked_artifact_uris": [],
+            "salience": {
+                "reuse_count": 1,
+                "novelty_score": 0.1,
+                "goal_relevance": 0.8,
+                "unresolved_weight": 0.5
+            },
+            "affective": null
+        });
+        if !next.is_empty() {
+            episode["next_record_id"] = serde_json::json!(next);
+            episode["related_record_ids"] = serde_json::json!([next]);
+        }
+
+        let payload = serde_json::json!({
+            "record": {
+                "id": id,
+                "scope": {
+                    "tenant_id": "default",
+                    "namespace": "conversation",
+                    "actor_id": "ava",
+                    "conversation_id": "thread-a",
+                    "session_id": "session-a",
+                    "source": "http-graph-test",
+                    "labels": ["graph"],
+                    "trust_level": "Verified"
+                },
+                "kind": "Episodic",
+                "content": format!("graph content {id}"),
+                "summary": format!("graph summary {id}"),
+                "metadata": {},
+                "quality_state": "Active",
+                "created_at_unix_ms": 1,
+                "updated_at_unix_ms": 2,
+                "expires_at_unix_ms": null,
+                "importance_score": 0.5,
+                "source_id": null,
+                "artifact": null,
+                "episode": episode,
+                "historical_state": "Current",
+                "lineage": []
+            },
+            "idempotency_key": id
+        });
+
+        let response = app
+            .clone()
+            .oneshot(
+                HttpRequest::builder()
+                    .method("POST")
+                    .uri("/memory/upsert")
+                    .header("content-type", "application/json")
+                    .body(Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    let graph_payload = serde_json::json!({
+        "tenant_id": "default",
+        "namespace": "conversation",
+        "actor_id": "ava",
+        "conversation_id": "thread-a",
+        "session_id": "session-a"
+    });
+    let graph = app
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/graph")
+                .header("content-type", "application/json")
+                .body(Body::from(graph_payload.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(graph.status(), StatusCode::OK);
+    let body = to_bytes(graph.into_body(), usize::MAX).await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(body["nodes"].as_array().unwrap().len(), 2);
+    assert!(
+        body["edges"].as_array().unwrap().iter().any(|edge| {
+            edge["kind"] == "ChronologyNext" || edge["kind"] == "ChronologyPrevious"
+        })
+    );
+    assert!(
+        body["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|edge| edge["kind"] == "Causal")
+    );
+    assert!(
+        body["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|edge| edge["kind"] == "Related")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn http_recall_exposes_semantic_channel_when_embeddings_are_enabled() {
     let mut config = EngineConfig::default();
     config.embedding_provider_kind = CoreEmbeddingProviderKind::DeterministicLocal;
@@ -1772,8 +2121,25 @@ async fn auth_guards_reject_missing_bearer_tokens() {
         .unwrap_err();
     assert_eq!(grpc_error.code(), Code::Unauthenticated);
 
+    let grpc_graph_error = service
+        .inspect_graph(Request::new(GraphInspectionRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("conversation".to_string()),
+            actor_id: None,
+            conversation_id: None,
+            session_id: None,
+            include_archived: false,
+            include_suppressed: false,
+            include_deleted: false,
+            max_nodes: None,
+        }))
+        .await
+        .unwrap_err();
+    assert_eq!(grpc_graph_error.code(), Code::Unauthenticated);
+
     let app = http_app(store, ServerLimits::default(), auth);
     let http_response = app
+        .clone()
         .oneshot(
             HttpRequest::builder()
                 .uri("/admin/snapshot")
@@ -1783,6 +2149,21 @@ async fn auth_guards_reject_missing_bearer_tokens() {
         .await
         .unwrap();
     assert_eq!(http_response.status(), StatusCode::UNAUTHORIZED);
+
+    let http_graph_response = app
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/graph")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"tenant_id": "default"}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(http_graph_response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test(flavor = "current_thread")]

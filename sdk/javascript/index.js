@@ -79,12 +79,23 @@ export class MnemaraHttpClient {
     return this.#request("/admin/stats", { query: request });
   }
 
+  async inspectGraph(request = {}) {
+    return this.#request("/admin/graph", { method: "POST", body: request });
+  }
+
   async integrityCheck(request = {}) {
     return this.#request("/admin/integrity", { query: request });
   }
 
   async repair(request) {
     return this.#request("/admin/repair", { method: "POST", body: request });
+  }
+
+  async runMaintenance(request = {}) {
+    return this.#request("/admin/maintenance/run", {
+      method: "POST",
+      body: request,
+    });
   }
 
   async compact(request) {
@@ -113,6 +124,13 @@ export class MnemaraHttpClient {
 
   async import(request) {
     return this.#request("/admin/import", { method: "POST", body: request });
+  }
+
+  async shipSnapshot(request) {
+    return this.#request("/admin/replication/ship", {
+      method: "POST",
+      body: request,
+    });
   }
 
   async #request(path, options = {}) {

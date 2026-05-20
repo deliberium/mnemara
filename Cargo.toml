@@ -6,6 +6,7 @@ members = [
 	"crates/mnemara-store-sled",
 	"crates/mnemara-protocol",
 	"crates/mnemara-server",
+	"crates/mnemara-ffi",
 ]
 resolver = "3"
 

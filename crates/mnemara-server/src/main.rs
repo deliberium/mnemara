@@ -2,10 +2,11 @@ use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use mnemara_core::{
-    EmbeddingProviderKind, EngineConfig, MemoryStore, RecallPlanningProfile, RecallPolicyProfile,
-    RecallScorerKind, RecallScoringProfile,
+    EmbeddingProviderKind, EngineConfig, MaintenanceRunRequest, MemoryStore, RecallPlanningProfile,
+    RecallPolicyProfile, RecallScorerKind, RecallScoringProfile,
 };
 use mnemara_server::{
     AuthConfig, AuthPermission, GrpcMemoryService, ServerLimits, ServerMetrics, ServerRuntime,
@@ -139,6 +140,19 @@ fn parse_usize(raw: Option<String>, name: &str, default: usize) -> Result<usize,
 
 fn env_usize(name: &str, default: usize) -> Result<usize, String> {
     parse_usize(env::var(name).ok(), name, default)
+}
+
+fn parse_bool(raw: Option<String>, name: &str, default: bool) -> Result<bool, String> {
+    match raw {
+        Some(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Ok(true),
+            "0" | "false" | "no" | "off" => Ok(false),
+            _ => Err(format!(
+                "invalid {name} '{value}': expected true/false, yes/no, on/off, or 1/0"
+            )),
+        },
+        None => Ok(default),
+    }
 }
 
 fn parse_u32(raw: Option<String>, name: &str, default: u32) -> Result<u32, String> {
@@ -306,6 +320,103 @@ fn engine_config_from_env() -> Result<EngineConfig, String> {
     engine_config_from(|name| env::var(name).ok())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BackgroundMaintenanceConfig {
+    enabled: bool,
+    interval: Duration,
+    request: MaintenanceRunRequest,
+}
+
+fn background_maintenance_config_from<F>(get: F) -> Result<BackgroundMaintenanceConfig, String>
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let enabled = parse_bool(
+        get("MNEMARA_BACKGROUND_MAINTENANCE_ENABLED"),
+        "MNEMARA_BACKGROUND_MAINTENANCE_ENABLED",
+        false,
+    )?;
+    let interval_seconds = parse_usize(
+        get("MNEMARA_BACKGROUND_MAINTENANCE_INTERVAL_SECONDS"),
+        "MNEMARA_BACKGROUND_MAINTENANCE_INTERVAL_SECONDS",
+        3_600,
+    )?
+    .max(1);
+    Ok(BackgroundMaintenanceConfig {
+        enabled,
+        interval: Duration::from_secs(interval_seconds as u64),
+        request: MaintenanceRunRequest {
+            tenant_id: get("MNEMARA_BACKGROUND_MAINTENANCE_TENANT")
+                .filter(|value| !value.trim().is_empty()),
+            namespace: get("MNEMARA_BACKGROUND_MAINTENANCE_NAMESPACE")
+                .filter(|value| !value.trim().is_empty()),
+            dry_run: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_DRY_RUN"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_DRY_RUN",
+                true,
+            )?,
+            reason: get("MNEMARA_BACKGROUND_MAINTENANCE_REASON")
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "background maintenance run".to_string()),
+            run_integrity_check: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_INTEGRITY"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_INTEGRITY",
+                true,
+            )?,
+            run_repair: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_REPAIR"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_REPAIR",
+                true,
+            )?,
+            run_compaction: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION",
+                true,
+            )?,
+            remove_stale_idempotency_keys: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_REMOVE_STALE_IDEMPOTENCY_KEYS"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_REMOVE_STALE_IDEMPOTENCY_KEYS",
+                true,
+            )?,
+            rebuild_missing_idempotency_keys: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_REBUILD_MISSING_IDEMPOTENCY_KEYS"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_REBUILD_MISSING_IDEMPOTENCY_KEYS",
+                true,
+            )?,
+        },
+    })
+}
+
+fn background_maintenance_config_from_env() -> Result<BackgroundMaintenanceConfig, String> {
+    background_maintenance_config_from(|name| env::var(name).ok())
+}
+
+fn spawn_background_maintenance<S>(store: Arc<S>, config: BackgroundMaintenanceConfig)
+where
+    S: MemoryStore + 'static,
+{
+    if !config.enabled {
+        return;
+    }
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(config.interval).await;
+            let request = config.request.clone();
+            match store.run_maintenance(request).await {
+                Ok(report) => println!(
+                    "mnemara maintenance run completed dry_run={} integrity_before={} repair={} compaction={} integrity_after={}",
+                    report.dry_run,
+                    report.integrity_before.is_some(),
+                    report.repair.is_some(),
+                    report.compaction.is_some(),
+                    report.integrity_after.is_some()
+                ),
+                Err(err) => eprintln!("mnemara maintenance run failed: {err}"),
+            }
+        }
+    });
+}
+
 fn parse_auth_permission(value: &str) -> Result<AuthPermission, String> {
     match value.trim().to_ascii_lowercase().as_str() {
         "read" => Ok(AuthPermission::Read),
@@ -437,6 +548,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         token_policies: token_policies_from_env().map_err(std::io::Error::other)?,
     };
     let engine_config = engine_config_from_env().map_err(std::io::Error::other)?;
+    let background_maintenance =
+        background_maintenance_config_from_env().map_err(std::io::Error::other)?;
 
     let store = Arc::new(
         SledMemoryStore::open(SledStoreConfig::new(&data_dir).with_engine_config(engine_config))
@@ -468,6 +581,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::new(ServerMetrics::default()),
         auth.clone(),
     );
+    spawn_background_maintenance(Arc::clone(&store), background_maintenance);
 
     match http_bind_addr {
         Some(http_bind_addr) => {
@@ -503,7 +617,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    use super::engine_config_from;
+    use super::{background_maintenance_config_from, engine_config_from};
     use mnemara_core::{
         EmbeddingProviderKind, RecallPlanningProfile, RecallPolicyProfile, RecallScorerKind,
         RecallScoringProfile,
@@ -660,5 +774,63 @@ mod tests {
         })
         .unwrap_err();
         assert!(error.contains("invalid MNEMARA_EMBEDDING_PROVIDER_KIND"));
+    }
+
+    #[test]
+    fn background_maintenance_config_defaults_to_disabled_dry_run() {
+        let config = background_maintenance_config_from(|_| None).unwrap();
+        assert!(!config.enabled);
+        assert_eq!(config.interval.as_secs(), 3_600);
+        assert!(config.request.dry_run);
+        assert!(config.request.run_integrity_check);
+        assert!(config.request.run_repair);
+        assert!(config.request.run_compaction);
+        assert_eq!(config.request.reason, "background maintenance run");
+    }
+
+    #[test]
+    fn background_maintenance_config_reads_env_overrides() {
+        let vars = HashMap::from([
+            (
+                "MNEMARA_BACKGROUND_MAINTENANCE_ENABLED".to_string(),
+                "true".to_string(),
+            ),
+            (
+                "MNEMARA_BACKGROUND_MAINTENANCE_INTERVAL_SECONDS".to_string(),
+                "45".to_string(),
+            ),
+            (
+                "MNEMARA_BACKGROUND_MAINTENANCE_TENANT".to_string(),
+                "tenant-a".to_string(),
+            ),
+            (
+                "MNEMARA_BACKGROUND_MAINTENANCE_NAMESPACE".to_string(),
+                "ops".to_string(),
+            ),
+            (
+                "MNEMARA_BACKGROUND_MAINTENANCE_DRY_RUN".to_string(),
+                "false".to_string(),
+            ),
+            (
+                "MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION".to_string(),
+                "off".to_string(),
+            ),
+        ]);
+        let config = background_maintenance_config_from(|name| vars.get(name).cloned()).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.interval.as_secs(), 45);
+        assert_eq!(config.request.tenant_id.as_deref(), Some("tenant-a"));
+        assert_eq!(config.request.namespace.as_deref(), Some("ops"));
+        assert!(!config.request.dry_run);
+        assert!(!config.request.run_compaction);
+    }
+
+    #[test]
+    fn background_maintenance_config_rejects_invalid_bool() {
+        let error = background_maintenance_config_from(|name| {
+            (name == "MNEMARA_BACKGROUND_MAINTENANCE_ENABLED").then(|| "sometimes".to_string())
+        })
+        .unwrap_err();
+        assert!(error.contains("invalid MNEMARA_BACKGROUND_MAINTENANCE_ENABLED"));
     }
 }

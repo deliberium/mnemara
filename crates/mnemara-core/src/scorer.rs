@@ -24,6 +24,7 @@ pub struct PlannedRecallCandidate {
     pub hit: RecallHit,
     pub matched_terms: Vec<String>,
     pub candidate_sources: Vec<RecallCandidateSource>,
+    pub relation_reasons: Vec<String>,
     pub planner_stage: RecallPlannerStage,
 }
 
@@ -457,6 +458,25 @@ fn graph_relation_bonus(relations: &[GraphExpansionRelation], hop: u8) -> f32 {
     let stacked_bonus = relations.len().saturating_sub(1) as f32 * 0.04;
     let hop_penalty = hop.saturating_sub(1) as f32 * 0.08;
     (strongest + stacked_bonus - hop_penalty).max(0.0)
+}
+
+fn graph_relation_reason(relation: GraphExpansionRelation) -> &'static str {
+    match relation {
+        GraphExpansionRelation::EpisodeMembership => "graph_relation=episode_membership",
+        GraphExpansionRelation::Chronology => "graph_relation=chronology",
+        GraphExpansionRelation::Causal => "graph_relation=causal",
+        GraphExpansionRelation::Related => "graph_relation=related",
+        GraphExpansionRelation::Lineage => "graph_relation=lineage",
+    }
+}
+
+fn graph_relation_reasons(relations: &[GraphExpansionRelation], hop: u8) -> Vec<String> {
+    let mut reasons = relations
+        .iter()
+        .map(|relation| graph_relation_reason(*relation).to_string())
+        .collect::<Vec<_>>();
+    reasons.push(format!("graph_hop={hop}"));
+    reasons
 }
 
 fn seed_candidate_sources(
@@ -1221,6 +1241,7 @@ impl RecallPlanner {
             },
             matched_terms: Vec::new(),
             candidate_sources,
+            relation_reasons: Vec::new(),
             planner_stage: RecallPlannerStage::GraphExpansion,
         }
     }
@@ -1272,6 +1293,7 @@ impl RecallPlanner {
                         hit,
                         matched_terms: scored.matched_terms,
                         candidate_sources,
+                        relation_reasons: Vec::new(),
                         planner_stage: RecallPlannerStage::CandidateGeneration,
                     },
                 );
@@ -1353,16 +1375,19 @@ impl RecallPlanner {
                             hit,
                             matched_terms: scored.matched_terms,
                             candidate_sources,
+                            relation_reasons: graph_relation_reasons(&relations, hop),
                             planner_stage: RecallPlannerStage::GraphExpansion,
                         }
                     } else {
-                        self.contextual_candidate(
+                        let mut planned = self.contextual_candidate(
                             record,
                             query,
                             &query_terms,
                             graph_bonus,
                             provenance_delta,
-                        )
+                        );
+                        planned.relation_reasons = graph_relation_reasons(&relations, hop);
+                        planned
                     };
 
                     if let Some(episode) = &planned.hit.record.episode {
@@ -1908,6 +1933,26 @@ mod tests {
             expanded
                 .candidate_sources
                 .contains(&RecallCandidateSource::Graph)
+        );
+        assert!(
+            expanded
+                .relation_reasons
+                .contains(&"graph_relation=episode_membership".to_string())
+        );
+        assert!(
+            expanded
+                .relation_reasons
+                .contains(&"graph_relation=chronology".to_string())
+        );
+        assert!(
+            expanded
+                .relation_reasons
+                .contains(&"graph_relation=causal".to_string())
+        );
+        assert!(
+            expanded
+                .relation_reasons
+                .contains(&"graph_hop=1".to_string())
         );
         assert!(expanded.hit.breakdown.graph > 0.0);
     }

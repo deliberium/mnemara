@@ -22,6 +22,14 @@ export type MemoryQualityState =
   | "Suppressed"
   | "Deleted";
 
+export type MemoryHistoricalState = "Current" | "Historical" | "Superseded";
+
+export type EpisodeContinuityState =
+  | "Open"
+  | "Resolved"
+  | "Superseded"
+  | "Abandoned";
+
 export type ConflictReviewState =
   | "None"
   | "PotentialConflict"
@@ -162,6 +170,7 @@ export interface RecallTraceCandidate {
   matched_terms: string[];
   selected_channels: string[];
   filter_reasons: string[];
+  relation_reasons: string[];
   decision_reason: string;
   breakdown: RecallScoreBreakdown;
 }
@@ -391,6 +400,58 @@ export interface StoreStatsReport {
   engine: EngineTuningInfo;
 }
 
+export interface GraphInspectionRequest {
+  tenant_id?: string | null;
+  namespace?: string | null;
+  actor_id?: string | null;
+  conversation_id?: string | null;
+  session_id?: string | null;
+  include_archived?: boolean;
+  include_suppressed?: boolean;
+  include_deleted?: boolean;
+  max_nodes?: number | null;
+}
+
+export type GraphInspectionEdgeKind =
+  | "EpisodeMembership"
+  | "ChronologyPrevious"
+  | "ChronologyNext"
+  | "Causal"
+  | "Related"
+  | "Lineage"
+  | "Conflict";
+
+export interface GraphInspectionNode {
+  record_id: string;
+  tenant_id: string;
+  namespace: string;
+  actor_id: string;
+  kind: MemoryRecordKind;
+  summary?: string | null;
+  quality_state: MemoryQualityState;
+  historical_state: MemoryHistoricalState;
+  episode_id?: string | null;
+  continuity_state?: EpisodeContinuityState | null;
+  conflict_state?: ConflictReviewState | null;
+  importance_per_mille: number;
+  updated_at_unix_ms: number;
+}
+
+export interface GraphInspectionEdge {
+  source_id: string;
+  target_id: string;
+  kind: GraphInspectionEdgeKind;
+  details: string[];
+}
+
+export interface GraphInspectionReport {
+  generated_at_unix_ms: number;
+  total_records_scanned: number;
+  nodes: GraphInspectionNode[];
+  edges: GraphInspectionEdge[];
+  truncated: boolean;
+}
+
 export interface IntegrityCheckRequest {
   tenant_id?: string | null;
   namespace?: string | null;
@@ -422,6 +483,47 @@ export interface RepairReport {
   removed_stale_idempotency_keys: number;
   rebuilt_missing_idempotency_keys: number;
   healthy_after: boolean;
+}
+
+export interface MaintenanceRunRequest {
+  tenant_id?: string | null;
+  namespace?: string | null;
+  dry_run?: boolean;
+  reason?: string;
+  run_integrity_check?: boolean;
+  run_repair?: boolean;
+  run_compaction?: boolean;
+  remove_stale_idempotency_keys?: boolean;
+  rebuild_missing_idempotency_keys?: boolean;
+}
+
+export interface MaintenanceRunReport {
+  dry_run: boolean;
+  integrity_before?: IntegrityCheckReport | null;
+  repair?: RepairReport | null;
+  compaction?: CompactionReport | null;
+  integrity_after?: IntegrityCheckReport | null;
+}
+
+export interface SnapshotShipRequest {
+  target_url: string;
+  bearer_token?: string | null;
+  tenant_id?: string | null;
+  namespace?: string | null;
+  include_archived?: boolean;
+  mode?: ImportMode;
+  dry_run?: boolean;
+}
+
+export interface SnapshotShipReport {
+  target_url: string;
+  exported_records: number;
+  imported_records: number;
+  skipped_records: number;
+  dry_run: boolean;
+  compatible_package: boolean;
+  remote_status: number;
+  remote_snapshot_id?: string | null;
 }
 
 export interface HealthStatus {
@@ -456,10 +558,14 @@ export class MnemaraHttpClient {
   recall(query: RecallQuery): Promise<RecallResult>;
   snapshot(): Promise<SnapshotManifest>;
   stats(request?: StoreStatsRequest): Promise<StoreStatsReport>;
+  inspectGraph(request?: GraphInspectionRequest): Promise<GraphInspectionReport>;
   integrityCheck(
     request?: IntegrityCheckRequest,
   ): Promise<IntegrityCheckReport>;
   repair(request: RepairRequest): Promise<RepairReport>;
+  runMaintenance(
+    request?: MaintenanceRunRequest,
+  ): Promise<MaintenanceRunReport>;
   compact(request: CompactionRequest): Promise<CompactionReport>;
   delete(request: DeleteRequest): Promise<DeleteReceipt>;
   listTraces(request?: TraceListRequest): Promise<OperationTrace[]>;
@@ -467,6 +573,7 @@ export class MnemaraHttpClient {
   runtimeStatus(): Promise<RuntimeStatus>;
   export(request?: ExportRequest): Promise<PortableStorePackage>;
   import(request: ImportRequest): Promise<ImportReport>;
+  shipSnapshot(request: SnapshotShipRequest): Promise<SnapshotShipReport>;
 }
 
 export const MemoryRecordKind: Readonly<

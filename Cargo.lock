@@ -860,6 +860,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mnemara-ffi"
+version = "0.3.0"
+dependencies = [
+ "mnemara-core",
+ "mnemara-store-sled",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "mnemara-protocol"
 version = "0.3.0"
 dependencies = [

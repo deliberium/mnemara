@@ -22,8 +22,10 @@ use mnemara_core::{
     ArtifactPointer, BatchUpsertRequest, CompactionReport, CompactionRequest, ConflictAnnotation,
     ConflictResolutionKind, ConflictReviewState, DeleteReceipt, DeleteRequest,
     EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineTuningInfo, EpisodeContext,
-    EpisodeContinuityState, EpisodeSalience, ExportRequest, ImportMode, ImportReport,
-    ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, LineageLink, LineageRelationKind,
+    EpisodeContinuityState, EpisodeSalience, ExportRequest, GraphInspectionEdge,
+    GraphInspectionEdgeKind, GraphInspectionNode, GraphInspectionReport, GraphInspectionRequest,
+    ImportMode, ImportReport, ImportRequest, IntegrityCheckReport, IntegrityCheckRequest,
+    LineageLink, LineageRelationKind, MaintenanceRunReport, MaintenanceRunRequest,
     MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind,
     MemoryScope, MemoryStore, MemoryTrustLevel, NamespaceStats, OperationTrace,
     OperationTraceSummary, PortableRecord, PortableStorePackage, RecallCandidateSource,
@@ -31,8 +33,9 @@ use mnemara_core::{
     RecallPlanningProfile, RecallPlanningTrace, RecallPolicyProfile, RecallQuery, RecallResult,
     RecallScorerKind, RecallScoringProfile, RecallTemporalOrder, RecallTraceCandidate,
     RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, SnapshotManifest,
-    StoreStatsReport, StoreStatsRequest, SuppressReceipt, SuppressRequest, TraceListRequest,
-    TraceOperationKind, TraceStatus, UpsertReceipt, UpsertRequest,
+    SnapshotShipReport, SnapshotShipRequest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
+    SuppressRequest, TraceListRequest, TraceOperationKind, TraceStatus, UpsertReceipt,
+    UpsertRequest,
 };
 use mnemara_protocol::v1::memory_service_server::{MemoryService, MemoryServiceServer};
 use mnemara_protocol::v1::{
@@ -44,11 +47,14 @@ use mnemara_protocol::v1::{
     EmbeddingProviderKind as ProtoEmbeddingProviderKind, EngineTuningInfo as ProtoEngineTuningInfo,
     EpisodeContext as ProtoEpisodeContext, EpisodeSalience as ProtoEpisodeSalience,
     ExportReply as ProtoExportReply, ExportRequest as ProtoExportRequest,
-    GetTraceRequest as ProtoGetTraceRequest, ImportMode as ProtoImportMode,
+    GetTraceRequest as ProtoGetTraceRequest, GraphInspectionEdge as ProtoGraphInspectionEdge,
+    GraphInspectionNode as ProtoGraphInspectionNode, GraphInspectionReply,
+    GraphInspectionRequest as ProtoGraphInspectionRequest, ImportMode as ProtoImportMode,
     ImportReply as ProtoImportReply, ImportRequest as ProtoImportRequest,
     IntegrityCheckReply as ProtoIntegrityCheckReply,
     IntegrityCheckRequest as ProtoIntegrityCheckRequest, LineageLink as ProtoLineageLink,
     ListTracesReply as ProtoListTracesReply, ListTracesRequest as ProtoListTracesRequest,
+    MaintenanceRunReply, MaintenanceRunRequest as ProtoMaintenanceRunRequest,
     MaintenanceStats as ProtoMaintenanceStats, MemoryRecord as ProtoMemoryRecord,
     MemoryScope as ProtoMemoryScope, NamespaceStats as ProtoNamespaceStats,
     OperationTrace as ProtoOperationTrace, OperationTraceSummary as ProtoOperationTraceSummary,
@@ -60,11 +66,12 @@ use mnemara_protocol::v1::{
     RecallScorerKind as ProtoRecallScorerKind, RecallScoringProfile as ProtoRecallScoringProfile,
     RecallTraceCandidate as ProtoRecallTraceCandidate, RecoverReply,
     RecoverRequest as ProtoRecoverRequest, RepairReply as ProtoRepairReply,
-    RepairRequest as ProtoRepairRequest, SnapshotReply, SnapshotRequest,
-    StoreStatsReply as ProtoStoreStatsReply, StoreStatsRequest as ProtoStoreStatsRequest,
-    SuppressReply, SuppressRequest as ProtoSuppressRequest,
-    TraceOperationKind as ProtoTraceOperationKind, TraceStatus as ProtoTraceStatus,
-    UpsertMemoryRecordReply, UpsertMemoryRecordRequest as ProtoUpsertMemoryRecordRequest,
+    RepairRequest as ProtoRepairRequest, SnapshotReply, SnapshotRequest, SnapshotShipReply,
+    SnapshotShipRequest as ProtoSnapshotShipRequest, StoreStatsReply as ProtoStoreStatsReply,
+    StoreStatsRequest as ProtoStoreStatsRequest, SuppressReply,
+    SuppressRequest as ProtoSuppressRequest, TraceOperationKind as ProtoTraceOperationKind,
+    TraceStatus as ProtoTraceStatus, UpsertMemoryRecordReply,
+    UpsertMemoryRecordRequest as ProtoUpsertMemoryRecordRequest,
 };
 use observability::{TraceRegistry, TraceRegistrySnapshot, now_unix_ms};
 use tonic::{Request, Response, Status};
@@ -143,6 +150,8 @@ pub struct ServerMetrics {
     grpc_stats: MethodMetrics,
     grpc_integrity: MethodMetrics,
     grpc_repair: MethodMetrics,
+    grpc_maintenance: MethodMetrics,
+    grpc_snapshot_ship: MethodMetrics,
     http_healthz: AtomicU64,
     http_readyz: AtomicU64,
     http_snapshot: AtomicU64,
@@ -156,6 +165,8 @@ pub struct ServerMetrics {
     http_runtime: AtomicU64,
     http_export: AtomicU64,
     http_import: AtomicU64,
+    http_maintenance: AtomicU64,
+    http_snapshot_ship: AtomicU64,
     http_rejected_body_too_large: AtomicU64,
     admission_rejected: AtomicU64,
     admission_timed_out: AtomicU64,
@@ -291,6 +302,26 @@ impl ServerMetrics {
         );
         append_counter(
             &mut output,
+            "mnemara_grpc_maintenance_requests_started_total",
+            self.grpc_maintenance.started.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_maintenance_requests_ok_total",
+            self.grpc_maintenance.ok.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_snapshot_ship_requests_started_total",
+            self.grpc_snapshot_ship.started.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_snapshot_ship_requests_ok_total",
+            self.grpc_snapshot_ship.ok.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
             "mnemara_http_healthz_requests_total",
             self.http_healthz.load(Ordering::Relaxed),
         );
@@ -353,6 +384,16 @@ impl ServerMetrics {
             &mut output,
             "mnemara_http_import_requests_total",
             self.http_import.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_http_maintenance_requests_total",
+            self.http_maintenance.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_http_snapshot_ship_requests_total",
+            self.http_snapshot_ship.load(Ordering::Relaxed),
         );
         append_counter(
             &mut output,
@@ -727,6 +768,7 @@ where
     let recall_store = Arc::clone(&store);
     let snapshot_store = Arc::clone(&store);
     let stats_store = Arc::clone(&store);
+    let graph_store = Arc::clone(&store);
     let integrity_store = Arc::clone(&store);
     let repair_store = Arc::clone(&store);
     let compact_store = Arc::clone(&store);
@@ -734,7 +776,9 @@ where
     let archive_store = Arc::clone(&store);
     let suppress_store = Arc::clone(&store);
     let recover_store = Arc::clone(&store);
+    let maintenance_store = Arc::clone(&store);
     let export_store = Arc::clone(&store);
+    let ship_store = Arc::clone(&store);
     let import_store = Arc::clone(&store);
     let ready_runtime = runtime.clone();
     let upsert_runtime = runtime.clone();
@@ -742,6 +786,7 @@ where
     let recall_runtime = runtime.clone();
     let snapshot_runtime = runtime.clone();
     let stats_runtime = runtime.clone();
+    let graph_runtime = runtime.clone();
     let integrity_runtime = runtime.clone();
     let repair_runtime = runtime.clone();
     let compact_runtime = runtime.clone();
@@ -749,9 +794,11 @@ where
     let archive_runtime = runtime.clone();
     let suppress_runtime = runtime.clone();
     let recover_runtime = runtime.clone();
+    let maintenance_runtime = runtime.clone();
     let traces_runtime = runtime.clone();
     let trace_runtime = runtime.clone();
     let export_runtime = runtime.clone();
+    let ship_runtime = runtime.clone();
     let import_runtime = runtime.clone();
     let runtime_status_runtime = runtime.clone();
     let metrics_metrics = Arc::clone(runtime.metrics());
@@ -826,6 +873,16 @@ where
             ),
         )
         .route(
+            "/admin/graph",
+            post(
+                move |headers: HeaderMap, Json(request): Json<GraphInspectionRequest>| {
+                    let store = Arc::clone(&graph_store);
+                    let runtime = graph_runtime.clone();
+                    async move { graph_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
             "/admin/integrity",
             get(
                 move |headers: HeaderMap, Query(request): Query<IntegrityCheckRequest>| {
@@ -896,6 +953,16 @@ where
             ),
         )
         .route(
+            "/admin/maintenance/run",
+            post(
+                move |headers: HeaderMap, Json(request): Json<MaintenanceRunRequest>| {
+                    let store = Arc::clone(&maintenance_store);
+                    let runtime = maintenance_runtime.clone();
+                    async move { maintenance_run_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
             "/admin/traces",
             get(move |Query(request): Query<TraceListRequest>| {
                 let runtime = traces_runtime.clone();
@@ -923,6 +990,16 @@ where
                     let store = Arc::clone(&export_store);
                     let runtime = export_runtime.clone();
                     async move { export_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
+            "/admin/replication/ship",
+            post(
+                move |headers: HeaderMap, Json(request): Json<SnapshotShipRequest>| {
+                    let store = Arc::clone(&ship_store);
+                    let runtime = ship_runtime.clone();
+                    async move { snapshot_ship_http(store, request, headers, runtime).await }
                 },
             ),
         )
@@ -1014,6 +1091,10 @@ async fn upsert_http<S>(
 where
     S: MemoryStore + 'static,
 {
+    runtime
+        .metrics()
+        .http_maintenance
+        .fetch_add(1, Ordering::Relaxed);
     let started_at_unix_ms = now_unix_ms();
     let correlation_id = runtime.traces().next_id("corr");
     validate_record_limits(&request.record, runtime.limits().as_ref())
@@ -1056,6 +1137,10 @@ async fn batch_upsert_http<S>(
 where
     S: MemoryStore + 'static,
 {
+    runtime
+        .metrics()
+        .http_snapshot_ship
+        .fetch_add(1, Ordering::Relaxed);
     let started_at_unix_ms = now_unix_ms();
     let correlation_id = runtime.traces().next_id("corr");
     let tenant_id = request
@@ -1223,6 +1308,47 @@ where
         TraceStatus::Ok,
         None,
         OperationTraceSummary::default(),
+        None,
+        correlation_id,
+    );
+    Ok(Json(report))
+}
+
+async fn graph_http<S>(
+    store: Arc<S>,
+    request: GraphInspectionRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<GraphInspectionReport>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, request.tenant_id.as_deref())
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let report = store
+        .inspect_graph(request.clone())
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::Stats,
+        "http",
+        request.tenant_id,
+        request.namespace,
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            request_count: Some(report.nodes.len() as u32),
+            max_items: Some(report.edges.len() as u32),
+            ..Default::default()
+        },
         None,
         correlation_id,
     );
@@ -1604,6 +1730,46 @@ async fn runtime_status_http(runtime: ServerRuntime) -> Json<ServerRuntimeStatus
     })
 }
 
+async fn maintenance_run_http<S>(
+    store: Arc<S>,
+    request: MaintenanceRunRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<MaintenanceRunReport>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, request.tenant_id.as_deref())
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let report = store
+        .run_maintenance(request.clone())
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::MaintenanceRun,
+        "http",
+        request.tenant_id,
+        request.namespace,
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            dry_run: Some(report.dry_run),
+            ..Default::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(report))
+}
+
 async fn export_http<S>(
     store: Arc<S>,
     request: ExportRequest,
@@ -1643,6 +1809,74 @@ where
         correlation_id,
     );
     Ok(Json(package))
+}
+
+async fn snapshot_ship_http<S>(
+    store: Arc<S>,
+    request: SnapshotShipRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<SnapshotShipReport>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, request.tenant_id.as_deref())
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+
+    let package = store
+        .export(ExportRequest {
+            tenant_id: request.tenant_id.clone(),
+            namespace: request.namespace.clone(),
+            include_archived: request.include_archived,
+        })
+        .await
+        .map_err(map_http_store_error)?;
+    let exported_records = package.records.len() as u64;
+    let import_request = ImportRequest {
+        package,
+        mode: request.mode,
+        dry_run: request.dry_run,
+    };
+    let (remote_status, remote_report) = post_remote_import(
+        &request.target_url,
+        request.bearer_token.as_deref(),
+        &import_request,
+    )
+    .await?;
+    let report = SnapshotShipReport {
+        target_url: request.target_url.clone(),
+        exported_records,
+        imported_records: remote_report.imported_records,
+        skipped_records: remote_report.skipped_records,
+        dry_run: request.dry_run,
+        compatible_package: remote_report.compatible_package,
+        remote_status,
+        remote_snapshot_id: Some(remote_report.snapshot_id),
+    };
+    record_trace(
+        &runtime,
+        TraceOperationKind::SnapshotShip,
+        "http",
+        request.tenant_id,
+        request.namespace,
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            request_count: Some(exported_records as u32),
+            dry_run: Some(request.dry_run),
+            ..Default::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(report))
 }
 
 async fn import_http<S>(
@@ -1703,6 +1937,104 @@ where
         correlation_id,
     );
     Ok(Json(report))
+}
+
+#[derive(Debug, Clone)]
+struct HttpTarget {
+    host: String,
+    port: u16,
+    path: String,
+}
+
+fn parse_http_target(raw: &str) -> Result<HttpTarget, String> {
+    let without_scheme = raw
+        .strip_prefix("http://")
+        .ok_or_else(|| "snapshot shipping currently supports http:// targets".to_string())?;
+    let (authority, path) = without_scheme
+        .split_once('/')
+        .map(|(authority, path)| (authority, format!("/{path}")))
+        .unwrap_or((without_scheme, "/admin/import".to_string()));
+    let path = if path.ends_with("/admin/import") {
+        path
+    } else {
+        format!("{}/admin/import", path.trim_end_matches('/'))
+    };
+    let (host, port) = authority
+        .rsplit_once(':')
+        .map(|(host, port)| {
+            port.parse::<u16>()
+                .map(|port| (host.to_string(), port))
+                .map_err(|err| format!("invalid snapshot shipping target port '{port}': {err}"))
+        })
+        .unwrap_or_else(|| Ok((authority.to_string(), 80)))?;
+    if host.trim().is_empty() {
+        return Err("snapshot shipping target host is required".to_string());
+    }
+    Ok(HttpTarget { host, port, path })
+}
+
+async fn post_remote_import(
+    target_url: &str,
+    bearer_token: Option<&str>,
+    request: &ImportRequest,
+) -> Result<(u16, ImportReport), (StatusCode, Json<HttpErrorBody>)> {
+    post_remote_import_raw(target_url, bearer_token, request)
+        .await
+        .map_err(|error| (StatusCode::BAD_GATEWAY, Json(HttpErrorBody { error })))
+}
+
+async fn post_remote_import_raw(
+    target_url: &str,
+    bearer_token: Option<&str>,
+    request: &ImportRequest,
+) -> Result<(u16, ImportReport), String> {
+    let target = parse_http_target(target_url)
+        .map_err(|error| format!("invalid snapshot shipping target: {error}"))?;
+    let body = serde_json::to_string(request)
+        .map_err(|err| format!("failed to encode snapshot shipment: {err}"))?;
+    let bearer_token = bearer_token.map(str::to_string);
+    tokio::task::spawn_blocking(move || {
+        use std::io::{Read, Write};
+        use std::net::TcpStream;
+
+        let mut stream = TcpStream::connect((target.host.as_str(), target.port))
+            .map_err(|err| format!("failed to connect to snapshot target: {err}"))?;
+        let mut request_head = format!(
+            "POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAccept: application/json\r\nContent-Length: {}\r\nConnection: close\r\n",
+            target.path,
+            target.host,
+            body.len()
+        );
+        if let Some(token) = bearer_token {
+            request_head.push_str(&format!("Authorization: Bearer {token}\r\n"));
+        }
+        request_head.push_str("\r\n");
+        stream
+            .write_all(request_head.as_bytes())
+            .and_then(|_| stream.write_all(body.as_bytes()))
+            .map_err(|err| format!("failed to write snapshot shipment: {err}"))?;
+        let mut response = String::new();
+        stream
+            .read_to_string(&mut response)
+            .map_err(|err| format!("failed to read snapshot shipment response: {err}"))?;
+        let (head, body) = response
+            .split_once("\r\n\r\n")
+            .ok_or_else(|| "snapshot target returned an invalid HTTP response".to_string())?;
+        let status = head
+            .lines()
+            .next()
+            .and_then(|line| line.split_whitespace().nth(1))
+            .and_then(|value| value.parse::<u16>().ok())
+            .ok_or_else(|| "snapshot target returned an invalid HTTP status".to_string())?;
+        if !(200..300).contains(&status) {
+            return Err(format!("snapshot target returned HTTP {status}: {body}"));
+        }
+        serde_json::from_str::<ImportReport>(body)
+            .map(|report| (status, report))
+            .map_err(|err| format!("failed to decode snapshot target import report: {err}"))
+    })
+    .await
+    .map_err(|err| format!("snapshot shipping worker failed: {err}"))?
 }
 
 async fn metrics_http(metrics: Arc<ServerMetrics>) -> impl IntoResponse {
@@ -1888,7 +2220,9 @@ fn admission_class_for_operation(operation: TraceOperationKind) -> &'static str 
         TraceOperationKind::IntegrityCheck
         | TraceOperationKind::Repair
         | TraceOperationKind::Export
-        | TraceOperationKind::Import => "admin",
+        | TraceOperationKind::Import
+        | TraceOperationKind::MaintenanceRun
+        | TraceOperationKind::SnapshotShip => "admin",
     }
 }
 
@@ -1908,11 +2242,21 @@ fn validate_http_auth(
         "/metrics" => AuthPermission::Metrics,
         "/memory/recall" => AuthPermission::Read,
         "/memory/upsert" | "/memory/batch-upsert" => AuthPermission::Write,
-        "/admin/stats" | "/admin/integrity" | "/admin/repair" | "/admin/snapshot"
-        | "/admin/compact" | "/admin/delete" | "/admin/archive" | "/admin/suppress"
-        | "/admin/recover" | "/admin/runtime" | "/admin/export" | "/admin/import" => {
-            AuthPermission::Admin
-        }
+        "/admin/stats"
+        | "/admin/graph"
+        | "/admin/integrity"
+        | "/admin/repair"
+        | "/admin/snapshot"
+        | "/admin/compact"
+        | "/admin/delete"
+        | "/admin/archive"
+        | "/admin/suppress"
+        | "/admin/recover"
+        | "/admin/maintenance/run"
+        | "/admin/runtime"
+        | "/admin/export"
+        | "/admin/replication/ship"
+        | "/admin/import" => AuthPermission::Admin,
         _ => AuthPermission::Admin,
     };
     if path.starts_with("/admin/traces") {
@@ -2621,6 +2965,7 @@ fn recall_trace_candidate_to_proto(value: RecallTraceCandidate) -> ProtoRecallTr
         selection_rank: value.selection_rank,
         selected_channels: value.selected_channels,
         filter_reasons: value.filter_reasons,
+        relation_reasons: value.relation_reasons,
         candidate_sources: value
             .candidate_sources
             .into_iter()
@@ -2672,6 +3017,56 @@ fn maintenance_stats_to_proto(value: MaintenanceStats) -> ProtoMaintenanceStats 
     }
 }
 
+fn graph_edge_kind_to_wire(value: GraphInspectionEdgeKind) -> String {
+    match value {
+        GraphInspectionEdgeKind::EpisodeMembership => "EpisodeMembership",
+        GraphInspectionEdgeKind::ChronologyPrevious => "ChronologyPrevious",
+        GraphInspectionEdgeKind::ChronologyNext => "ChronologyNext",
+        GraphInspectionEdgeKind::Causal => "Causal",
+        GraphInspectionEdgeKind::Related => "Related",
+        GraphInspectionEdgeKind::Lineage => "Lineage",
+        GraphInspectionEdgeKind::Conflict => "Conflict",
+    }
+    .to_string()
+}
+
+fn graph_node_to_proto(value: GraphInspectionNode) -> ProtoGraphInspectionNode {
+    ProtoGraphInspectionNode {
+        record_id: value.record_id,
+        tenant_id: value.tenant_id,
+        namespace: value.namespace,
+        actor_id: value.actor_id,
+        kind: record_kind_to_proto(value.kind),
+        summary: value.summary,
+        quality_state: quality_state_to_proto(value.quality_state),
+        historical_state: historical_state_to_proto(value.historical_state),
+        episode_id: value.episode_id,
+        continuity_state: value.continuity_state.map(continuity_state_to_proto),
+        conflict_state: value.conflict_state.map(conflict_review_state_to_proto),
+        importance_per_mille: u32::from(value.importance_per_mille),
+        updated_at_unix_ms: value.updated_at_unix_ms,
+    }
+}
+
+fn graph_edge_to_proto(value: GraphInspectionEdge) -> ProtoGraphInspectionEdge {
+    ProtoGraphInspectionEdge {
+        source_id: value.source_id,
+        target_id: value.target_id,
+        kind: graph_edge_kind_to_wire(value.kind),
+        details: value.details,
+    }
+}
+
+fn graph_report_to_proto(value: GraphInspectionReport) -> GraphInspectionReply {
+    GraphInspectionReply {
+        generated_at_unix_ms: value.generated_at_unix_ms,
+        total_records_scanned: value.total_records_scanned,
+        nodes: value.nodes.into_iter().map(graph_node_to_proto).collect(),
+        edges: value.edges.into_iter().map(graph_edge_to_proto).collect(),
+        truncated: value.truncated,
+    }
+}
+
 fn portable_record_to_proto(value: PortableRecord) -> ProtoPortableRecord {
     ProtoPortableRecord {
         record: Some(record_to_proto(value.record)),
@@ -2709,6 +3104,64 @@ fn import_mode_from_proto(value: i32) -> Result<ImportMode, Status> {
         ProtoImportMode::Merge => Ok(ImportMode::Merge),
         ProtoImportMode::Replace => Ok(ImportMode::Replace),
         ProtoImportMode::Unspecified => Err(invalid_argument("import mode is required")),
+    }
+}
+
+fn integrity_report_to_proto(value: IntegrityCheckReport) -> ProtoIntegrityCheckReply {
+    ProtoIntegrityCheckReply {
+        generated_at_unix_ms: value.generated_at_unix_ms,
+        healthy: value.healthy,
+        scanned_records: value.scanned_records,
+        scanned_idempotency_keys: value.scanned_idempotency_keys,
+        stale_idempotency_keys: value.stale_idempotency_keys,
+        missing_idempotency_keys: value.missing_idempotency_keys,
+        duplicate_active_records: value.duplicate_active_records,
+    }
+}
+
+fn repair_report_to_proto(value: RepairReport) -> ProtoRepairReply {
+    ProtoRepairReply {
+        dry_run: value.dry_run,
+        scanned_records: value.scanned_records,
+        scanned_idempotency_keys: value.scanned_idempotency_keys,
+        removed_stale_idempotency_keys: value.removed_stale_idempotency_keys,
+        rebuilt_missing_idempotency_keys: value.rebuilt_missing_idempotency_keys,
+        healthy_after: value.healthy_after,
+    }
+}
+
+fn compaction_report_to_proto(value: CompactionReport) -> CompactReply {
+    CompactReply {
+        deduplicated_records: value.deduplicated_records,
+        archived_records: value.archived_records,
+        summarized_clusters: value.summarized_clusters,
+        pruned_graph_edges: value.pruned_graph_edges,
+        superseded_records: value.superseded_records,
+        lineage_links_created: value.lineage_links_created,
+        dry_run: value.dry_run,
+    }
+}
+
+fn maintenance_report_to_proto(value: MaintenanceRunReport) -> MaintenanceRunReply {
+    MaintenanceRunReply {
+        dry_run: value.dry_run,
+        integrity_before: value.integrity_before.map(integrity_report_to_proto),
+        repair: value.repair.map(repair_report_to_proto),
+        compaction: value.compaction.map(compaction_report_to_proto),
+        integrity_after: value.integrity_after.map(integrity_report_to_proto),
+    }
+}
+
+fn snapshot_ship_report_to_proto(value: SnapshotShipReport) -> SnapshotShipReply {
+    SnapshotShipReply {
+        target_url: value.target_url,
+        exported_records: value.exported_records,
+        imported_records: value.imported_records,
+        skipped_records: value.skipped_records,
+        dry_run: value.dry_run,
+        compatible_package: value.compatible_package,
+        remote_status: u32::from(value.remote_status),
+        remote_snapshot_id: value.remote_snapshot_id,
     }
 }
 
@@ -2771,6 +3224,8 @@ fn trace_operation_kind_to_proto(value: TraceOperationKind) -> i32 {
         TraceOperationKind::Recover => ProtoTraceOperationKind::Recover as i32,
         TraceOperationKind::Export => ProtoTraceOperationKind::Export as i32,
         TraceOperationKind::Import => ProtoTraceOperationKind::Import as i32,
+        TraceOperationKind::MaintenanceRun => ProtoTraceOperationKind::MaintenanceRun as i32,
+        TraceOperationKind::SnapshotShip => ProtoTraceOperationKind::SnapshotShip as i32,
     }
 }
 
@@ -2790,6 +3245,8 @@ fn trace_operation_kind_from_proto(value: ProtoTraceOperationKind) -> Option<Tra
         ProtoTraceOperationKind::Recover => Some(TraceOperationKind::Recover),
         ProtoTraceOperationKind::Export => Some(TraceOperationKind::Export),
         ProtoTraceOperationKind::Import => Some(TraceOperationKind::Import),
+        ProtoTraceOperationKind::MaintenanceRun => Some(TraceOperationKind::MaintenanceRun),
+        ProtoTraceOperationKind::SnapshotShip => Some(TraceOperationKind::SnapshotShip),
         ProtoTraceOperationKind::Unspecified => None,
     }
 }
@@ -3727,6 +4184,71 @@ where
         record_grpc_result(&self.runtime.metrics().grpc_stats, result)
     }
 
+    async fn inspect_graph(
+        &self,
+        request: Request<ProtoGraphInspectionRequest>,
+    ) -> Result<Response<GraphInspectionReply>, Status> {
+        self.runtime.metrics().grpc_stats.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, tenant_id.as_deref())
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let report = self
+                .store
+                .inspect_graph(GraphInspectionRequest {
+                    tenant_id: tenant_id.clone(),
+                    namespace: namespace.clone(),
+                    actor_id: request.actor_id,
+                    conversation_id: request.conversation_id,
+                    session_id: request.session_id,
+                    include_archived: request.include_archived,
+                    include_suppressed: request.include_suppressed,
+                    include_deleted: request.include_deleted,
+                    max_nodes: request.max_nodes.map(|value| value as usize),
+                })
+                .await
+                .map_err(map_store_error)?;
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::Stats,
+                "grpc",
+                tenant_id,
+                namespace,
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    request_count: Some(report.nodes.len() as u32),
+                    max_items: Some(report.edges.len() as u32),
+                    ..Default::default()
+                },
+                None,
+                correlation_id,
+            );
+
+            Ok(Response::new(graph_report_to_proto(report)))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_stats, result)
+    }
+
     async fn integrity_check(
         &self,
         request: Request<ProtoIntegrityCheckRequest>,
@@ -3855,6 +4377,72 @@ where
         }
         .await;
         record_grpc_result(&self.runtime.metrics().grpc_repair, result)
+    }
+
+    async fn run_maintenance(
+        &self,
+        request: Request<ProtoMaintenanceRunRequest>,
+    ) -> Result<Response<MaintenanceRunReply>, Status> {
+        self.runtime.metrics().grpc_maintenance.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let run_defaults =
+                !request.run_integrity_check && !request.run_repair && !request.run_compaction;
+            let maintenance_request = MaintenanceRunRequest {
+                tenant_id: tenant_id.clone(),
+                namespace: namespace.clone(),
+                dry_run: request.dry_run,
+                reason: request.reason,
+                run_integrity_check: request.run_integrity_check || run_defaults,
+                run_repair: request.run_repair || run_defaults,
+                run_compaction: request.run_compaction || run_defaults,
+                remove_stale_idempotency_keys: request.remove_stale_idempotency_keys,
+                rebuild_missing_idempotency_keys: request.rebuild_missing_idempotency_keys,
+            };
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, tenant_id.as_deref())
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let report = self
+                .store
+                .run_maintenance(maintenance_request)
+                .await
+                .map_err(map_store_error)?;
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::MaintenanceRun,
+                "grpc",
+                tenant_id,
+                namespace,
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    dry_run: Some(report.dry_run),
+                    ..OperationTraceSummary::default()
+                },
+                None,
+                correlation_id,
+            );
+            Ok(Response::new(maintenance_report_to_proto(report)))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_maintenance, result)
     }
 
     async fn list_traces(
@@ -4042,5 +4630,92 @@ where
                 })
                 .collect(),
         }))
+    }
+
+    async fn ship_snapshot(
+        &self,
+        request: Request<ProtoSnapshotShipRequest>,
+    ) -> Result<Response<SnapshotShipReply>, Status> {
+        self.runtime.metrics().grpc_snapshot_ship.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let mode = import_mode_from_proto(request.mode)?;
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, tenant_id.as_deref())
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let package = self
+                .store
+                .export(ExportRequest {
+                    tenant_id: tenant_id.clone(),
+                    namespace: namespace.clone(),
+                    include_archived: request.include_archived,
+                })
+                .await
+                .map_err(map_store_error)?;
+            let exported_records = package.records.len() as u64;
+            let import_request = ImportRequest {
+                package,
+                mode,
+                dry_run: request.dry_run,
+            };
+            let (remote_status, remote_report) = post_remote_import_raw(
+                &request.target_url,
+                request.bearer_token.as_deref(),
+                &import_request,
+            )
+            .await
+            .map_err(Status::unavailable)?;
+            let report = SnapshotShipReport {
+                target_url: request.target_url,
+                exported_records,
+                imported_records: remote_report.imported_records,
+                skipped_records: remote_report.skipped_records,
+                dry_run: remote_report.dry_run,
+                compatible_package: remote_report.compatible_package,
+                remote_status,
+                remote_snapshot_id: Some(remote_report.snapshot_id),
+            };
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::SnapshotShip,
+                "grpc",
+                tenant_id,
+                namespace,
+                principal,
+                started_at_unix_ms,
+                if report.compatible_package {
+                    TraceStatus::Ok
+                } else {
+                    TraceStatus::Error
+                },
+                (!report.compatible_package)
+                    .then(|| "snapshot target rejected the package".to_string()),
+                OperationTraceSummary {
+                    request_count: Some(report.exported_records as u32),
+                    dry_run: Some(report.dry_run),
+                    ..OperationTraceSummary::default()
+                },
+                None,
+                correlation_id,
+            );
+            Ok(Response::new(snapshot_ship_report_to_proto(report)))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_snapshot_ship, result)
     }
 }

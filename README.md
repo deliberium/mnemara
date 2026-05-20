@@ -29,7 +29,8 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - protobuf/gRPC schema and generated service types
 - tonic-based daemon mode
 - HTTP/JSON memory, lifecycle, trace, runtime, health, and admin endpoints for daemon operations
-- reference JavaScript HTTP SDK for non-Rust consumers
+- reference JavaScript and Python HTTP SDKs for non-Rust consumers
+- C ABI bindings for embedding the sled-backed store from FFI-capable runtimes
 - explicit memory scope, trust, and quality state concepts
 - optional episodic context with continuity state, salience, and causal links
 - explicit recurrence, duration, and boundary cues for episodic timelines
@@ -37,7 +38,8 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - conflict-review and drift metadata with operator-resolution recall filters
 - retry-safe idempotent writes, batch upserts, and tombstone or hard delete flows
 - explainable recall filters plus duplicate-aware compaction, stats, integrity, and repair reporting
-- continuity-aware retrieval planning with bounded expansion, provenance-aware ranking overlays, and planner traces
+- continuity-aware retrieval planning with bounded expansion, typed graph relation reasons, provenance-aware ranking overlays, and planner traces
+- read-only operator graph inspection for episode, chronology, causal, related, lineage, and conflict edges
 - compaction rollup summaries, lineage-preserving supersession, and optional cold-tier archival for stale low-importance records
 - configurable recall scorer kinds and scoring profiles across the embedded and daemon-backed stores
 - a public semantic embedding seam with a deterministic local reference embedder for integration tests and offline deployments
@@ -47,6 +49,8 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - bounded admission control with tenant-aware fairness and runtime status visibility
 - public trace listing and lookup APIs with correlation IDs and recall explanations
 - portable export/import packages that round-trip across file and sled backends
+- remote snapshot shipping between daemon import/export endpoints
+- admin-triggered and scheduled background maintenance orchestration
 - gRPC deployment presets for TCP, Unix domain sockets, TLS, and mTLS
 - published benchmark methodology, benchmark artifacts, and ranking defaults backed by standard IR metrics
 
@@ -60,6 +64,7 @@ The current release includes:
 - episodic continuity fields, continuity-aware planner profiles, and lifecycle-aware historical recall
 - recurrence and duration-aware episodic timeline cues with additive boundary labeling
 - compaction, deletion, snapshot, stats, integrity-check, repair, export, and import operations
+- maintenance-run and snapshot-shipping operations for platform deployments
 - published evaluation assets covering ranking quality, backend parity, and portability scenarios
 
 Future work beyond the current release remains in [ROADMAP.md](https://github.com/deliberium/mnemara/blob/master/ROADMAP.md).
@@ -72,6 +77,7 @@ Embedded library usage and daemon-mode deployment are documented here:
 - [Architecture](https://github.com/deliberium/mnemara/blob/master/docs/architecture.md)
 - [Deployment](https://github.com/deliberium/mnemara/blob/master/docs/deployment.md)
 - [JavaScript SDK](https://github.com/deliberium/mnemara/blob/master/sdk/javascript/README.md)
+- [Python SDK](https://github.com/deliberium/mnemara/blob/master/sdk/python/README.md)
 - [Roadmap](https://github.com/deliberium/mnemara/blob/master/ROADMAP.md)
 - [Changelog](https://github.com/deliberium/mnemara/blob/master/CHANGELOG.md)
 - [Benchmark Methodology](https://github.com/deliberium/mnemara/blob/master/docs/benchmark-methodology.md)
@@ -216,7 +222,7 @@ Available facade features:
 
 ## Project Status
 
-Mnemara ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, episodic continuity fields, continuity-aware planner traces, lifecycle-aware historical recall, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
+Mnemara ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, episodic continuity fields, continuity-aware planner traces with graph relation reasons, read-only graph inspection, lifecycle-aware historical recall, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
 
 ## Open Source and Contributions
 

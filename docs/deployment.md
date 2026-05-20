@@ -146,8 +146,10 @@ HTTP surfaces:
 - `POST /memory/recall`
 - `GET /admin/snapshot`
 - `GET /admin/stats`
+- `POST /admin/graph`
 - `GET /admin/integrity`
 - `POST /admin/repair`
+- `POST /admin/maintenance/run`
 - `POST /admin/compact`
 - `POST /admin/delete`
 - `GET /admin/traces`
@@ -155,8 +157,14 @@ HTTP surfaces:
 - `GET /admin/runtime`
 - `POST /admin/export`
 - `POST /admin/import`
+- `POST /admin/replication/ship`
 
 Trace listing supports `tenant_id`, `namespace`, `operation`, `status`, `before_started_at_unix_ms`, and `limit`.
+
+`POST /admin/graph` returns a read-only graph inspection report for operator
+tooling. Scope it with `tenant_id`, `namespace`, `actor_id`,
+`conversation_id`, and `session_id`; archived, suppressed, and deleted records
+remain hidden unless their explicit include flags are set.
 
 Portable import supports:
 
@@ -166,6 +174,29 @@ Portable import supports:
 - `dry_run=true` for no-write validation previews
 
 Import reports now disclose package compatibility, validated/imported/skipped counts, and structured failures.
+
+`POST /admin/maintenance/run` orchestrates integrity checks, idempotency-key
+repair, and tenant-scoped compaction in one admin operation. Its JSON payload
+matches the individual operation scopes and supports `dry_run`, `reason`,
+`run_integrity_check`, `run_repair`, `run_compaction`,
+`remove_stale_idempotency_keys`, and `rebuild_missing_idempotency_keys`.
+
+`POST /admin/replication/ship` exports a portable package from the local daemon
+and posts it to a remote daemon's `/admin/import` endpoint. Snapshot shipping
+currently targets `http://` daemon URLs and preserves import semantics through
+the `Validate`, `Merge`, `Replace`, and `dry_run` fields.
+
+## Background maintenance
+
+Background maintenance is disabled by default. Enable it only for deployments
+where scheduled admin work is expected:
+
+- `MNEMARA_BACKGROUND_MAINTENANCE_ENABLED=true`
+- `MNEMARA_BACKGROUND_MAINTENANCE_INTERVAL_SECONDS=3600`
+- `MNEMARA_BACKGROUND_MAINTENANCE_TENANT` and `MNEMARA_BACKGROUND_MAINTENANCE_NAMESPACE` to scope work
+- `MNEMARA_BACKGROUND_MAINTENANCE_DRY_RUN=false` to apply repairs and compaction
+- `MNEMARA_BACKGROUND_MAINTENANCE_INTEGRITY`, `MNEMARA_BACKGROUND_MAINTENANCE_REPAIR`, and `MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION` to enable or disable phases
+- `MNEMARA_BACKGROUND_MAINTENANCE_REMOVE_STALE_IDEMPOTENCY_KEYS` and `MNEMARA_BACKGROUND_MAINTENANCE_REBUILD_MISSING_IDEMPOTENCY_KEYS` for repair behavior
 
 ## Lifecycle-aware operations
 
@@ -200,8 +231,8 @@ Useful lifecycle and continuity controls include:
 - `continuity_states` and `unresolved_only` for open-loop style recall
 - `historical_mode` to choose current-only, mixed, or historical-only recall
 - `lineage_record_id` to inspect a derived record and its related lineage
-- planning trace fields that expose planner stage, candidate sources, and the
-  effective planning profile
+- planning trace fields that expose planner stage, candidate sources, graph
+  relation reasons, and the effective planning profile
 
 For shared systems, start with the fast-path planner, then enable
 continuity-aware retrieval only for workloads that benefit from episode and

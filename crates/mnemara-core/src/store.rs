@@ -1,9 +1,10 @@
 use crate::error::Result;
 use crate::model::{MemoryHistoricalState, MemoryQualityState, MemoryRecord};
 use crate::query::{
-    CompactionReport, CompactionRequest, ExportRequest, ImportReport, ImportRequest,
-    IntegrityCheckReport, IntegrityCheckRequest, RecallQuery, RecallResult, RepairReport,
-    RepairRequest, SnapshotManifest, StoreStatsReport, StoreStatsRequest,
+    CompactionReport, CompactionRequest, ExportRequest, GraphInspectionReport,
+    GraphInspectionRequest, ImportReport, ImportRequest, IntegrityCheckReport,
+    IntegrityCheckRequest, MaintenanceRunReport, MaintenanceRunRequest, RecallQuery, RecallResult,
+    RepairReport, RepairRequest, SnapshotManifest, StoreStatsReport, StoreStatsRequest,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -129,6 +130,80 @@ pub trait MemoryStore: Send + Sync {
     async fn snapshot(&self) -> Result<SnapshotManifest>;
 
     async fn stats(&self, request: StoreStatsRequest) -> Result<StoreStatsReport>;
+
+    async fn inspect_graph(&self, request: GraphInspectionRequest)
+    -> Result<GraphInspectionReport>;
+
+    async fn run_maintenance(
+        &self,
+        request: MaintenanceRunRequest,
+    ) -> Result<MaintenanceRunReport> {
+        let integrity_before = if request.run_integrity_check {
+            Some(
+                self.integrity_check(IntegrityCheckRequest {
+                    tenant_id: request.tenant_id.clone(),
+                    namespace: request.namespace.clone(),
+                })
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        let repair = if request.run_repair {
+            Some(
+                self.repair(RepairRequest {
+                    tenant_id: request.tenant_id.clone(),
+                    namespace: request.namespace.clone(),
+                    dry_run: request.dry_run,
+                    reason: request.reason.clone(),
+                    remove_stale_idempotency_keys: request.remove_stale_idempotency_keys,
+                    rebuild_missing_idempotency_keys: request.rebuild_missing_idempotency_keys,
+                })
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        let compaction = if request.run_compaction {
+            if let Some(tenant_id) = &request.tenant_id {
+                Some(
+                    self.compact(crate::query::CompactionRequest {
+                        tenant_id: tenant_id.clone(),
+                        namespace: request.namespace.clone(),
+                        dry_run: request.dry_run,
+                        reason: request.reason.clone(),
+                    })
+                    .await?,
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let integrity_after = if request.run_integrity_check {
+            Some(
+                self.integrity_check(IntegrityCheckRequest {
+                    tenant_id: request.tenant_id.clone(),
+                    namespace: request.namespace.clone(),
+                })
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        Ok(MaintenanceRunReport {
+            dry_run: request.dry_run,
+            integrity_before,
+            repair,
+            compaction,
+            integrity_after,
+        })
+    }
 
     async fn integrity_check(&self, request: IntegrityCheckRequest)
     -> Result<IntegrityCheckReport>;

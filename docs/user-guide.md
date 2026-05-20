@@ -72,12 +72,25 @@ For crates.io publication, release the workspace in dependency order:
 1. `mnemara-core`
 2. `mnemara-protocol`
 3. `mnemara-store-file` and `mnemara-store-sled`
-4. `mnemara-server`
-5. `mnemara`
+4. `mnemara-ffi`
+5. `mnemara-server`
+6. `mnemara`
 
 This is required because Cargo verifies path dependencies against crates.io during packaging. `mnemara-protocol` is independent of the other workspace crates, but the file and sled backends both depend on `mnemara-core`, `mnemara-server` depends on `mnemara-core`, `mnemara-protocol`, and `mnemara-store-sled`, and the facade crate `mnemara` depends on the full workspace graph through its optional features.
 
-Use `cargo package` or `cargo publish --dry-run` as the final pre-release check for each crate before moving to the next step in the sequence. The scripted version of that flow is in `scripts/release-checklist.sh`, including the staged `dry-run-publish` phase. Its `all` target validates every crate it can and reports the crates that are still blocked by publish-order prerequisites. The crate landing-page recommendation audit is documented in `docs/crates-io-readme-audit.md`.
+Use `cargo package` or `cargo publish --dry-run` as the final pre-release check for each crate before moving to the next step in the sequence. The scripted version of that flow is in `scripts/release-checklist.sh`, including the staged `dry-run-publish` phase, an `sdk-package` phase for JavaScript and Python SDK package validation, and an `sdk-publish` phase for credentialed npm/PyPI publication. Its `all` target validates every crate it can and reports the crates that are still blocked by publish-order prerequisites. The crate landing-page recommendation audit is documented in `docs/crates-io-readme-audit.md`.
+
+## Non-Rust clients and FFI
+
+The JavaScript SDK in `sdk/javascript` and the Python SDK in `sdk/python`
+mirror the daemon's HTTP/JSON API. Both expose memory ingest, recall, graph
+inspection, integrity, repair, maintenance runs, runtime status, traces,
+portable export/import, and snapshot shipping helpers.
+
+For runtimes that need an embedded store without speaking HTTP, the
+`mnemara-ffi` crate exposes a C ABI over the sled-backed store. FFI calls accept
+JSON request payloads matching `mnemara-core` request types and return owned
+JSON strings that must be released with `mnemara_ffi_free_string`.
 
 ## What Mnemara is for
 
@@ -121,7 +134,7 @@ Recall explanations now include:
 - effective policy profile
 - selected scoring channels
 - per-hit score breakdowns, including metadata, episodic, salience, and curation signals
-- a planning trace with selection rank, planner stages, candidate sources, selected channels, and filter reasons
+- a planning trace with selection rank, planner stages, candidate sources, graph relation reasons, selected channels, and filter reasons
 - correlation IDs that tie recall output back to daemon request traces
 
 ## Episodic and continuity-aware recall
@@ -212,7 +225,9 @@ trace data for episode-sensitive workloads.
 `graph_expansion_max_hops` is the hard cap on continuity expansion depth.
 Current bounded relation families include same-episode membership, chronology
 links, causal links, related-record links, and lineage references. Queries stay
-within the request scope while using those relations.
+within the request scope while using those relations. Graph-expanded trace
+candidates disclose relation reasons such as `graph_relation=causal`,
+`graph_relation=lineage`, and `graph_hop=1`.
 
 `General` is the default workload profile. `Support` pushes ranking toward
 current, verified, and pinned facts. `Research` is more tolerant of archival
@@ -426,7 +441,7 @@ The daemon publishes:
 - runtime admission status with queue depth and wait telemetry
 - trace-retention saturation and eviction counts
 
-Use `/admin/traces` for recent request history and `/admin/runtime` for live fairness/retention state.
+Use `/admin/traces` for recent request history, `/admin/runtime` for live fairness/retention state, and `/admin/graph` for read-only inspection of scoped episode, chronology, causal, related, lineage, and conflict edges. `/admin/graph` accepts tenant, namespace, actor, conversation, and session filters plus opt-in archived/suppressed/deleted inclusion flags.
 
 ## Deployment guidance
 

@@ -211,6 +211,7 @@ message RecallTraceCandidate {
   repeated string filter_reasons = 9;
   repeated string candidate_sources = 10;
   optional string planner_stage = 11;
+  repeated string relation_reasons = 12;
 }
 
 message RecallPlanningTrace {
@@ -379,6 +380,49 @@ message StoreStatsReply {
   EngineTuningInfo engine = 6;
 }
 
+message GraphInspectionRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+  optional string actor_id = 3;
+  optional string conversation_id = 4;
+  optional string session_id = 5;
+  bool include_archived = 6;
+  bool include_suppressed = 7;
+  bool include_deleted = 8;
+  optional uint32 max_nodes = 9;
+}
+
+message GraphInspectionNode {
+  string record_id = 1;
+  string tenant_id = 2;
+  string namespace = 3;
+  string actor_id = 4;
+  string kind = 5;
+  optional string summary = 6;
+  string quality_state = 7;
+  string historical_state = 8;
+  optional string episode_id = 9;
+  optional string continuity_state = 10;
+  optional string conflict_state = 11;
+  uint32 importance_per_mille = 12;
+  uint64 updated_at_unix_ms = 13;
+}
+
+message GraphInspectionEdge {
+  string source_id = 1;
+  string target_id = 2;
+  string kind = 3;
+  repeated string details = 4;
+}
+
+message GraphInspectionReply {
+  uint64 generated_at_unix_ms = 1;
+  uint64 total_records_scanned = 2;
+  repeated GraphInspectionNode nodes = 3;
+  repeated GraphInspectionEdge edges = 4;
+  bool truncated = 5;
+}
+
 message IntegrityCheckRequest {
   optional string tenant_id = 1;
   optional string namespace = 2;
@@ -412,6 +456,26 @@ message RepairReply {
   bool healthy_after = 6;
 }
 
+message MaintenanceRunRequest {
+  optional string tenant_id = 1;
+  optional string namespace = 2;
+  bool dry_run = 3;
+  string reason = 4;
+  bool run_integrity_check = 5;
+  bool run_repair = 6;
+  bool run_compaction = 7;
+  bool remove_stale_idempotency_keys = 8;
+  bool rebuild_missing_idempotency_keys = 9;
+}
+
+message MaintenanceRunReply {
+  bool dry_run = 1;
+  optional IntegrityCheckReply integrity_before = 2;
+  optional RepairReply repair = 3;
+  optional CompactReply compaction = 4;
+  optional IntegrityCheckReply integrity_after = 5;
+}
+
 enum TraceOperationKind {
   TRACE_OPERATION_KIND_UNSPECIFIED = 0;
   TRACE_OPERATION_KIND_UPSERT = 1;
@@ -428,6 +492,8 @@ enum TraceOperationKind {
   TRACE_OPERATION_KIND_RECOVER = 12;
   TRACE_OPERATION_KIND_EXPORT = 13;
   TRACE_OPERATION_KIND_IMPORT = 14;
+  TRACE_OPERATION_KIND_MAINTENANCE_RUN = 15;
+  TRACE_OPERATION_KIND_SNAPSHOT_SHIP = 16;
 }
 
 enum TraceStatus {
@@ -534,6 +600,27 @@ message ImportReply {
   repeated ImportFailure failed_records = 11;
 }
 
+message SnapshotShipRequest {
+  string target_url = 1;
+  optional string bearer_token = 2;
+  optional string tenant_id = 3;
+  optional string namespace = 4;
+  bool include_archived = 5;
+  ImportMode mode = 6;
+  bool dry_run = 7;
+}
+
+message SnapshotShipReply {
+  string target_url = 1;
+  uint64 exported_records = 2;
+  uint64 imported_records = 3;
+  uint64 skipped_records = 4;
+  bool dry_run = 5;
+  bool compatible_package = 6;
+  uint32 remote_status = 7;
+  optional string remote_snapshot_id = 8;
+}
+
 service MemoryService {
   rpc UpsertMemoryRecord(UpsertMemoryRecordRequest) returns (UpsertMemoryRecordReply);
   rpc BatchUpsertMemoryRecords(BatchUpsertMemoryRecordsRequest) returns (BatchUpsertMemoryRecordsReply);
@@ -545,10 +632,13 @@ service MemoryService {
   rpc Suppress(SuppressRequest) returns (SuppressReply);
   rpc Recover(RecoverRequest) returns (RecoverReply);
   rpc Stats(StoreStatsRequest) returns (StoreStatsReply);
+  rpc InspectGraph(GraphInspectionRequest) returns (GraphInspectionReply);
   rpc IntegrityCheck(IntegrityCheckRequest) returns (IntegrityCheckReply);
   rpc Repair(RepairRequest) returns (RepairReply);
+  rpc RunMaintenance(MaintenanceRunRequest) returns (MaintenanceRunReply);
   rpc ListTraces(ListTracesRequest) returns (ListTracesReply);
   rpc GetTrace(GetTraceRequest) returns (OperationTrace);
   rpc Export(ExportRequest) returns (ExportReply);
   rpc Import(ImportRequest) returns (ImportReply);
+  rpc ShipSnapshot(SnapshotShipRequest) returns (SnapshotShipReply);
 }
