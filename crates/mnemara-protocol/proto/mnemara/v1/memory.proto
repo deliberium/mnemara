@@ -234,6 +234,11 @@ message RecallReply {
   optional RecallExplanation explanation = 3;
 }
 
+message TimeTravelRecallRequest {
+  RecallRequest query = 1;
+  uint64 as_of_unix_ms = 2;
+}
+
 message CompactRequest {
   string tenant_id = 1;
   optional string namespace = 2;
@@ -494,6 +499,7 @@ enum TraceOperationKind {
   TRACE_OPERATION_KIND_IMPORT = 14;
   TRACE_OPERATION_KIND_MAINTENANCE_RUN = 15;
   TRACE_OPERATION_KIND_SNAPSHOT_SHIP = 16;
+  TRACE_OPERATION_KIND_CHANGEFEED = 17;
 }
 
 enum TraceStatus {
@@ -625,6 +631,7 @@ service MemoryService {
   rpc UpsertMemoryRecord(UpsertMemoryRecordRequest) returns (UpsertMemoryRecordReply);
   rpc BatchUpsertMemoryRecords(BatchUpsertMemoryRecordsRequest) returns (BatchUpsertMemoryRecordsReply);
   rpc Recall(RecallRequest) returns (RecallReply);
+  rpc RecallAsOf(TimeTravelRecallRequest) returns (RecallReply);
   rpc Compact(CompactRequest) returns (CompactReply);
   rpc Snapshot(SnapshotRequest) returns (SnapshotReply);
   rpc Delete(DeleteRequest) returns (DeleteReply);

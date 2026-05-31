@@ -84,8 +84,8 @@ Use `cargo package` or `cargo publish --dry-run` as the final pre-release check 
 
 The JavaScript SDK in `sdk/javascript` and the Python SDK in `sdk/python`
 mirror the daemon's HTTP/JSON API. Both expose memory ingest, recall, graph
-inspection, integrity, repair, maintenance runs, runtime status, traces,
-portable export/import, and snapshot shipping helpers.
+inspection, changefeed reads, integrity, repair, maintenance runs, runtime
+status, traces, portable export/import, and snapshot shipping helpers.
 
 For runtimes that need an embedded store without speaking HTTP, the
 `mnemara-ffi` crate exposes a C ABI over the sled-backed store. FFI calls accept
@@ -159,6 +159,8 @@ Useful episodic query patterns are:
   memories between two known episode anchors
 - set `filters.boundary_labels` or `filters.recurrence_key` to focus recall on
   task, handoff, session, or recurring-work boundaries
+- use `TimeTravelRecallRequest` or `/memory/recall-as-of` to run recall against
+  the latest stored record versions visible at a timestamp
 
 Continuity-sensitive queries such as “what led to this,” “what changed,” or
 “what happened next” can trigger the continuity-aware planner profile and
@@ -326,6 +328,11 @@ The current shipped contradiction and drift rules are intentionally conservative
 
 The checked-in evaluation corpus and published benchmark artifacts document how those choices behave across exact lookup, duplicate-heavy, recent-thread, durable-high-trust, archival, noisy, portability, fairness, and deployment scenarios.
 
+The core crate also exposes `run_recall_evaluation` and
+`evaluate_recall_results` for judged recall cases. A judged case can require
+specific records, tolerate optional context records, reject disallowed records,
+and assert that explanation policy notes disclose expected retrieval behavior.
+
 ## Portability workflows
 
 Use `export` to create backend-neutral packages filtered by tenant and namespace.
@@ -441,7 +448,7 @@ The daemon publishes:
 - runtime admission status with queue depth and wait telemetry
 - trace-retention saturation and eviction counts
 
-Use `/admin/traces` for recent request history, `/admin/runtime` for live fairness/retention state, and `/admin/graph` for read-only inspection of scoped episode, chronology, causal, related, lineage, and conflict edges. `/admin/graph` accepts tenant, namespace, actor, conversation, and session filters plus opt-in archived/suppressed/deleted inclusion flags.
+Use `/admin/traces` for recent request history, `/admin/runtime` for live fairness/retention state, `/admin/changefeed` for append-only memory mutation events, and `/admin/graph` for read-only inspection of scoped episode, chronology, causal, related, lineage, and conflict edges. `/admin/graph` accepts tenant, namespace, actor, conversation, and session filters plus opt-in archived/suppressed/deleted inclusion flags. `/admin/changefeed` accepts tenant, namespace, `after_sequence`, and `limit` query parameters.
 
 ## Deployment guidance
 

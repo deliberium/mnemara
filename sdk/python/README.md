@@ -45,4 +45,4 @@ print(client.recall({
 }))
 ```
 
-The client mirrors the daemon's HTTP/JSON surface, including admin graph inspection, integrity checks, repair, compaction, maintenance runs, runtime status, traces, portable export/import, and snapshot shipping.
+The client mirrors the daemon's HTTP/JSON surface, including admin graph inspection, changefeed reads, integrity checks, repair, compaction, maintenance runs, runtime status, traces, portable export/import, snapshot shipping, and `recall_as_of` time-travel recall requests.

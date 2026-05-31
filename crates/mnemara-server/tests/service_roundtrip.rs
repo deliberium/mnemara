@@ -1019,6 +1019,62 @@ async fn http_health_snapshot_and_compact_routes_round_trip() {
         "Disabled"
     );
 
+    let changefeed = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .uri("/admin/changefeed?tenant_id=default&namespace=conversation")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(changefeed.status(), StatusCode::OK);
+    let changefeed_body = to_bytes(changefeed.into_body(), usize::MAX).await.unwrap();
+    let changefeed_body: serde_json::Value = serde_json::from_slice(&changefeed_body).unwrap();
+    assert_eq!(changefeed_body["events"][0]["kind"], "Upserted");
+    assert_eq!(changefeed_body["events"][0]["record_id"], "record-http");
+
+    let recall_as_of = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/memory/recall-as-of")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "query": {
+                            "scope": {
+                                "tenant_id": "default",
+                                "namespace": "conversation",
+                                "actor_id": "ava",
+                                "conversation_id": "thread-a",
+                                "session_id": "session-a",
+                                "source": "test",
+                                "labels": ["shared-fixture"],
+                                "trust_level": "Verified"
+                            },
+                            "query_text": "snapshot",
+                            "max_items": 3,
+                            "filters": {},
+                            "include_explanation": true
+                        },
+                        "as_of_unix_ms": 1
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(recall_as_of.status(), StatusCode::OK);
+    let recall_as_of_body = to_bytes(recall_as_of.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let recall_as_of_body: serde_json::Value = serde_json::from_slice(&recall_as_of_body).unwrap();
+    assert_eq!(recall_as_of_body["hits"][0]["record"]["id"], "record-http");
+
     let compact = app
         .clone()
         .oneshot(

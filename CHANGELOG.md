@@ -14,6 +14,24 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Fixed
 
+## [0.5.0] - 2026-05-31
+
+### Added
+
+- judged recall evaluation harness types and helpers for expected, optional,
+  disallowed, and explanation-note assertions
+- additive `TimeTravelRecallRequest` / `recall_as_of` time-travel recall over
+  backend-maintained record versions in the file and sled stores, exposed over
+  HTTP `/memory/recall-as-of`, gRPC `RecallAsOf`, and the JavaScript/Python SDKs
+- append-only changefeed request/report/event types plus file, sled, HTTP, and
+  JavaScript/Python SDK access through `/admin/changefeed`
+
+### Changed
+
+- Roadmap now promotes evaluation harness, changefeed/watch API, and
+  time-travel recall into the active implementation plan and records the next
+  candidate roadmap items.
+
 ## [0.4.0] - 2026-05-20
 
 ### Added

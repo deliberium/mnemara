@@ -19,7 +19,11 @@ pub use embedding::{
     SemanticEmbedder, SharedSemanticEmbedder,
 };
 pub use error::{Error, Result};
-pub use evaluation::{JudgedRecallCase, RankingMetrics, evaluate_rankings_at_k};
+pub use evaluation::{
+    JudgedRecallCase, RankingMetrics, RecallEvaluationAssertions, RecallEvaluationCase,
+    RecallEvaluationCaseReport, RecallEvaluationReport, evaluate_rankings_at_k,
+    evaluate_recall_results, run_recall_evaluation,
+};
 pub use model::{
     AffectiveAnnotation, AffectiveAnnotationProvenance, ArtifactPointer, ConflictAnnotation,
     ConflictResolutionKind, ConflictReviewState, EPISODE_SCHEMA_VERSION, EpisodeContext,
@@ -28,16 +32,17 @@ pub use model::{
     MemoryTrustLevel,
 };
 pub use query::{
-    CompactionReport, CompactionRequest, ExportRequest, GraphInspectionEdge,
-    GraphInspectionEdgeKind, GraphInspectionNode, GraphInspectionReport, GraphInspectionRequest,
-    ImportFailure, ImportMode, ImportReport, ImportRequest, IntegrityCheckReport,
-    IntegrityCheckRequest, MaintenanceRunReport, MaintenanceRunRequest, MaintenanceStats,
-    NamespaceStats, OperationTrace, OperationTraceSummary, PortableRecord, PortableStorePackage,
-    RecallCandidateSource, RecallExplanation, RecallFilters, RecallHistoricalMode, RecallHit,
-    RecallPlannerStage, RecallPlanningTrace, RecallQuery, RecallResult, RecallScoreBreakdown,
-    RecallTemporalOrder, RecallTraceCandidate, RepairReport, RepairRequest, SnapshotManifest,
-    SnapshotShipReport, SnapshotShipRequest, StoreStatsReport, StoreStatsRequest, TraceListRequest,
-    TraceOperationKind, TraceStatus, build_graph_inspection_report,
+    ChangefeedEvent, ChangefeedEventKind, ChangefeedReport, ChangefeedRequest, CompactionReport,
+    CompactionRequest, ExportRequest, GraphInspectionEdge, GraphInspectionEdgeKind,
+    GraphInspectionNode, GraphInspectionReport, GraphInspectionRequest, ImportFailure, ImportMode,
+    ImportReport, ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, MaintenanceRunReport,
+    MaintenanceRunRequest, MaintenanceStats, NamespaceStats, OperationTrace, OperationTraceSummary,
+    PortableRecord, PortableStorePackage, RecallCandidateSource, RecallExplanation, RecallFilters,
+    RecallHistoricalMode, RecallHit, RecallPlannerStage, RecallPlanningTrace, RecallQuery,
+    RecallResult, RecallScoreBreakdown, RecallTemporalOrder, RecallTraceCandidate, RepairReport,
+    RepairRequest, SnapshotManifest, SnapshotShipReport, SnapshotShipRequest, StoreStatsReport,
+    StoreStatsRequest, TimeTravelRecallRequest, TraceListRequest, TraceOperationKind, TraceStatus,
+    build_graph_inspection_report,
 };
 pub use scorer::{
     ConfiguredRecallScorer, CuratedRecallScorer, PlannedRecallCandidate, ProfileRecallScorer,

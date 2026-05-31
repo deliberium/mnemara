@@ -41,7 +41,7 @@ Useful environment variables include:
 
 - uses `mnemara-store-sled` as the backing store
 - exposes health, readiness, memory, lifecycle, admin, metrics, runtime-status, and trace endpoints over HTTP and gRPC
-- serves episodic memory records, continuity-aware recall filters, planning traces, lifecycle controls, portable import/export, snapshot shipping, maintenance runs, and repair or integrity operations
+- serves episodic memory records, continuity-aware recall filters, time-travel recall, planning traces, lifecycle controls, changefeed reads, portable import/export, snapshot shipping, maintenance runs, and repair or integrity operations
 - supports bearer-token auth with role-scoped read, write, admin, and metrics permissions
 - includes bounded admission control, request limits, correlation IDs, and metrics or trace observability for daemon deployments
 - supports TCP, Unix domain sockets, TLS, and mutual TLS deployment profiles

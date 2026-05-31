@@ -59,6 +59,44 @@ class ClientTests(unittest.TestCase):
         )
         self.assertEqual(seen["url"], "http://daemon/admin/traces?tenant_id=default&limit=5")
 
+    def test_changefeed_uses_query_parameters(self):
+        seen = {}
+
+        def opener(request, timeout=None):
+            seen["url"] = request.full_url
+            seen["method"] = request.get_method()
+            return FakeResponse(b'{"events": [], "last_sequence": null, "truncated": false}')
+
+        client = MnemaraHttpClient("http://daemon", opener=opener)
+        self.assertEqual(
+            client.changefeed({"tenant_id": "default", "after_sequence": 12}),
+            {"events": [], "last_sequence": None, "truncated": False},
+        )
+        self.assertEqual(
+            seen["url"],
+            "http://daemon/admin/changefeed?tenant_id=default&after_sequence=12",
+        )
+        self.assertEqual(seen["method"], "GET")
+
+    def test_recall_as_of_posts_json(self):
+        seen = {}
+
+        def opener(request, timeout=None):
+            seen["url"] = request.full_url
+            seen["method"] = request.get_method()
+            seen["body"] = json.loads(request.data.decode("utf-8"))
+            return FakeResponse(b'{"hits": [], "total_candidates_examined": 0}')
+
+        client = MnemaraHttpClient("http://daemon", opener=opener)
+        payload = {"query": {"query_text": "legacy"}, "as_of_unix_ms": 150}
+        self.assertEqual(
+            client.recall_as_of(payload),
+            {"hits": [], "total_candidates_examined": 0},
+        )
+        self.assertEqual(seen["url"], "http://daemon/memory/recall-as-of")
+        self.assertEqual(seen["method"], "POST")
+        self.assertEqual(seen["body"], payload)
+
     def test_http_error_preserves_json_body(self):
         def opener(request, timeout=None):
             raise HTTPError(

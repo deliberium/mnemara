@@ -6,7 +6,7 @@ It is intentionally small:
 
 - no runtime dependencies
 - works with the standard `fetch` API in Node 18+ and modern browsers
-- targets the daemon's HTTP endpoints for ingest, recall, stats, graph inspection, integrity checks, repair, maintenance runs, compaction, delete, trace lookup, runtime status, export/import, snapshot shipping, health, readiness, and metrics
+- targets the daemon's HTTP endpoints for ingest, recall, stats, graph inspection, changefeed reads, integrity checks, repair, maintenance runs, compaction, delete, trace lookup, runtime status, export/import, snapshot shipping, health, readiness, and metrics
 
 ## Example
 
@@ -160,7 +160,8 @@ Example engine tuning payload shape from `snapshot()` or `stats()`:
 - Snapshot and stats responses include `engine` tuning metadata, including scorer and embedding configuration.
 - Recall responses can include full planning traces, graph relation reasons for expanded candidates, and a `trace_id` that links directly to `/admin/traces`.
 - `inspectGraph()` calls `/admin/graph` for read-only episode, chronology, causal, related, lineage, and conflict edge inspection.
-- Episodic recall filters support relative before/after anchors, boundary labels, recurrence keys, conflict states, resolution kinds, and unresolved conflict review queues.
+- `changefeed()` calls `/admin/changefeed` for append-only memory mutation events.
+- Episodic recall filters support relative before/after anchors, boundary labels, recurrence keys, conflict states, resolution kinds, and unresolved conflict review queues. Use `recallAsOf()` for timestamped time-travel recall.
 - Trace APIs expose backend, admission class, correlation ID, planning trace ID, and request summary metadata.
 - Portable export/import and snapshot-shipping flows support `Validate`, `Merge`, and `Replace`, plus `dry_run` previews and structured import failures.
 - `runMaintenance()` orchestrates integrity checks, idempotency-key repair, and tenant-scoped compaction behind one admin call.

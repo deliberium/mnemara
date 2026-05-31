@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use mnemara_core::{
-    ArchiveReceipt, ArchiveRequest, BatchUpsertRequest, CompactionReport, CompactionRequest,
-    DeleteReceipt, DeleteRequest, EngineConfig, Error, ExportRequest, GraphInspectionReport,
+    ArchiveReceipt, ArchiveRequest, BatchUpsertRequest, ChangefeedEvent, ChangefeedEventKind,
+    ChangefeedReport, ChangefeedRequest, CompactionReport, CompactionRequest, DeleteReceipt,
+    DeleteRequest, EngineConfig, Error, ExportRequest, GraphInspectionReport,
     GraphInspectionRequest, ImportFailure, ImportMode, ImportReport, ImportRequest,
     IntegrityCheckReport, IntegrityCheckRequest, LineageLink, LineageRelationKind,
     MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryScope,
@@ -10,7 +11,8 @@ use mnemara_core::{
     RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer, RecallTemporalOrder,
     RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, Result,
     SemanticEmbedder, SnapshotManifest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
-    SuppressRequest, UpsertReceipt, UpsertRequest, build_graph_inspection_report,
+    SuppressRequest, TimeTravelRecallRequest, UpsertReceipt, UpsertRequest,
+    build_graph_inspection_report,
 };
 use serde::{Deserialize, Serialize};
 use sled::{Db, Tree};
@@ -23,6 +25,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const RECORDS_TREE: &str = "records";
 const IDEMPOTENCY_TREE: &str = "idempotency";
+const VERSIONS_TREE: &str = "versions";
+const CHANGEFEED_TREE: &str = "changefeed";
 
 #[derive(Clone)]
 pub struct SledStoreConfig {
@@ -111,12 +115,22 @@ pub struct SledMemoryStore {
     db: Db,
     records: Tree,
     idempotency: Tree,
+    versions: Tree,
+    changefeed: Tree,
     config: SledStoreConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredRecord {
     record: MemoryRecord,
+    idempotency_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VersionedStoredRecord {
+    record_id: String,
+    observed_at_unix_ms: u64,
+    record: Option<MemoryRecord>,
     idempotency_key: Option<String>,
 }
 
@@ -172,10 +186,18 @@ impl SledMemoryStore {
         let idempotency = db
             .open_tree(IDEMPOTENCY_TREE)
             .map_err(|err| Error::Backend(format!("failed to open idempotency tree: {err}")))?;
+        let versions = db
+            .open_tree(VERSIONS_TREE)
+            .map_err(|err| Error::Backend(format!("failed to open versions tree: {err}")))?;
+        let changefeed = db
+            .open_tree(CHANGEFEED_TREE)
+            .map_err(|err| Error::Backend(format!("failed to open changefeed tree: {err}")))?;
         Ok(Self {
             db,
             records,
             idempotency,
+            versions,
+            changefeed,
             config,
         })
     }
@@ -396,6 +418,115 @@ impl SledMemoryStore {
     fn decode_record(value: &[u8]) -> Result<StoredRecord> {
         serde_json::from_slice::<StoredRecord>(value)
             .map_err(|err| Error::Backend(format!("failed to decode stored record: {err}")))
+    }
+
+    fn version_key(record_id: &str, observed_at_unix_ms: u64) -> String {
+        format!("{record_id}\u{1f}{observed_at_unix_ms:020}")
+    }
+
+    fn encode_record_version(version: &VersionedStoredRecord) -> Result<Vec<u8>> {
+        serde_json::to_vec(version)
+            .map_err(|err| Error::Backend(format!("failed to encode record version: {err}")))
+    }
+
+    fn decode_record_version(value: &[u8]) -> Result<VersionedStoredRecord> {
+        serde_json::from_slice::<VersionedStoredRecord>(value)
+            .map_err(|err| Error::Backend(format!("failed to decode record version: {err}")))
+    }
+
+    fn persist_record_version(
+        &self,
+        record_id: &str,
+        observed_at_unix_ms: u64,
+        stored: Option<&StoredRecord>,
+    ) -> Result<()> {
+        let version = VersionedStoredRecord {
+            record_id: record_id.to_string(),
+            observed_at_unix_ms,
+            record: stored.map(|value| value.record.clone()),
+            idempotency_key: stored.and_then(|value| value.idempotency_key.clone()),
+        };
+        self.versions
+            .insert(
+                Self::version_key(record_id, observed_at_unix_ms).as_bytes(),
+                Self::encode_record_version(&version)?,
+            )
+            .map_err(|err| Error::Backend(format!("failed to write record version: {err}")))?;
+        Ok(())
+    }
+
+    fn records_as_of(&self, as_of_unix_ms: u64) -> Result<Vec<StoredRecord>> {
+        let mut latest = BTreeMap::<String, VersionedStoredRecord>::new();
+        for item in self.versions.iter() {
+            let (_, value) =
+                item.map_err(|err| Error::Backend(format!("sled iteration failed: {err}")))?;
+            let version = Self::decode_record_version(&value)?;
+            if version.observed_at_unix_ms > as_of_unix_ms {
+                continue;
+            }
+            let replace = latest
+                .get(&version.record_id)
+                .is_none_or(|existing| existing.observed_at_unix_ms <= version.observed_at_unix_ms);
+            if replace {
+                latest.insert(version.record_id.clone(), version);
+            }
+        }
+        Ok(latest
+            .into_values()
+            .filter_map(|version| {
+                version.record.map(|record| StoredRecord {
+                    record,
+                    idempotency_key: version.idempotency_key,
+                })
+            })
+            .collect())
+    }
+
+    fn next_changefeed_sequence(&self) -> Result<u64> {
+        self.changefeed
+            .last()
+            .map_err(|err| Error::Backend(format!("failed to read changefeed tail: {err}")))?
+            .map(|(key, _)| {
+                let raw = String::from_utf8(key.to_vec()).map_err(|err| {
+                    Error::Backend(format!("invalid changefeed sequence encoding: {err}"))
+                })?;
+                raw.parse::<u64>()
+                    .map(|value| value.saturating_add(1))
+                    .map_err(|err| Error::Backend(format!("invalid changefeed sequence: {err}")))
+            })
+            .transpose()
+            .map(|value| value.unwrap_or(1))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn append_changefeed_event(
+        &self,
+        kind: ChangefeedEventKind,
+        record: Option<&MemoryRecord>,
+        tenant_id: &str,
+        namespace: &str,
+        record_id: Option<&str>,
+        summary: Option<String>,
+        occurred_at_unix_ms: u64,
+    ) -> Result<()> {
+        let sequence = self.next_changefeed_sequence()?;
+        let event = ChangefeedEvent {
+            sequence,
+            event_id: format!("change:{}:{sequence}", self.backend_kind()),
+            kind,
+            tenant_id: tenant_id.to_string(),
+            namespace: namespace.to_string(),
+            record_id: record_id.map(ToOwned::to_owned),
+            occurred_at_unix_ms,
+            summary,
+            record: record.cloned(),
+        };
+        let encoded = serde_json::to_vec(&event)
+            .map_err(|err| Error::Backend(format!("failed to encode changefeed event: {err}")))?;
+        self.changefeed
+            .insert(format!("{sequence:020}").as_bytes(), encoded)
+            .map_err(|err| Error::Backend(format!("failed to write changefeed event: {err}")))?;
+        Ok(())
     }
 
     fn idempotency_scope_key(scope: &MemoryScope, key: &str) -> String {
@@ -1203,205 +1334,15 @@ impl SledMemoryStore {
         Ok(true)
     }
 
-    fn apply_retention_for_namespace(
+    fn recall_from_stored_records(
         &self,
-        tenant_id: &str,
-        namespace: &str,
-    ) -> Result<(u64, u64)> {
-        let now_unix_ms = Self::now_unix_ms()?;
-        let retention = &self.config.engine_config.retention;
-        let ttl_window_ms = u64::from(retention.ttl_days).saturating_mul(24 * 60 * 60 * 1_000);
-        let archive_window_ms =
-            u64::from(retention.archive_after_days).saturating_mul(24 * 60 * 60 * 1_000);
-
-        let mut archived_records = 0u64;
-        let mut deleted_records = 0u64;
-        let mut namespace_records = self
-            .iterate_records()?
-            .into_iter()
-            .filter(|stored| {
-                stored.record.scope.tenant_id == tenant_id
-                    && stored.record.scope.namespace == namespace
-            })
-            .collect::<Vec<_>>();
-
-        for stored in &mut namespace_records {
-            if self.retention_exempt(&stored.record) {
-                continue;
-            }
-
-            let expired_by_explicit_deadline = stored
-                .record
-                .expires_at_unix_ms
-                .is_some_and(|expires_at| expires_at <= now_unix_ms);
-            let expired_by_ttl = ttl_window_ms > 0
-                && now_unix_ms.saturating_sub(stored.record.created_at_unix_ms) > ttl_window_ms;
-
-            if expired_by_explicit_deadline || expired_by_ttl {
-                if !matches!(stored.record.quality_state, MemoryQualityState::Deleted) {
-                    self.retention_delete(stored.clone())?;
-                    deleted_records += 1;
-                }
-                continue;
-            }
-
-            let should_archive_by_age = archive_window_ms > 0
-                && now_unix_ms.saturating_sub(stored.record.created_at_unix_ms) > archive_window_ms
-                && matches!(
-                    stored.record.quality_state,
-                    MemoryQualityState::Draft
-                        | MemoryQualityState::Active
-                        | MemoryQualityState::Verified
-                );
-
-            if should_archive_by_age && self.retention_archive(stored, now_unix_ms)? {
-                archived_records += 1;
-            }
-        }
-
-        if retention.max_records_per_namespace > 0 {
-            let mut candidates = self
-                .iterate_records()?
-                .into_iter()
-                .filter(|stored| {
-                    stored.record.scope.tenant_id == tenant_id
-                        && stored.record.scope.namespace == namespace
-                        && !self.retention_exempt(&stored.record)
-                        && matches!(
-                            stored.record.quality_state,
-                            MemoryQualityState::Draft
-                                | MemoryQualityState::Active
-                                | MemoryQualityState::Verified
-                        )
-                })
-                .collect::<Vec<_>>();
-
-            if candidates.len() > retention.max_records_per_namespace {
-                candidates.sort_by(|left, right| {
-                    left.record
-                        .updated_at_unix_ms
-                        .cmp(&right.record.updated_at_unix_ms)
-                        .then_with(|| {
-                            left.record
-                                .importance_score
-                                .total_cmp(&right.record.importance_score)
-                        })
-                        .then_with(|| left.record.id.cmp(&right.record.id))
-                });
-
-                let archive_count = candidates.len() - retention.max_records_per_namespace;
-                for stored in candidates.iter_mut().take(archive_count) {
-                    if self.retention_archive(stored, now_unix_ms)? {
-                        archived_records += 1;
-                    }
-                }
-            }
-        }
-
-        Ok((archived_records, deleted_records))
-    }
-}
-
-#[async_trait]
-impl MemoryStore for SledMemoryStore {
-    fn backend_kind(&self) -> &'static str {
-        "sled"
-    }
-
-    async fn upsert(&self, request: UpsertRequest) -> Result<UpsertReceipt> {
-        self.validate_upsert_request(&request)?;
-
-        if let Some(idempotency_key) = &request.idempotency_key {
-            let scoped_key = Self::idempotency_scope_key(&request.record.scope, idempotency_key);
-            if let Some(existing_record_id) = self
-                .idempotency
-                .get(scoped_key.as_bytes())
-                .map_err(|err| Error::Backend(format!("failed to read idempotency key: {err}")))?
-            {
-                let existing_record_id =
-                    String::from_utf8(existing_record_id.to_vec()).map_err(|err| {
-                        Error::Backend(format!(
-                            "stored idempotency mapping was not valid utf-8: {err}"
-                        ))
-                    })?;
-                if existing_record_id != request.record.id {
-                    return Err(Error::Conflict(format!(
-                        "idempotency key already belongs to record {}",
-                        existing_record_id
-                    )));
-                }
-                if self.fetch_record(&existing_record_id)?.is_some() {
-                    return Ok(UpsertReceipt {
-                        record_id: existing_record_id,
-                        deduplicated: true,
-                        summary_refreshed: false,
-                    });
-                }
-                self.idempotency
-                    .remove(scoped_key.as_bytes())
-                    .map_err(|err| {
-                        Error::Backend(format!("failed to clear stale idempotency key: {err}"))
-                    })?;
-            }
-        }
-
-        let key = request.record.id.clone();
-        let tenant_id = request.record.scope.tenant_id.clone();
-        let namespace = request.record.scope.namespace.clone();
-        let existing = self.fetch_record(&key)?;
-        let deduplicated = existing.is_some();
-        let stored = StoredRecord {
-            record: request.record,
-            idempotency_key: request.idempotency_key,
-        };
-        if let Some(existing) = existing
-            && existing.idempotency_key != stored.idempotency_key
-        {
-            self.remove_idempotency_mapping(&existing)?;
-        }
-        self.persist_record(&stored)?;
-        if let Some(idempotency_key) = &stored.idempotency_key {
-            let scoped_key = Self::idempotency_scope_key(&stored.record.scope, idempotency_key);
-            self.idempotency
-                .insert(scoped_key.as_bytes(), key.as_bytes())
-                .map_err(|err| Error::Backend(format!("failed to write idempotency key: {err}")))?;
-        }
-        self.apply_retention_for_namespace(&tenant_id, &namespace)?;
-        self.db
-            .flush_async()
-            .await
-            .map_err(|err| Error::Backend(format!("failed to flush sled db: {err}")))?;
-        Ok(UpsertReceipt {
-            record_id: key,
-            deduplicated,
-            summary_refreshed: false,
-        })
-    }
-
-    async fn batch_upsert(&self, request: BatchUpsertRequest) -> Result<Vec<UpsertReceipt>> {
-        if request.requests.len() > self.config.engine_config.max_batch_size {
-            return Err(Error::InvalidRequest(format!(
-                "batch size {} exceeds configured max_batch_size {}",
-                request.requests.len(),
-                self.config.engine_config.max_batch_size
-            )));
-        }
-        for item in &request.requests {
-            self.validate_upsert_request(item)?;
-        }
-        let mut receipts = Vec::with_capacity(request.requests.len());
-        for item in request.requests {
-            receipts.push(self.upsert(item).await?);
-        }
-        Ok(receipts)
-    }
-
-    async fn recall(&self, query: RecallQuery) -> Result<RecallResult> {
+        query: RecallQuery,
+        stored_records: Vec<StoredRecord>,
+    ) -> Result<RecallResult> {
         let empty_query = query.query_text.trim().is_empty();
         let planner = self.config.recall_planner();
         let scorer = planner.scorer();
         let planning_profile = planner.effective_profile(&query);
-        let stored_records = self.iterate_records()?;
         let relative_bounds = Self::relative_temporal_bounds(&stored_records, &query)?;
         let records = stored_records
             .into_iter()
@@ -1658,6 +1599,222 @@ impl MemoryStore for SledMemoryStore {
         })
     }
 
+    fn apply_retention_for_namespace(
+        &self,
+        tenant_id: &str,
+        namespace: &str,
+    ) -> Result<(u64, u64)> {
+        let now_unix_ms = Self::now_unix_ms()?;
+        let retention = &self.config.engine_config.retention;
+        let ttl_window_ms = u64::from(retention.ttl_days).saturating_mul(24 * 60 * 60 * 1_000);
+        let archive_window_ms =
+            u64::from(retention.archive_after_days).saturating_mul(24 * 60 * 60 * 1_000);
+
+        let mut archived_records = 0u64;
+        let mut deleted_records = 0u64;
+        let mut namespace_records = self
+            .iterate_records()?
+            .into_iter()
+            .filter(|stored| {
+                stored.record.scope.tenant_id == tenant_id
+                    && stored.record.scope.namespace == namespace
+            })
+            .collect::<Vec<_>>();
+
+        for stored in &mut namespace_records {
+            if self.retention_exempt(&stored.record) {
+                continue;
+            }
+
+            let expired_by_explicit_deadline = stored
+                .record
+                .expires_at_unix_ms
+                .is_some_and(|expires_at| expires_at <= now_unix_ms);
+            let expired_by_ttl = ttl_window_ms > 0
+                && now_unix_ms.saturating_sub(stored.record.created_at_unix_ms) > ttl_window_ms;
+
+            if expired_by_explicit_deadline || expired_by_ttl {
+                if !matches!(stored.record.quality_state, MemoryQualityState::Deleted) {
+                    self.retention_delete(stored.clone())?;
+                    deleted_records += 1;
+                }
+                continue;
+            }
+
+            let should_archive_by_age = archive_window_ms > 0
+                && now_unix_ms.saturating_sub(stored.record.created_at_unix_ms) > archive_window_ms
+                && matches!(
+                    stored.record.quality_state,
+                    MemoryQualityState::Draft
+                        | MemoryQualityState::Active
+                        | MemoryQualityState::Verified
+                );
+
+            if should_archive_by_age && self.retention_archive(stored, now_unix_ms)? {
+                archived_records += 1;
+            }
+        }
+
+        if retention.max_records_per_namespace > 0 {
+            let mut candidates = self
+                .iterate_records()?
+                .into_iter()
+                .filter(|stored| {
+                    stored.record.scope.tenant_id == tenant_id
+                        && stored.record.scope.namespace == namespace
+                        && !self.retention_exempt(&stored.record)
+                        && matches!(
+                            stored.record.quality_state,
+                            MemoryQualityState::Draft
+                                | MemoryQualityState::Active
+                                | MemoryQualityState::Verified
+                        )
+                })
+                .collect::<Vec<_>>();
+
+            if candidates.len() > retention.max_records_per_namespace {
+                candidates.sort_by(|left, right| {
+                    left.record
+                        .updated_at_unix_ms
+                        .cmp(&right.record.updated_at_unix_ms)
+                        .then_with(|| {
+                            left.record
+                                .importance_score
+                                .total_cmp(&right.record.importance_score)
+                        })
+                        .then_with(|| left.record.id.cmp(&right.record.id))
+                });
+
+                let archive_count = candidates.len() - retention.max_records_per_namespace;
+                for stored in candidates.iter_mut().take(archive_count) {
+                    if self.retention_archive(stored, now_unix_ms)? {
+                        archived_records += 1;
+                    }
+                }
+            }
+        }
+
+        Ok((archived_records, deleted_records))
+    }
+}
+
+#[async_trait]
+impl MemoryStore for SledMemoryStore {
+    fn backend_kind(&self) -> &'static str {
+        "sled"
+    }
+
+    async fn upsert(&self, request: UpsertRequest) -> Result<UpsertReceipt> {
+        self.validate_upsert_request(&request)?;
+
+        if let Some(idempotency_key) = &request.idempotency_key {
+            let scoped_key = Self::idempotency_scope_key(&request.record.scope, idempotency_key);
+            if let Some(existing_record_id) = self
+                .idempotency
+                .get(scoped_key.as_bytes())
+                .map_err(|err| Error::Backend(format!("failed to read idempotency key: {err}")))?
+            {
+                let existing_record_id =
+                    String::from_utf8(existing_record_id.to_vec()).map_err(|err| {
+                        Error::Backend(format!(
+                            "stored idempotency mapping was not valid utf-8: {err}"
+                        ))
+                    })?;
+                if existing_record_id != request.record.id {
+                    return Err(Error::Conflict(format!(
+                        "idempotency key already belongs to record {}",
+                        existing_record_id
+                    )));
+                }
+                if self.fetch_record(&existing_record_id)?.is_some() {
+                    return Ok(UpsertReceipt {
+                        record_id: existing_record_id,
+                        deduplicated: true,
+                        summary_refreshed: false,
+                    });
+                }
+                self.idempotency
+                    .remove(scoped_key.as_bytes())
+                    .map_err(|err| {
+                        Error::Backend(format!("failed to clear stale idempotency key: {err}"))
+                    })?;
+            }
+        }
+
+        let key = request.record.id.clone();
+        let tenant_id = request.record.scope.tenant_id.clone();
+        let namespace = request.record.scope.namespace.clone();
+        let observed_at_unix_ms = request.record.updated_at_unix_ms;
+        let existing = self.fetch_record(&key)?;
+        let deduplicated = existing.is_some();
+        let stored = StoredRecord {
+            record: request.record,
+            idempotency_key: request.idempotency_key,
+        };
+        if let Some(existing) = existing
+            && existing.idempotency_key != stored.idempotency_key
+        {
+            self.remove_idempotency_mapping(&existing)?;
+        }
+        self.persist_record(&stored)?;
+        if let Some(idempotency_key) = &stored.idempotency_key {
+            let scoped_key = Self::idempotency_scope_key(&stored.record.scope, idempotency_key);
+            self.idempotency
+                .insert(scoped_key.as_bytes(), key.as_bytes())
+                .map_err(|err| Error::Backend(format!("failed to write idempotency key: {err}")))?;
+        }
+        self.persist_record_version(&key, observed_at_unix_ms, Some(&stored))?;
+        self.append_changefeed_event(
+            ChangefeedEventKind::Upserted,
+            Some(&stored.record),
+            &tenant_id,
+            &namespace,
+            Some(&key),
+            Some(if deduplicated {
+                "record replaced".to_string()
+            } else {
+                "record inserted".to_string()
+            }),
+            observed_at_unix_ms,
+        )?;
+        self.apply_retention_for_namespace(&tenant_id, &namespace)?;
+        self.db
+            .flush_async()
+            .await
+            .map_err(|err| Error::Backend(format!("failed to flush sled db: {err}")))?;
+        Ok(UpsertReceipt {
+            record_id: key,
+            deduplicated,
+            summary_refreshed: false,
+        })
+    }
+
+    async fn batch_upsert(&self, request: BatchUpsertRequest) -> Result<Vec<UpsertReceipt>> {
+        if request.requests.len() > self.config.engine_config.max_batch_size {
+            return Err(Error::InvalidRequest(format!(
+                "batch size {} exceeds configured max_batch_size {}",
+                request.requests.len(),
+                self.config.engine_config.max_batch_size
+            )));
+        }
+        for item in &request.requests {
+            self.validate_upsert_request(item)?;
+        }
+        let mut receipts = Vec::with_capacity(request.requests.len());
+        for item in request.requests {
+            receipts.push(self.upsert(item).await?);
+        }
+        Ok(receipts)
+    }
+
+    async fn recall(&self, query: RecallQuery) -> Result<RecallResult> {
+        self.recall_from_stored_records(query, self.iterate_records()?)
+    }
+
+    async fn recall_as_of(&self, request: TimeTravelRecallRequest) -> Result<RecallResult> {
+        self.recall_from_stored_records(request.query, self.records_as_of(request.as_of_unix_ms)?)
+    }
+
     async fn compact(&self, request: CompactionRequest) -> Result<CompactionReport> {
         if request.tenant_id.trim().is_empty() {
             return Err(Error::InvalidRequest(
@@ -1823,10 +1980,21 @@ impl MemoryStore for SledMemoryStore {
         }
 
         if request.hard_delete {
+            let now_unix_ms = Self::now_unix_ms()?;
             self.records
                 .remove(request.record_id.as_bytes())
                 .map_err(|err| Error::Backend(format!("failed to delete record: {err}")))?;
             self.remove_idempotency_mapping(&stored)?;
+            self.persist_record_version(&request.record_id, now_unix_ms, None)?;
+            self.append_changefeed_event(
+                ChangefeedEventKind::Deleted,
+                None,
+                &request.tenant_id,
+                &request.namespace,
+                Some(&request.record_id),
+                Some("record hard deleted".to_string()),
+                now_unix_ms,
+            )?;
         } else {
             let mut tombstone = stored;
             tombstone.record.quality_state = MemoryQualityState::Deleted;
@@ -1837,6 +2005,20 @@ impl MemoryStore for SledMemoryStore {
                     Self::encode_record(&tombstone)?,
                 )
                 .map_err(|err| Error::Backend(format!("failed to write tombstone: {err}")))?;
+            self.persist_record_version(
+                &request.record_id,
+                tombstone.record.updated_at_unix_ms,
+                Some(&tombstone),
+            )?;
+            self.append_changefeed_event(
+                ChangefeedEventKind::Deleted,
+                Some(&tombstone.record),
+                &request.tenant_id,
+                &request.namespace,
+                Some(&request.record_id),
+                Some("record tombstoned".to_string()),
+                tombstone.record.updated_at_unix_ms,
+            )?;
         }
 
         self.db
@@ -1877,6 +2059,20 @@ impl MemoryStore for SledMemoryStore {
             self.records
                 .insert(stored.record.id.as_bytes(), Self::encode_record(&stored)?)
                 .map_err(|err| Error::Backend(format!("failed to archive record: {err}")))?;
+            self.persist_record_version(
+                &request.record_id,
+                stored.record.updated_at_unix_ms,
+                Some(&stored),
+            )?;
+            self.append_changefeed_event(
+                ChangefeedEventKind::Archived,
+                Some(&stored.record),
+                &request.tenant_id,
+                &request.namespace,
+                Some(&request.record_id),
+                Some("record archived".to_string()),
+                stored.record.updated_at_unix_ms,
+            )?;
             self.db
                 .flush_async()
                 .await
@@ -1915,6 +2111,20 @@ impl MemoryStore for SledMemoryStore {
             self.records
                 .insert(stored.record.id.as_bytes(), Self::encode_record(&stored)?)
                 .map_err(|err| Error::Backend(format!("failed to suppress record: {err}")))?;
+            self.persist_record_version(
+                &request.record_id,
+                stored.record.updated_at_unix_ms,
+                Some(&stored),
+            )?;
+            self.append_changefeed_event(
+                ChangefeedEventKind::Suppressed,
+                Some(&stored.record),
+                &request.tenant_id,
+                &request.namespace,
+                Some(&request.record_id),
+                Some("record suppressed".to_string()),
+                stored.record.updated_at_unix_ms,
+            )?;
             self.db
                 .flush_async()
                 .await
@@ -1958,6 +2168,20 @@ impl MemoryStore for SledMemoryStore {
             self.records
                 .insert(stored.record.id.as_bytes(), Self::encode_record(&stored)?)
                 .map_err(|err| Error::Backend(format!("failed to recover record: {err}")))?;
+            self.persist_record_version(
+                &request.record_id,
+                stored.record.updated_at_unix_ms,
+                Some(&stored),
+            )?;
+            self.append_changefeed_event(
+                ChangefeedEventKind::Recovered,
+                Some(&stored.record),
+                &request.tenant_id,
+                &request.namespace,
+                Some(&request.record_id),
+                Some("record recovered".to_string()),
+                stored.record.updated_at_unix_ms,
+            )?;
             self.db
                 .flush_async()
                 .await
@@ -2017,6 +2241,46 @@ impl MemoryStore for SledMemoryStore {
             &request,
             Self::now_unix_ms()?,
         ))
+    }
+
+    async fn changefeed(&self, request: ChangefeedRequest) -> Result<ChangefeedReport> {
+        let limit = request.limit.unwrap_or(100).max(1);
+        let after_sequence = request.after_sequence.unwrap_or(0);
+        let mut events = Vec::new();
+        let mut truncated = false;
+
+        for item in self.changefeed.iter() {
+            let (_, value) =
+                item.map_err(|err| Error::Backend(format!("sled iteration failed: {err}")))?;
+            let event = serde_json::from_slice::<ChangefeedEvent>(&value).map_err(|err| {
+                Error::Backend(format!("failed to decode changefeed event: {err}"))
+            })?;
+            if event.sequence <= after_sequence
+                || request
+                    .tenant_id
+                    .as_ref()
+                    .is_some_and(|tenant_id| &event.tenant_id != tenant_id)
+                || request
+                    .namespace
+                    .as_ref()
+                    .is_some_and(|namespace| &event.namespace != namespace)
+            {
+                continue;
+            }
+            events.push(event);
+        }
+
+        events.sort_by_key(|event| event.sequence);
+        if events.len() > limit {
+            events.truncate(limit);
+            truncated = true;
+        }
+        let last_sequence = events.last().map(|event| event.sequence);
+        Ok(ChangefeedReport {
+            events,
+            last_sequence,
+            truncated,
+        })
     }
 
     async fn integrity_check(

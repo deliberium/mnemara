@@ -19,10 +19,10 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use mnemara_core::{
     AffectiveAnnotation, AffectiveAnnotationProvenance, ArchiveReceipt, ArchiveRequest,
-    ArtifactPointer, BatchUpsertRequest, CompactionReport, CompactionRequest, ConflictAnnotation,
-    ConflictResolutionKind, ConflictReviewState, DeleteReceipt, DeleteRequest,
-    EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineTuningInfo, EpisodeContext,
-    EpisodeContinuityState, EpisodeSalience, ExportRequest, GraphInspectionEdge,
+    ArtifactPointer, BatchUpsertRequest, ChangefeedReport, ChangefeedRequest, CompactionReport,
+    CompactionRequest, ConflictAnnotation, ConflictResolutionKind, ConflictReviewState,
+    DeleteReceipt, DeleteRequest, EPISODE_SCHEMA_VERSION, EmbeddingProviderKind, EngineTuningInfo,
+    EpisodeContext, EpisodeContinuityState, EpisodeSalience, ExportRequest, GraphInspectionEdge,
     GraphInspectionEdgeKind, GraphInspectionNode, GraphInspectionReport, GraphInspectionRequest,
     ImportMode, ImportReport, ImportRequest, IntegrityCheckReport, IntegrityCheckRequest,
     LineageLink, LineageRelationKind, MaintenanceRunReport, MaintenanceRunRequest,
@@ -34,8 +34,8 @@ use mnemara_core::{
     RecallScorerKind, RecallScoringProfile, RecallTemporalOrder, RecallTraceCandidate,
     RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, SnapshotManifest,
     SnapshotShipReport, SnapshotShipRequest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
-    SuppressRequest, TraceListRequest, TraceOperationKind, TraceStatus, UpsertReceipt,
-    UpsertRequest,
+    SuppressRequest, TimeTravelRecallRequest, TraceListRequest, TraceOperationKind, TraceStatus,
+    UpsertReceipt, UpsertRequest,
 };
 use mnemara_protocol::v1::memory_service_server::{MemoryService, MemoryServiceServer};
 use mnemara_protocol::v1::{
@@ -69,9 +69,10 @@ use mnemara_protocol::v1::{
     RepairRequest as ProtoRepairRequest, SnapshotReply, SnapshotRequest, SnapshotShipReply,
     SnapshotShipRequest as ProtoSnapshotShipRequest, StoreStatsReply as ProtoStoreStatsReply,
     StoreStatsRequest as ProtoStoreStatsRequest, SuppressReply,
-    SuppressRequest as ProtoSuppressRequest, TraceOperationKind as ProtoTraceOperationKind,
-    TraceStatus as ProtoTraceStatus, UpsertMemoryRecordReply,
-    UpsertMemoryRecordRequest as ProtoUpsertMemoryRecordRequest,
+    SuppressRequest as ProtoSuppressRequest,
+    TimeTravelRecallRequest as ProtoTimeTravelRecallRequest,
+    TraceOperationKind as ProtoTraceOperationKind, TraceStatus as ProtoTraceStatus,
+    UpsertMemoryRecordReply, UpsertMemoryRecordRequest as ProtoUpsertMemoryRecordRequest,
 };
 use observability::{TraceRegistry, TraceRegistrySnapshot, now_unix_ms};
 use tonic::{Request, Response, Status};
@@ -766,9 +767,11 @@ where
     let upsert_store = Arc::clone(&store);
     let batch_upsert_store = Arc::clone(&store);
     let recall_store = Arc::clone(&store);
+    let recall_as_of_store = Arc::clone(&store);
     let snapshot_store = Arc::clone(&store);
     let stats_store = Arc::clone(&store);
     let graph_store = Arc::clone(&store);
+    let changefeed_store = Arc::clone(&store);
     let integrity_store = Arc::clone(&store);
     let repair_store = Arc::clone(&store);
     let compact_store = Arc::clone(&store);
@@ -784,9 +787,11 @@ where
     let upsert_runtime = runtime.clone();
     let batch_upsert_runtime = runtime.clone();
     let recall_runtime = runtime.clone();
+    let recall_as_of_runtime = runtime.clone();
     let snapshot_runtime = runtime.clone();
     let stats_runtime = runtime.clone();
     let graph_runtime = runtime.clone();
+    let changefeed_runtime = runtime.clone();
     let integrity_runtime = runtime.clone();
     let repair_runtime = runtime.clone();
     let compact_runtime = runtime.clone();
@@ -855,6 +860,16 @@ where
             ),
         )
         .route(
+            "/memory/recall-as-of",
+            post(
+                move |headers: HeaderMap, Json(request): Json<TimeTravelRecallRequest>| {
+                    let store = Arc::clone(&recall_as_of_store);
+                    let runtime = recall_as_of_runtime.clone();
+                    async move { recall_as_of_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
             "/admin/snapshot",
             get(move |headers: HeaderMap| {
                 let store = Arc::clone(&snapshot_store);
@@ -879,6 +894,16 @@ where
                     let store = Arc::clone(&graph_store);
                     let runtime = graph_runtime.clone();
                     async move { graph_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
+            "/admin/changefeed",
+            get(
+                move |headers: HeaderMap, Query(request): Query<ChangefeedRequest>| {
+                    let store = Arc::clone(&changefeed_store);
+                    let runtime = changefeed_runtime.clone();
+                    async move { changefeed_http(store, request, headers, runtime).await }
                 },
             ),
         )
@@ -1240,6 +1265,56 @@ where
     Ok(Json(result))
 }
 
+async fn recall_as_of_http<S>(
+    store: Arc<S>,
+    request: TimeTravelRecallRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<RecallResult>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    validate_recall_limits(&request.query, runtime.limits().as_ref())
+        .map_err(map_http_validation_error)?;
+    let tenant_id = request.query.scope.tenant_id.clone();
+    let namespace = request.query.scope.namespace.clone();
+    let query_text = request.query.query_text.clone();
+    let max_items = request.query.max_items as u32;
+    let token_budget = request.query.token_budget.map(|value| value as u32);
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Read, Some(&tenant_id))
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let mut result = store
+        .recall_as_of(request)
+        .await
+        .map_err(map_http_store_error)?;
+    attach_correlation_id(&mut result, &correlation_id);
+    record_trace(
+        &runtime,
+        TraceOperationKind::Recall,
+        "http",
+        Some(tenant_id),
+        Some(namespace),
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            query_text: Some(query_text),
+            max_items: Some(max_items),
+            token_budget,
+            ..OperationTraceSummary::default()
+        },
+        result.explanation.clone(),
+        correlation_id,
+    );
+    Ok(Json(result))
+}
+
 async fn snapshot_http<S>(
     store: Arc<S>,
     headers: HeaderMap,
@@ -1348,6 +1423,46 @@ where
             request_count: Some(report.nodes.len() as u32),
             max_items: Some(report.edges.len() as u32),
             ..Default::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(report))
+}
+
+async fn changefeed_http<S>(
+    store: Arc<S>,
+    request: ChangefeedRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<ChangefeedReport>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Read, request.tenant_id.as_deref())
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let report = store
+        .changefeed(request.clone())
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::Changefeed,
+        "http",
+        request.tenant_id,
+        request.namespace,
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            request_count: Some(report.events.len() as u32),
+            ..OperationTraceSummary::default()
         },
         None,
         correlation_id,
@@ -2207,9 +2322,10 @@ fn record_trace(
 
 fn admission_class_for_operation(operation: TraceOperationKind) -> &'static str {
     match operation {
-        TraceOperationKind::Recall | TraceOperationKind::Snapshot | TraceOperationKind::Stats => {
-            "read"
-        }
+        TraceOperationKind::Recall
+        | TraceOperationKind::Snapshot
+        | TraceOperationKind::Stats
+        | TraceOperationKind::Changefeed => "read",
         TraceOperationKind::Upsert
         | TraceOperationKind::BatchUpsert
         | TraceOperationKind::Compact
@@ -2240,10 +2356,11 @@ fn validate_http_auth(
         .and_then(|value| value.to_str().ok());
     let permission = match path {
         "/metrics" => AuthPermission::Metrics,
-        "/memory/recall" => AuthPermission::Read,
+        "/memory/recall" | "/memory/recall-as-of" => AuthPermission::Read,
         "/memory/upsert" | "/memory/batch-upsert" => AuthPermission::Write,
         "/admin/stats"
         | "/admin/graph"
+        | "/admin/changefeed"
         | "/admin/integrity"
         | "/admin/repair"
         | "/admin/snapshot"
@@ -3226,6 +3343,7 @@ fn trace_operation_kind_to_proto(value: TraceOperationKind) -> i32 {
         TraceOperationKind::Import => ProtoTraceOperationKind::Import as i32,
         TraceOperationKind::MaintenanceRun => ProtoTraceOperationKind::MaintenanceRun as i32,
         TraceOperationKind::SnapshotShip => ProtoTraceOperationKind::SnapshotShip as i32,
+        TraceOperationKind::Changefeed => ProtoTraceOperationKind::Changefeed as i32,
     }
 }
 
@@ -3247,6 +3365,7 @@ fn trace_operation_kind_from_proto(value: ProtoTraceOperationKind) -> Option<Tra
         ProtoTraceOperationKind::Import => Some(TraceOperationKind::Import),
         ProtoTraceOperationKind::MaintenanceRun => Some(TraceOperationKind::MaintenanceRun),
         ProtoTraceOperationKind::SnapshotShip => Some(TraceOperationKind::SnapshotShip),
+        ProtoTraceOperationKind::Changefeed => Some(TraceOperationKind::Changefeed),
         ProtoTraceOperationKind::Unspecified => None,
     }
 }
@@ -3667,6 +3786,106 @@ where
                     map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
                 })?;
             let mut result = self.store.recall(query).await.map_err(map_store_error)?;
+            attach_correlation_id(&mut result, &correlation_id);
+            let recall_explanation = result.explanation.clone();
+
+            let hits = result
+                .hits
+                .into_iter()
+                .map(|hit| ProtoRecallHit {
+                    record: Some(record_to_proto(hit.record)),
+                    breakdown: Some(recall_score_breakdown_to_proto(hit.breakdown)),
+                    selected_channels: hit
+                        .explanation
+                        .as_ref()
+                        .map(|value| value.selected_channels.clone())
+                        .unwrap_or_default(),
+                    policy_notes: hit
+                        .explanation
+                        .as_ref()
+                        .map(|value| value.policy_notes.clone())
+                        .unwrap_or_default(),
+                    explanation: hit.explanation.map(recall_explanation_to_proto),
+                })
+                .collect();
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::Recall,
+                "grpc",
+                Some(tenant_id),
+                Some(namespace),
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    query_text: Some(query_text),
+                    max_items: Some(max_items),
+                    token_budget,
+                    ..OperationTraceSummary::default()
+                },
+                recall_explanation,
+                correlation_id,
+            );
+
+            Ok(Response::new(RecallReply {
+                hits,
+                total_candidates_examined: result.total_candidates_examined as u32,
+                explanation: result.explanation.map(recall_explanation_to_proto),
+            }))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_recall, result)
+    }
+
+    async fn recall_as_of(
+        &self,
+        request: Request<ProtoTimeTravelRecallRequest>,
+    ) -> Result<Response<RecallReply>, Status> {
+        self.runtime.metrics().grpc_recall.record_started();
+        validate_grpc_auth(&request, self.runtime.auth().as_ref(), AuthPermission::Read)?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = request.into_inner();
+            let raw_query = request
+                .query
+                .ok_or_else(|| invalid_argument("time-travel recall query is required"))?;
+            let query = RecallQuery {
+                scope: scope_from_proto(
+                    raw_query
+                        .scope
+                        .ok_or_else(|| invalid_argument("recall scope is required"))?,
+                )?,
+                query_text: raw_query.query_text,
+                max_items: raw_query.max_items as usize,
+                token_budget: raw_query.token_budget.map(|value| value as usize),
+                filters: recall_filters_from_proto(raw_query.filters)?,
+                include_explanation: raw_query.include_explanation,
+            };
+            validate_recall_limits(&query, self.runtime.limits().as_ref())?;
+            let tenant_id = query.scope.tenant_id.clone();
+            let namespace = query.scope.namespace.clone();
+            let query_text = query.query_text.clone();
+            let max_items = query.max_items as u32;
+            let token_budget = query.token_budget.map(|value| value as u32);
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Read, Some(&tenant_id))
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let mut result = self
+                .store
+                .recall_as_of(TimeTravelRecallRequest {
+                    query,
+                    as_of_unix_ms: request.as_of_unix_ms,
+                })
+                .await
+                .map_err(map_store_error)?;
             attach_correlation_id(&mut result, &correlation_id);
             let recall_explanation = result.explanation.clone();
 

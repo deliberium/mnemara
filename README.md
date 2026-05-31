@@ -48,6 +48,7 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - basic daemon metrics export for HTTP and gRPC request activity
 - bounded admission control with tenant-aware fairness and runtime status visibility
 - public trace listing and lookup APIs with correlation IDs and recall explanations
+- append-only changefeed reads for memory mutations and time-travel recall over versioned records
 - portable export/import packages that round-trip across file and sled backends
 - remote snapshot shipping between daemon import/export endpoints
 - admin-triggered and scheduled background maintenance orchestration
@@ -62,6 +63,7 @@ The current release includes:
 - a local gRPC and HTTP daemon backed by the sled store
 - typed memory records, recall filters, explanations, and planning traces
 - episodic continuity fields, continuity-aware planner profiles, and lifecycle-aware historical recall
+- judged recall evaluation helpers, append-only changefeed reads, and additive time-travel recall requests
 - recurrence and duration-aware episodic timeline cues with additive boundary labeling
 - compaction, deletion, snapshot, stats, integrity-check, repair, export, and import operations
 - maintenance-run and snapshot-shipping operations for platform deployments
