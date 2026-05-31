@@ -1,6 +1,6 @@
 # mnemara-core
 
-`mnemara-core` provides the product-neutral memory domain model, query types, scoring configuration, evaluation helpers, portable package types, and async store traits that the rest of the Mnemara workspace builds on.
+`mnemara-core` provides the product-neutral memory domain model, query types, scoring configuration, judged recall evaluation helpers, changefeed types, portable package types, and async store traits that the rest of the Mnemara workspace builds on.
 
 Choose this crate when you need the typed memory model and retrieval or maintenance contracts, but not a specific storage backend or transport surface.
 
@@ -17,6 +17,7 @@ cargo add mnemara-core
 - `MemoryRecord`, `MemoryScope`, `MemoryRecordKind`, `MemoryQualityState`, `MemoryHistoricalState`, and `MemoryTrustLevel`
 - episodic context types, continuity state, salience, recurrence, duration, boundary cues, and lineage links
 - `RecallQuery`, `RecallFilters`, `RecallResult`, recall explanations, and continuity-aware planning trace types
+- `ChangefeedRequest`, `ChangefeedEvent`, and `ChangefeedReport` for append-only mutation reads
 - `BatchUpsertRequest`, `UpsertRequest`, `DeleteRequest`, `ArchiveRequest`, `SuppressRequest`, `RecoverRequest`, and admin operation reports
 - `SnapshotManifest`, portable export or import package types, integrity or repair reports, and maintenance stats
 - `EngineConfig`, scorer kinds, scoring and policy profiles, planning profiles, embedding-provider configuration, and evaluation helpers

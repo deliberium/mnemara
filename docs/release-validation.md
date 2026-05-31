@@ -16,6 +16,9 @@ The current shipped release boundary includes:
 - conflict-review metadata, unresolved-conflict filtering, and operator-resolution audit filters
 - planner profiles with planner-stage and candidate-source traces
 - lifecycle-aware historical recall, lineage links, and supersession-aware compaction
+- time-travel recall through `TimeTravelRecallRequest` and `/memory/recall-as-of`
+- append-only changefeed reads for memory mutations
+- judged recall evaluation helpers for expected, optional, disallowed, and explanation-note assertions
 - embedded file and sled backends plus daemon transport parity for those fields
 
 The current release boundary does not claim automated contradiction resolution
@@ -46,6 +49,8 @@ lifecycle work:
 ```bash
 cargo test --manifest-path ./Cargo.toml -p mnemara-core --lib
 cargo test --manifest-path ./Cargo.toml -p mnemara-core --test evaluation_corpus
+cargo test --manifest-path ./Cargo.toml -p mnemara-store-file --test changefeed_time_travel
+cargo test --manifest-path ./Cargo.toml -p mnemara-store-sled --test changefeed_time_travel
 cargo test --manifest-path ./Cargo.toml -p mnemara-server --test service_roundtrip
 cargo test --manifest-path ./Cargo.toml -p mnemara-server --test rollout_examples
 cargo test --manifest-path ./Cargo.toml -p mnemara-store-file --test replay_fixtures

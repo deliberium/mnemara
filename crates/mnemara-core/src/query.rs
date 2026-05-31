@@ -63,6 +63,12 @@ pub struct RecallQuery {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TimeTravelRecallRequest {
+    pub query: RecallQuery,
+    pub as_of_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecallScoreBreakdown {
     pub lexical: f32,
     pub semantic: f32,
@@ -633,6 +639,49 @@ pub enum TraceOperationKind {
     Import,
     MaintenanceRun,
     SnapshotShip,
+    Changefeed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChangefeedEventKind {
+    Upserted,
+    Deleted,
+    Archived,
+    Suppressed,
+    Recovered,
+    Compacted,
+    Imported,
+    RetentionArchived,
+    RetentionDeleted,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct ChangefeedRequest {
+    pub tenant_id: Option<String>,
+    pub namespace: Option<String>,
+    pub after_sequence: Option<u64>,
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ChangefeedEvent {
+    pub sequence: u64,
+    pub event_id: String,
+    pub kind: ChangefeedEventKind,
+    pub tenant_id: String,
+    pub namespace: String,
+    pub record_id: Option<String>,
+    pub occurred_at_unix_ms: u64,
+    pub summary: Option<String>,
+    pub record: Option<MemoryRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ChangefeedReport {
+    pub events: Vec<ChangefeedEvent>,
+    pub last_sequence: Option<u64>,
+    pub truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -93,7 +93,7 @@ bump_version() {
 preflight() {
   run cargo fmt --manifest-path "$manifest_path" --all --check
   run cargo clippy --manifest-path "$manifest_path" --workspace --all-targets
-  run cargo test --manifest-path "$manifest_path" --workspace
+  run cargo test --manifest-path "$manifest_path" --workspace -- --test-threads=1
 }
 
 sdk_package() {
@@ -173,6 +173,9 @@ release_candidate() {
 
   run cargo fmt --manifest-path "$manifest_path" --all --check
   run cargo clippy --manifest-path "$manifest_path" --workspace --all-targets
+  run cargo test --manifest-path "$manifest_path" -p mnemara-core evaluation
+  run cargo test --manifest-path "$manifest_path" -p mnemara-store-file --test changefeed_time_travel
+  run cargo test --manifest-path "$manifest_path" -p mnemara-store-sled --test changefeed_time_travel
   run cargo test --manifest-path "$manifest_path" --workspace -- --test-threads=1
   sdk_package
 

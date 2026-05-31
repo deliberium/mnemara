@@ -39,7 +39,7 @@ Those should be handled in adapters or companion services.
 - optional HTTP admin surface
 - cross-language adoption path
 
-The first server implementation now exists as `crates/mnemara-server`, which exposes the protobuf-defined `MemoryService` over tonic with upsert, batch upsert, recall, compact, snapshot, and delete operations.
+The first server implementation now exists as `crates/mnemara-server`, which exposes the protobuf-defined `MemoryService` over tonic with upsert, batch upsert, recall, compact, snapshot, and delete operations, plus HTTP admin surfaces for inspection, traces, and changefeed reads.
 
 Future daemon capabilities beyond the first release are tracked in [ROADMAP.md](../ROADMAP.md).
 
@@ -137,6 +137,8 @@ Recall can now apply richer episodic constraints without changing baseline
 ranking behavior. `before_record_id` and `after_record_id` resolve to temporal
 anchors inside the recall scope, while `boundary_labels` and `recurrence_key`
 focus selection on explicit task, session, handoff, or recurring-work markers.
+`TimeTravelRecallRequest` enables time-travel recall over backend-maintained
+record versions without changing default current-state recall.
 
 ## Conflict Review Model
 
@@ -183,6 +185,7 @@ Operators can now inspect:
 - lifecycle-aware maintenance counters
 - compaction reports that include superseded-record and lineage-link counts
 - recall traces with planner-stage and candidate-source detail
+- append-only changefeed events for memory mutations
 - transport-safe lifecycle and episodic fields over protobuf and HTTP/JSON
 
 This keeps embedded mode, daemon mode, and backend implementations aligned on a

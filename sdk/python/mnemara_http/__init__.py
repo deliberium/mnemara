@@ -63,6 +63,9 @@ class MnemaraHttpClient:
     def recall(self, query: JsonObject) -> Any:
         return self._request("/memory/recall", method="POST", body=query)
 
+    def recall_as_of(self, request: JsonObject) -> Any:
+        return self._request("/memory/recall-as-of", method="POST", body=request)
+
     def snapshot(self) -> Any:
         return self._request("/admin/snapshot")
 
@@ -71,6 +74,9 @@ class MnemaraHttpClient:
 
     def inspect_graph(self, request: JsonObject | None = None) -> Any:
         return self._request("/admin/graph", method="POST", body=request or {})
+
+    def changefeed(self, request: JsonObject | None = None) -> Any:
+        return self._request("/admin/changefeed", query=request or {})
 
     def integrity_check(self, request: JsonObject | None = None) -> Any:
         return self._request("/admin/integrity", query=request or {})

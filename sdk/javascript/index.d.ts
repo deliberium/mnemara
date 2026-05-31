@@ -149,6 +149,11 @@ export interface RecallQuery {
   include_explanation: boolean;
 }
 
+export interface TimeTravelRecallRequest {
+  query: RecallQuery;
+  as_of_unix_ms: number;
+}
+
 export interface RecallScoreBreakdown {
   lexical: number;
   semantic: number;
@@ -452,6 +457,42 @@ export interface GraphInspectionReport {
   truncated: boolean;
 }
 
+export type ChangefeedEventKind =
+  | "Upserted"
+  | "Deleted"
+  | "Archived"
+  | "Suppressed"
+  | "Recovered"
+  | "Compacted"
+  | "Imported"
+  | "RetentionArchived"
+  | "RetentionDeleted";
+
+export interface ChangefeedRequest {
+  tenant_id?: string | null;
+  namespace?: string | null;
+  after_sequence?: number | null;
+  limit?: number | null;
+}
+
+export interface ChangefeedEvent {
+  sequence: number;
+  event_id: string;
+  kind: ChangefeedEventKind;
+  tenant_id: string;
+  namespace: string;
+  record_id?: string | null;
+  occurred_at_unix_ms: number;
+  summary?: string | null;
+  record?: MemoryRecord | null;
+}
+
+export interface ChangefeedReport {
+  events: ChangefeedEvent[];
+  last_sequence?: number | null;
+  truncated: boolean;
+}
+
 export interface IntegrityCheckRequest {
   tenant_id?: string | null;
   namespace?: string | null;
@@ -556,9 +597,11 @@ export class MnemaraHttpClient {
   upsert(request: UpsertRequest): Promise<UpsertReceipt>;
   batchUpsert(request: BatchUpsertRequest): Promise<UpsertReceipt[]>;
   recall(query: RecallQuery): Promise<RecallResult>;
+  recallAsOf(request: TimeTravelRecallRequest): Promise<RecallResult>;
   snapshot(): Promise<SnapshotManifest>;
   stats(request?: StoreStatsRequest): Promise<StoreStatsReport>;
   inspectGraph(request?: GraphInspectionRequest): Promise<GraphInspectionReport>;
+  changefeed(request?: ChangefeedRequest): Promise<ChangefeedReport>;
   integrityCheck(
     request?: IntegrityCheckRequest,
   ): Promise<IntegrityCheckReport>;

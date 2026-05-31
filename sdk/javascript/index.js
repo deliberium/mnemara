@@ -71,6 +71,13 @@ export class MnemaraHttpClient {
     return this.#request("/memory/recall", { method: "POST", body: query });
   }
 
+  async recallAsOf(request) {
+    return this.#request("/memory/recall-as-of", {
+      method: "POST",
+      body: request,
+    });
+  }
+
   async snapshot() {
     return this.#request("/admin/snapshot");
   }
@@ -81,6 +88,10 @@ export class MnemaraHttpClient {
 
   async inspectGraph(request = {}) {
     return this.#request("/admin/graph", { method: "POST", body: request });
+  }
+
+  async changefeed(request = {}) {
+    return this.#request("/admin/changefeed", { query: request });
   }
 
   async integrityCheck(request = {}) {

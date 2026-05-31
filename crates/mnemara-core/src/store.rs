@@ -1,10 +1,11 @@
 use crate::error::Result;
 use crate::model::{MemoryHistoricalState, MemoryQualityState, MemoryRecord};
 use crate::query::{
-    CompactionReport, CompactionRequest, ExportRequest, GraphInspectionReport,
-    GraphInspectionRequest, ImportReport, ImportRequest, IntegrityCheckReport,
-    IntegrityCheckRequest, MaintenanceRunReport, MaintenanceRunRequest, RecallQuery, RecallResult,
-    RepairReport, RepairRequest, SnapshotManifest, StoreStatsReport, StoreStatsRequest,
+    ChangefeedReport, ChangefeedRequest, CompactionReport, CompactionRequest, ExportRequest,
+    GraphInspectionReport, GraphInspectionRequest, ImportReport, ImportRequest,
+    IntegrityCheckReport, IntegrityCheckRequest, MaintenanceRunReport, MaintenanceRunRequest,
+    RecallQuery, RecallResult, RepairReport, RepairRequest, SnapshotManifest, StoreStatsReport,
+    StoreStatsRequest, TimeTravelRecallRequest,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -117,6 +118,10 @@ pub trait MemoryStore: Send + Sync {
 
     async fn recall(&self, query: RecallQuery) -> Result<RecallResult>;
 
+    async fn recall_as_of(&self, request: TimeTravelRecallRequest) -> Result<RecallResult> {
+        self.recall(request.query).await
+    }
+
     async fn compact(&self, request: CompactionRequest) -> Result<CompactionReport>;
 
     async fn delete(&self, request: DeleteRequest) -> Result<DeleteReceipt>;
@@ -133,6 +138,12 @@ pub trait MemoryStore: Send + Sync {
 
     async fn inspect_graph(&self, request: GraphInspectionRequest)
     -> Result<GraphInspectionReport>;
+
+    async fn changefeed(&self, _request: ChangefeedRequest) -> Result<ChangefeedReport> {
+        Err(crate::Error::Unsupported(
+            "changefeed is not supported by this memory store".to_string(),
+        ))
+    }
 
     async fn run_maintenance(
         &self,
