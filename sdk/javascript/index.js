@@ -113,6 +113,10 @@ export class MnemaraHttpClient {
     return this.#request("/admin/compact", { method: "POST", body: request });
   }
 
+  async synthesize(request) {
+    return this.#request("/admin/synthesize", { method: "POST", body: request });
+  }
+
   async delete(request) {
     return this.#request("/admin/delete", { method: "POST", body: request });
   }

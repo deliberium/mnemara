@@ -34,8 +34,8 @@ use mnemara_core::{
     RecallScorerKind, RecallScoringProfile, RecallTemporalOrder, RecallTraceCandidate,
     RecoverReceipt, RecoverRequest, RepairReport, RepairRequest, SnapshotManifest,
     SnapshotShipReport, SnapshotShipRequest, StoreStatsReport, StoreStatsRequest, SuppressReceipt,
-    SuppressRequest, TimeTravelRecallRequest, TraceListRequest, TraceOperationKind, TraceStatus,
-    UpsertReceipt, UpsertRequest,
+    SuppressRequest, SynthesisProposal, SynthesisReport, SynthesisRequest, TimeTravelRecallRequest,
+    TraceListRequest, TraceOperationKind, TraceStatus, UpsertReceipt, UpsertRequest,
 };
 use mnemara_protocol::v1::memory_service_server::{MemoryService, MemoryServiceServer};
 use mnemara_protocol::v1::{
@@ -69,7 +69,8 @@ use mnemara_protocol::v1::{
     RepairRequest as ProtoRepairRequest, SnapshotReply, SnapshotRequest, SnapshotShipReply,
     SnapshotShipRequest as ProtoSnapshotShipRequest, StoreStatsReply as ProtoStoreStatsReply,
     StoreStatsRequest as ProtoStoreStatsRequest, SuppressReply,
-    SuppressRequest as ProtoSuppressRequest,
+    SuppressRequest as ProtoSuppressRequest, SynthesisProposal as ProtoSynthesisProposal,
+    SynthesisReply, SynthesisRequest as ProtoSynthesisRequest,
     TimeTravelRecallRequest as ProtoTimeTravelRecallRequest,
     TraceOperationKind as ProtoTraceOperationKind, TraceStatus as ProtoTraceStatus,
     UpsertMemoryRecordReply, UpsertMemoryRecordRequest as ProtoUpsertMemoryRecordRequest,
@@ -143,6 +144,7 @@ pub struct ServerMetrics {
     grpc_batch_upsert: MethodMetrics,
     grpc_recall: MethodMetrics,
     grpc_compact: MethodMetrics,
+    grpc_synthesis: MethodMetrics,
     grpc_snapshot: MethodMetrics,
     grpc_delete: MethodMetrics,
     grpc_archive: MethodMetrics,
@@ -157,6 +159,7 @@ pub struct ServerMetrics {
     http_readyz: AtomicU64,
     http_snapshot: AtomicU64,
     http_compact: AtomicU64,
+    http_synthesis: AtomicU64,
     http_delete: AtomicU64,
     http_archive: AtomicU64,
     http_suppress: AtomicU64,
@@ -253,6 +256,16 @@ impl ServerMetrics {
         );
         append_counter(
             &mut output,
+            "mnemara_grpc_synthesis_requests_started_total",
+            self.grpc_synthesis.started.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_grpc_synthesis_requests_ok_total",
+            self.grpc_synthesis.ok.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
             "mnemara_grpc_snapshot_requests_started_total",
             self.grpc_snapshot.started.load(Ordering::Relaxed),
         );
@@ -340,6 +353,11 @@ impl ServerMetrics {
             &mut output,
             "mnemara_http_compact_requests_total",
             self.http_compact.load(Ordering::Relaxed),
+        );
+        append_counter(
+            &mut output,
+            "mnemara_http_synthesis_requests_total",
+            self.http_synthesis.load(Ordering::Relaxed),
         );
         append_counter(
             &mut output,
@@ -775,6 +793,7 @@ where
     let integrity_store = Arc::clone(&store);
     let repair_store = Arc::clone(&store);
     let compact_store = Arc::clone(&store);
+    let synthesis_store = Arc::clone(&store);
     let delete_store = Arc::clone(&store);
     let archive_store = Arc::clone(&store);
     let suppress_store = Arc::clone(&store);
@@ -795,6 +814,7 @@ where
     let integrity_runtime = runtime.clone();
     let repair_runtime = runtime.clone();
     let compact_runtime = runtime.clone();
+    let synthesis_runtime = runtime.clone();
     let delete_runtime = runtime.clone();
     let archive_runtime = runtime.clone();
     let suppress_runtime = runtime.clone();
@@ -934,6 +954,16 @@ where
                     let store = Arc::clone(&compact_store);
                     let runtime = compact_runtime.clone();
                     async move { compact_http(store, request, headers, runtime).await }
+                },
+            ),
+        )
+        .route(
+            "/admin/synthesize",
+            post(
+                move |headers: HeaderMap, Json(request): Json<SynthesisRequest>| {
+                    let store = Arc::clone(&synthesis_store);
+                    let runtime = synthesis_runtime.clone();
+                    async move { synthesize_http(store, request, headers, runtime).await }
                 },
             ),
         )
@@ -1582,6 +1612,51 @@ where
         TraceStatus::Ok,
         None,
         OperationTraceSummary {
+            dry_run: Some(request.dry_run),
+            ..OperationTraceSummary::default()
+        },
+        None,
+        correlation_id,
+    );
+    Ok(Json(report))
+}
+
+async fn synthesize_http<S>(
+    store: Arc<S>,
+    request: SynthesisRequest,
+    headers: HeaderMap,
+    runtime: ServerRuntime,
+) -> Result<Json<SynthesisReport>, (StatusCode, Json<HttpErrorBody>)>
+where
+    S: MemoryStore + 'static,
+{
+    runtime
+        .metrics()
+        .http_synthesis
+        .fetch_add(1, Ordering::Relaxed);
+    let started_at_unix_ms = now_unix_ms();
+    let correlation_id = runtime.traces().next_id("corr");
+    let _permit = runtime
+        .admission()
+        .acquire(AdmissionClass::Admin, Some(&request.tenant_id))
+        .await
+        .map_err(|error| map_http_admission_error(runtime.metrics().as_ref(), error))?;
+    let report = store
+        .synthesize(request.clone())
+        .await
+        .map_err(map_http_store_error)?;
+    record_trace(
+        &runtime,
+        TraceOperationKind::Synthesis,
+        "http",
+        Some(request.tenant_id),
+        request.namespace,
+        http_principal(&headers),
+        started_at_unix_ms,
+        TraceStatus::Ok,
+        None,
+        OperationTraceSummary {
+            request_count: Some(report.proposed_records as u32),
             dry_run: Some(request.dry_run),
             ..OperationTraceSummary::default()
         },
@@ -2329,6 +2404,7 @@ fn admission_class_for_operation(operation: TraceOperationKind) -> &'static str 
         TraceOperationKind::Upsert
         | TraceOperationKind::BatchUpsert
         | TraceOperationKind::Compact
+        | TraceOperationKind::Synthesis
         | TraceOperationKind::Delete
         | TraceOperationKind::Archive
         | TraceOperationKind::Suppress
@@ -2365,6 +2441,7 @@ fn validate_http_auth(
         | "/admin/repair"
         | "/admin/snapshot"
         | "/admin/compact"
+        | "/admin/synthesize"
         | "/admin/delete"
         | "/admin/archive"
         | "/admin/suppress"
@@ -3259,12 +3336,73 @@ fn compaction_report_to_proto(value: CompactionReport) -> CompactReply {
     }
 }
 
+fn synthesis_request_from_proto(value: ProtoSynthesisRequest) -> SynthesisRequest {
+    let defaults = SynthesisRequest::default();
+    SynthesisRequest {
+        tenant_id: value.tenant_id,
+        namespace: value.namespace,
+        actor_id: value.actor_id,
+        conversation_id: value.conversation_id,
+        session_id: value.session_id,
+        from_unix_ms: value.from_unix_ms,
+        to_unix_ms: value.to_unix_ms,
+        min_source_records: if value.min_source_records == 0 {
+            defaults.min_source_records
+        } else {
+            value.min_source_records as usize
+        },
+        max_source_records: if value.max_source_records == 0 {
+            defaults.max_source_records
+        } else {
+            value.max_source_records as usize
+        },
+        max_proposals: if value.max_proposals == 0 {
+            defaults.max_proposals
+        } else {
+            value.max_proposals as usize
+        },
+        dry_run: value.dry_run,
+        reason: if value.reason.trim().is_empty() {
+            defaults.reason
+        } else {
+            value.reason
+        },
+    }
+}
+
+fn synthesis_proposal_to_proto(value: SynthesisProposal) -> ProtoSynthesisProposal {
+    ProtoSynthesisProposal {
+        proposed_record: Some(record_to_proto(value.proposed_record)),
+        source_record_ids: value.source_record_ids,
+        confidence: value.confidence,
+        rationale: value.rationale,
+        metadata: value.metadata.into_iter().collect(),
+    }
+}
+
+fn synthesis_report_to_proto(value: SynthesisReport) -> SynthesisReply {
+    SynthesisReply {
+        dry_run: value.dry_run,
+        scanned_records: value.scanned_records,
+        eligible_records: value.eligible_records,
+        proposed_records: value.proposed_records,
+        persisted_records: value.persisted_records,
+        lineage_links_created: value.lineage_links_created,
+        proposals: value
+            .proposals
+            .into_iter()
+            .map(synthesis_proposal_to_proto)
+            .collect(),
+    }
+}
+
 fn maintenance_report_to_proto(value: MaintenanceRunReport) -> MaintenanceRunReply {
     MaintenanceRunReply {
         dry_run: value.dry_run,
         integrity_before: value.integrity_before.map(integrity_report_to_proto),
         repair: value.repair.map(repair_report_to_proto),
         compaction: value.compaction.map(compaction_report_to_proto),
+        synthesis: value.synthesis.map(synthesis_report_to_proto),
         integrity_after: value.integrity_after.map(integrity_report_to_proto),
     }
 }
@@ -3344,6 +3482,7 @@ fn trace_operation_kind_to_proto(value: TraceOperationKind) -> i32 {
         TraceOperationKind::MaintenanceRun => ProtoTraceOperationKind::MaintenanceRun as i32,
         TraceOperationKind::SnapshotShip => ProtoTraceOperationKind::SnapshotShip as i32,
         TraceOperationKind::Changefeed => ProtoTraceOperationKind::Changefeed as i32,
+        TraceOperationKind::Synthesis => ProtoTraceOperationKind::Synthesis as i32,
     }
 }
 
@@ -3366,6 +3505,7 @@ fn trace_operation_kind_from_proto(value: ProtoTraceOperationKind) -> Option<Tra
         ProtoTraceOperationKind::MaintenanceRun => Some(TraceOperationKind::MaintenanceRun),
         ProtoTraceOperationKind::SnapshotShip => Some(TraceOperationKind::SnapshotShip),
         ProtoTraceOperationKind::Changefeed => Some(TraceOperationKind::Changefeed),
+        ProtoTraceOperationKind::Synthesis => Some(TraceOperationKind::Synthesis),
         ProtoTraceOperationKind::Unspecified => None,
     }
 }
@@ -4005,6 +4145,61 @@ where
         record_grpc_result(&self.runtime.metrics().grpc_compact, result)
     }
 
+    async fn synthesize(
+        &self,
+        request: Request<ProtoSynthesisRequest>,
+    ) -> Result<Response<SynthesisReply>, Status> {
+        self.runtime.metrics().grpc_synthesis.record_started();
+        validate_grpc_auth(
+            &request,
+            self.runtime.auth().as_ref(),
+            AuthPermission::Admin,
+        )?;
+        let principal = grpc_principal(&request);
+        let started_at_unix_ms = now_unix_ms();
+        let correlation_id = self.runtime.traces().next_id("corr");
+        let result = async {
+            let request = synthesis_request_from_proto(request.into_inner());
+            let tenant_id = request.tenant_id.clone();
+            let namespace = request.namespace.clone();
+            let _permit = self
+                .runtime
+                .admission()
+                .acquire(AdmissionClass::Admin, Some(&tenant_id))
+                .await
+                .map_err(|error| {
+                    map_grpc_admission_error(self.runtime.metrics().as_ref(), error)
+                })?;
+            let report = self
+                .store
+                .synthesize(request.clone())
+                .await
+                .map_err(map_store_error)?;
+            record_trace(
+                &self.runtime,
+                TraceOperationKind::Synthesis,
+                "grpc",
+                Some(tenant_id),
+                namespace,
+                principal,
+                started_at_unix_ms,
+                TraceStatus::Ok,
+                None,
+                OperationTraceSummary {
+                    request_count: Some(report.proposed_records as u32),
+                    dry_run: Some(request.dry_run),
+                    ..OperationTraceSummary::default()
+                },
+                None,
+                correlation_id,
+            );
+
+            Ok(Response::new(synthesis_report_to_proto(report)))
+        }
+        .await;
+        record_grpc_result(&self.runtime.metrics().grpc_synthesis, result)
+    }
+
     async fn snapshot(
         &self,
         request: Request<SnapshotRequest>,
@@ -4615,8 +4810,10 @@ where
             let request = request.into_inner();
             let tenant_id = request.tenant_id.clone();
             let namespace = request.namespace.clone();
-            let run_defaults =
-                !request.run_integrity_check && !request.run_repair && !request.run_compaction;
+            let run_defaults = !request.run_integrity_check
+                && !request.run_repair
+                && !request.run_compaction
+                && !request.run_synthesis;
             let maintenance_request = MaintenanceRunRequest {
                 tenant_id: tenant_id.clone(),
                 namespace: namespace.clone(),
@@ -4625,6 +4822,7 @@ where
                 run_integrity_check: request.run_integrity_check || run_defaults,
                 run_repair: request.run_repair || run_defaults,
                 run_compaction: request.run_compaction || run_defaults,
+                run_synthesis: request.run_synthesis,
                 remove_stale_idempotency_keys: request.remove_stale_idempotency_keys,
                 rebuild_missing_idempotency_keys: request.rebuild_missing_idempotency_keys,
             };

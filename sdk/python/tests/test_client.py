@@ -45,6 +45,24 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(seen["body"], {"dry_run": True})
         self.assertEqual(seen["timeout"], 3.0)
 
+    def test_synthesize_posts_to_admin_endpoint(self):
+        seen = {}
+
+        def opener(request, timeout=None):
+            seen["url"] = request.full_url
+            seen["method"] = request.get_method()
+            seen["body"] = json.loads(request.data.decode("utf-8"))
+            return FakeResponse(b'{"proposed_records": 1}')
+
+        client = MnemaraHttpClient("http://127.0.0.1:50052/", opener=opener)
+        self.assertEqual(
+            client.synthesize({"tenant_id": "default", "dry_run": True}),
+            {"proposed_records": 1},
+        )
+        self.assertEqual(seen["url"], "http://127.0.0.1:50052/admin/synthesize")
+        self.assertEqual(seen["method"], "POST")
+        self.assertEqual(seen["body"], {"tenant_id": "default", "dry_run": True})
+
     def test_query_filters_empty_values(self):
         seen = {}
 

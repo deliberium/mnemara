@@ -38,6 +38,7 @@ Mnemara is a local-first, explainable AI memory engine for embedded Rust applica
 - conflict-review and drift metadata with operator-resolution recall filters
 - retry-safe idempotent writes, batch upserts, and tombstone or hard delete flows
 - explainable recall filters plus duplicate-aware compaction, stats, integrity, and repair reporting
+- deterministic, reviewable memory synthesis proposals with source lineage and dry-run support
 - continuity-aware retrieval planning with bounded expansion, typed graph relation reasons, provenance-aware ranking overlays, and planner traces
 - read-only operator graph inspection for episode, chronology, causal, related, lineage, and conflict edges
 - compaction rollup summaries, lineage-preserving supersession, and optional cold-tier archival for stale low-importance records
@@ -66,6 +67,7 @@ The current release includes:
 - judged recall evaluation helpers, append-only changefeed reads, and additive time-travel recall requests
 - recurrence and duration-aware episodic timeline cues with additive boundary labeling
 - compaction, deletion, snapshot, stats, integrity-check, repair, export, and import operations
+- synthesis proposal operations for reviewable summary records derived from scoped source memories
 - maintenance-run and snapshot-shipping operations for platform deployments
 - published evaluation assets covering ranking quality, backend parity, and portability scenarios
 
@@ -224,7 +226,7 @@ Available facade features:
 
 ## Project Status
 
-Mnemara ships the extracted core/store/protocol/server workspace, the facade crate, a reference JavaScript HTTP SDK, episodic continuity fields, continuity-aware planner traces with graph relation reasons, read-only graph inspection, lifecycle-aware historical recall, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
+Mnemara ships the extracted core/store/protocol/server workspace, the facade crate, JavaScript and Python HTTP SDKs, episodic continuity fields, continuity-aware planner traces with graph relation reasons, read-only graph inspection, lifecycle-aware historical recall, reviewable synthesis proposals, published benchmark artifacts, portable import/export workflows, bounded admission control, public trace APIs, and validated TCP/UDS/TLS/mTLS daemon deployment modes.
 
 ## Open Source and Contributions
 

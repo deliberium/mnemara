@@ -39,7 +39,7 @@ Those should be handled in adapters or companion services.
 - optional HTTP admin surface
 - cross-language adoption path
 
-The first server implementation now exists as `crates/mnemara-server`, which exposes the protobuf-defined `MemoryService` over tonic with upsert, batch upsert, recall, compact, snapshot, and delete operations, plus HTTP admin surfaces for inspection, traces, and changefeed reads.
+The first server implementation now exists as `crates/mnemara-server`, which exposes the protobuf-defined `MemoryService` over tonic with upsert, batch upsert, recall, compact, synthesize, snapshot, and delete operations, plus HTTP admin surfaces for inspection, traces, synthesis proposals, and changefeed reads.
 
 Future daemon capabilities beyond the first release are tracked in [ROADMAP.md](../ROADMAP.md).
 
@@ -166,7 +166,9 @@ historical context, or superseded by a newer consolidated product.
 Lineage links connect derived summaries and superseded records to the source
 records that produced them. Compaction can therefore emit summary records,
 archive or supersede duplicates, and preserve provenance instead of treating
-maintenance as destructive cleanup.
+maintenance as destructive cleanup. Synthesis builds on the same boundary by
+producing reviewable draft summary proposals with lineage and metadata rather
+than silently rewriting memory state.
 
 Recall queries can now explicitly request:
 

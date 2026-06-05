@@ -18,12 +18,14 @@ The current shipped release boundary includes:
 - lifecycle-aware historical recall, lineage links, and supersession-aware compaction
 - time-travel recall through `TimeTravelRecallRequest` and `/memory/recall-as-of`
 - append-only changefeed reads for memory mutations
+- reviewable synthesis proposals for draft summary records with source lineage
 - judged recall evaluation helpers for expected, optional, disallowed, and explanation-note assertions
 - embedded file and sled backends plus daemon transport parity for those fields
 
-The current release boundary does not claim automated contradiction resolution
-or long-horizon narrative reasoning as complete end-to-end products. Conflict
-and drift workflows are explicit operator-review metadata plus recall filters.
+The current release boundary does not claim automated contradiction resolution,
+silent memory rewriting, or long-horizon narrative reasoning as complete
+end-to-end products. Conflict, drift, and synthesis workflows are explicit
+operator-review surfaces plus recall filters and lineage metadata.
 
 ## Release-candidate gate
 
@@ -86,6 +88,7 @@ overclaim:
 - `docs/deployment.md`
 - `docs/benchmark-methodology.md`
 - `docs/benchmark-results.md`
+- `docs/benchmark-artifacts/synthesis-benchmark-report-v1.md`
 - `CHANGELOG.md`
 - `../mnemara-web/public/index.html`
 
@@ -117,6 +120,7 @@ Use these fallback positions when a deployment needs a safer posture:
 - `MNEMARA_RECALL_PLANNING_PROFILE=fast_path` to disable continuity-aware expansion
 - `MNEMARA_GRAPH_EXPANSION_MAX_HOPS=0` to force no graph-style expansion even if planner logic evolves
 - `historical_mode=current_only` for current-state-biased recall in clients and operator tools
+- leave `MNEMARA_BACKGROUND_MAINTENANCE_SYNTHESIS=false` unless operators want scheduled dry-run synthesis reports
 - transport posture fallback from TCP/TLS to `uds-local` for same-host deployments when exposure risk is a concern
 
 If a future milestone introduces higher-risk behavior, add an explicit feature

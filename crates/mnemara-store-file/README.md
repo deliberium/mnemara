@@ -16,7 +16,7 @@ cargo add mnemara-store-file
 
 Use the file store when you want a simple local persistence model backed by ordinary files and directories rather than an embedded database.
 
-It preserves the same typed memory surface as the rest of the workspace, including episodic context, lineage, historical state, lifecycle controls, snapshots, and portable import or export packages.
+It preserves the same typed memory surface as the rest of the workspace, including episodic context, lineage, historical state, lifecycle controls, synthesis proposals, snapshots, and portable import or export packages.
 
 ## Minimal example
 
@@ -33,7 +33,7 @@ let store = FileMemoryStore::open(FileStoreConfig::new("./data/mnemara-file"))?;
 - depends on `mnemara-core` for the domain model and store traits
 - suitable for local-first development, tests, and simple embedded deployments
 - persists episodic records, additive lifecycle state, and lineage metadata in a backend-neutral JSON representation
-- supports archive, suppress, recover, snapshot, stats, integrity, repair, compaction, retention, and delete flows through the shared store trait
+- supports archive, suppress, recover, snapshot, stats, integrity, repair, compaction, synthesis proposals, retention, and delete flows through the shared store trait
 - portable import and export flows round-trip with the sled backend
 
 Workspace and deployment docs: <https://github.com/deliberium/mnemara>

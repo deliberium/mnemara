@@ -6,7 +6,8 @@ use mnemara_core::{
     EpisodeSalience, IngestionPolicy, IntegrityCheckRequest, LineageLink, LineageRelationKind,
     MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
     MemoryStore, MemoryTrustLevel, RecallFilters, RecallHistoricalMode, RecallQuery,
-    RecallScoringProfile, RepairRequest, RetentionPolicy, SemanticEmbedder, UpsertRequest,
+    RecallScoringProfile, RepairRequest, RetentionPolicy, SemanticEmbedder, SynthesisRequest,
+    UpsertRequest,
 };
 use mnemara_store_file::{FileMemoryStore, FileStoreConfig};
 use serde::Deserialize;
@@ -817,6 +818,120 @@ async fn compaction_can_roll_up_duplicate_clusters_and_cold_archive_stale_record
     assert!(
         archived_ids.contains(&"duplicate-rollup-copy") || archived_ids.contains(&base_id.as_str())
     );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn synthesis_proposes_reviewable_summary_records_with_lineage() {
+    let fixtures = load_fixtures();
+    let store =
+        FileMemoryStore::open(FileStoreConfig::new(temp_store_dir("synthesis-proposals"))).unwrap();
+
+    let first = map_fixture_record(&fixtures.exact_lookup[0]);
+    let mut second = map_fixture_record(&fixtures.exact_lookup[1]);
+    second.id = "synthesis-source-two".to_string();
+    second.scope.conversation_id = first.scope.conversation_id.clone();
+    second.scope.session_id = first.scope.session_id.clone();
+    second.scope.source = first.scope.source.clone();
+
+    store
+        .batch_upsert(BatchUpsertRequest {
+            requests: vec![
+                UpsertRequest {
+                    record: first,
+                    idempotency_key: Some("synthesis-one".to_string()),
+                },
+                UpsertRequest {
+                    record: second,
+                    idempotency_key: Some("synthesis-two".to_string()),
+                },
+            ],
+        })
+        .await
+        .unwrap();
+
+    let dry_run = store
+        .synthesize(SynthesisRequest {
+            tenant_id: "default".to_string(),
+            namespace: Some("conversation".to_string()),
+            dry_run: true,
+            reason: "test synthesis".to_string(),
+            ..SynthesisRequest::default()
+        })
+        .await
+        .unwrap();
+    assert!(dry_run.dry_run);
+    assert_eq!(dry_run.proposed_records, 1);
+    assert_eq!(dry_run.persisted_records, 0);
+    assert_eq!(dry_run.lineage_links_created, 2);
+    let proposal = &dry_run.proposals[0];
+    assert_eq!(proposal.proposed_record.kind, MemoryRecordKind::Summary);
+    assert_eq!(
+        proposal.proposed_record.quality_state,
+        MemoryQualityState::Draft
+    );
+    assert_eq!(
+        proposal.proposed_record.scope.trust_level,
+        MemoryTrustLevel::Derived
+    );
+    assert_eq!(proposal.proposed_record.lineage.len(), 2);
+    assert!(
+        proposal
+            .proposed_record
+            .metadata
+            .get("review_state")
+            .is_some_and(|value| value == "proposed")
+    );
+
+    let before_persist = store
+        .recall(RecallQuery {
+            query_text: String::new(),
+            max_items: 10,
+            token_budget: None,
+            filters: RecallFilters {
+                kinds: vec![MemoryRecordKind::Summary],
+                ..RecallFilters::default()
+            },
+            include_explanation: false,
+            ..query_for("")
+        })
+        .await
+        .unwrap();
+    assert!(before_persist.hits.is_empty());
+
+    let persisted = store
+        .synthesize(SynthesisRequest {
+            tenant_id: "default".to_string(),
+            namespace: Some("conversation".to_string()),
+            dry_run: false,
+            reason: "test synthesis".to_string(),
+            ..SynthesisRequest::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(persisted.persisted_records, 1);
+
+    let summaries = store
+        .recall(RecallQuery {
+            query_text: String::new(),
+            max_items: 10,
+            token_budget: None,
+            filters: RecallFilters {
+                kinds: vec![MemoryRecordKind::Summary],
+                ..RecallFilters::default()
+            },
+            include_explanation: false,
+            ..query_for("")
+        })
+        .await
+        .unwrap();
+    assert_eq!(summaries.hits.len(), 1);
+    assert!(
+        summaries.hits[0]
+            .record
+            .content
+            .contains("Synthesized 2 source memories")
+    );
+    assert_eq!(summaries.hits[0].record.lineage.len(), 2);
 }
 
 #[tokio::test(flavor = "current_thread")]

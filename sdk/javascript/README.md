@@ -6,7 +6,7 @@ It is intentionally small:
 
 - no runtime dependencies
 - works with the standard `fetch` API in Node 18+ and modern browsers
-- targets the daemon's HTTP endpoints for ingest, recall, stats, graph inspection, changefeed reads, integrity checks, repair, maintenance runs, compaction, delete, trace lookup, runtime status, export/import, snapshot shipping, health, readiness, and metrics
+- targets the daemon's HTTP endpoints for ingest, recall, stats, graph inspection, changefeed reads, integrity checks, repair, maintenance runs, synthesis proposals, compaction, delete, trace lookup, runtime status, export/import, snapshot shipping, health, readiness, and metrics
 
 ## Example
 
@@ -162,8 +162,9 @@ Example engine tuning payload shape from `snapshot()` or `stats()`:
 - `inspectGraph()` calls `/admin/graph` for read-only episode, chronology, causal, related, lineage, and conflict edge inspection.
 - `changefeed()` calls `/admin/changefeed` for append-only memory mutation events.
 - Episodic recall filters support relative before/after anchors, boundary labels, recurrence keys, conflict states, resolution kinds, and unresolved conflict review queues. Use `recallAsOf()` for timestamped time-travel recall.
+- `synthesize()` calls `/admin/synthesize` to produce reviewable summary-record proposals from scoped source memories. Use `dry_run: true` to preview proposals without persisting them.
 - Trace APIs expose backend, admission class, correlation ID, planning trace ID, and request summary metadata.
 - Portable export/import and snapshot-shipping flows support `Validate`, `Merge`, and `Replace`, plus `dry_run` previews and structured import failures.
-- `runMaintenance()` orchestrates integrity checks, idempotency-key repair, and tenant-scoped compaction behind one admin call.
+- `runMaintenance()` orchestrates integrity checks, idempotency-key repair, tenant-scoped compaction, and opt-in synthesis behind one admin call.
 - Runtime status surfaces queue depth, per-class inflight usage, per-tenant inflight counts, wait timing, and trace retention state.
 - This package is kept in-repo as a reference SDK and can be published to a registry as part of a release process.

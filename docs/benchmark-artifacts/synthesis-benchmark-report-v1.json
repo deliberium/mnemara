@@ -1,0 +1,209 @@
+{
+  "report_version": 1,
+  "generated_at_unix_ms": 1780692255166,
+  "corpus_path": "/Users/kabudu/projex/deliberium-group/mnemara/crates/mnemara-store-sled/../../data/evaluation/ranking-corpus-v1.json",
+  "environment": {
+    "os": "macos",
+    "arch": "aarch64",
+    "logical_cpus": 10
+  },
+  "measurement": {
+    "upsert_runs": 6,
+    "recall_loops": 6,
+    "admin_runs": 4
+  },
+  "profiles": [],
+  "salience_profiles": [],
+  "shared_embedder_profiles": [],
+  "planner_stage_profiles": [],
+  "provenance_policy_profiles": [],
+  "maintenance_profiles": [],
+  "synthesis_profiles": [
+    {
+      "backend": "sled",
+      "records_benchmarked": 100,
+      "source_groups": 5,
+      "dry_run_all": {
+        "samples": 4,
+        "mean_ms": 0.21245825000000002,
+        "p50_ms": 0.203875,
+        "p95_ms": 0.24608300000000002,
+        "max_ms": 0.24608300000000002,
+        "throughput_per_sec": 470680.7102101236
+      },
+      "dry_run_filtered_actor": {
+        "samples": 4,
+        "mean_ms": 0.16415575,
+        "p50_ms": 0.16449999999999998,
+        "p95_ms": 0.167166,
+        "max_ms": 0.167166,
+        "throughput_per_sec": null
+      },
+      "apply": {
+        "samples": 4,
+        "mean_ms": 4.861708499999999,
+        "p50_ms": 4.584582999999999,
+        "p95_ms": 5.7517499999999995,
+        "max_ms": 5.7517499999999995,
+        "throughput_per_sec": 20568.90082982145
+      },
+      "mean_proposals": 5.0,
+      "mean_lineage_links": 60.0
+    },
+    {
+      "backend": "file",
+      "records_benchmarked": 100,
+      "source_groups": 5,
+      "dry_run_all": {
+        "samples": 4,
+        "mean_ms": 1.257094,
+        "p50_ms": 1.2573750000000001,
+        "p95_ms": 1.2690839999999999,
+        "max_ms": 1.2690839999999999,
+        "throughput_per_sec": 79548.5460912231
+      },
+      "dry_run_filtered_actor": {
+        "samples": 4,
+        "mean_ms": 1.2199167499999999,
+        "p50_ms": 1.223042,
+        "p95_ms": 1.223083,
+        "max_ms": 1.223083,
+        "throughput_per_sec": null
+      },
+      "apply": {
+        "samples": 4,
+        "mean_ms": 2.34947925,
+        "p50_ms": 2.354584,
+        "p95_ms": 2.3776669999999998,
+        "max_ms": 2.3776669999999998,
+        "throughput_per_sec": 42562.62318554207
+      },
+      "mean_proposals": 5.0,
+      "mean_lineage_links": 60.0
+    },
+    {
+      "backend": "sled",
+      "records_benchmarked": 500,
+      "source_groups": 25,
+      "dry_run_all": {
+        "samples": 4,
+        "mean_ms": 1.0283544999999998,
+        "p50_ms": 1.009083,
+        "p95_ms": 1.129792,
+        "max_ms": 1.129792,
+        "throughput_per_sec": 486213.6549215276
+      },
+      "dry_run_filtered_actor": {
+        "samples": 4,
+        "mean_ms": 0.7996147499999999,
+        "p50_ms": 0.8010419999999999,
+        "p95_ms": 0.802875,
+        "max_ms": 0.802875,
+        "throughput_per_sec": null
+      },
+      "apply": {
+        "samples": 4,
+        "mean_ms": 10.51808325,
+        "p50_ms": 10.702041000000001,
+        "p95_ms": 11.481583,
+        "max_ms": 11.481583,
+        "throughput_per_sec": 47537.17841128515
+      },
+      "mean_proposals": 25.0,
+      "mean_lineage_links": 300.0
+    },
+    {
+      "backend": "file",
+      "records_benchmarked": 500,
+      "source_groups": 25,
+      "dry_run_all": {
+        "samples": 4,
+        "mean_ms": 6.33876025,
+        "p50_ms": 6.3405,
+        "p95_ms": 6.407541,
+        "max_ms": 6.407541,
+        "throughput_per_sec": 78879.77779251077
+      },
+      "dry_run_filtered_actor": {
+        "samples": 4,
+        "mean_ms": 6.1408439999999995,
+        "p50_ms": 6.14525,
+        "p95_ms": 6.155792,
+        "max_ms": 6.155792,
+        "throughput_per_sec": null
+      },
+      "apply": {
+        "samples": 4,
+        "mean_ms": 16.1753335,
+        "p50_ms": 16.206249999999997,
+        "p95_ms": 16.443709000000002,
+        "max_ms": 16.443709000000002,
+        "throughput_per_sec": 30911.26374612307
+      },
+      "mean_proposals": 25.0,
+      "mean_lineage_links": 300.0
+    },
+    {
+      "backend": "sled",
+      "records_benchmarked": 1000,
+      "source_groups": 50,
+      "dry_run_all": {
+        "samples": 4,
+        "mean_ms": 3.5617500000000004,
+        "p50_ms": 4.717042,
+        "p95_ms": 5.257958,
+        "max_ms": 5.257958,
+        "throughput_per_sec": 280760.86193584616
+      },
+      "dry_run_filtered_actor": {
+        "samples": 4,
+        "mean_ms": 2.7715625,
+        "p50_ms": 3.472292,
+        "p95_ms": 4.267042,
+        "max_ms": 4.267042,
+        "throughput_per_sec": null
+      },
+      "apply": {
+        "samples": 4,
+        "mean_ms": 15.962145750000001,
+        "p50_ms": 16.871750000000002,
+        "p95_ms": 18.118583,
+        "max_ms": 18.118583,
+        "throughput_per_sec": 62648.21883361139
+      },
+      "mean_proposals": 50.0,
+      "mean_lineage_links": 600.0
+    },
+    {
+      "backend": "file",
+      "records_benchmarked": 1000,
+      "source_groups": 50,
+      "dry_run_all": {
+        "samples": 4,
+        "mean_ms": 12.999103999999999,
+        "p50_ms": 13.145624999999999,
+        "p95_ms": 13.609875,
+        "max_ms": 13.609875,
+        "throughput_per_sec": 76928.3790636647
+      },
+      "dry_run_filtered_actor": {
+        "samples": 4,
+        "mean_ms": 12.794218500000001,
+        "p50_ms": 13.342916,
+        "p95_ms": 13.389167,
+        "max_ms": 13.389167,
+        "throughput_per_sec": null
+      },
+      "apply": {
+        "samples": 4,
+        "mean_ms": 42.93498975,
+        "p50_ms": 42.175999999999995,
+        "p95_ms": 45.524459,
+        "max_ms": 45.524459,
+        "throughput_per_sec": 23291.026871620485
+      },
+      "mean_proposals": 50.0,
+      "mean_lineage_links": 600.0
+    }
+  ]
+}

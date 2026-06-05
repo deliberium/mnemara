@@ -84,8 +84,9 @@ Use `cargo package` or `cargo publish --dry-run` as the final pre-release check 
 
 The JavaScript SDK in `sdk/javascript` and the Python SDK in `sdk/python`
 mirror the daemon's HTTP/JSON API. Both expose memory ingest, recall, graph
-inspection, changefeed reads, integrity, repair, maintenance runs, runtime
-status, traces, portable export/import, and snapshot shipping helpers.
+inspection, changefeed reads, integrity, repair, synthesis proposals,
+maintenance runs, runtime status, traces, portable export/import, and snapshot
+shipping helpers.
 
 For runtimes that need an embedded store without speaking HTTP, the
 `mnemara-ffi` crate exposes a C ABI over the sled-backed store. FFI calls accept
@@ -448,7 +449,7 @@ The daemon publishes:
 - runtime admission status with queue depth and wait telemetry
 - trace-retention saturation and eviction counts
 
-Use `/admin/traces` for recent request history, `/admin/runtime` for live fairness/retention state, `/admin/changefeed` for append-only memory mutation events, and `/admin/graph` for read-only inspection of scoped episode, chronology, causal, related, lineage, and conflict edges. `/admin/graph` accepts tenant, namespace, actor, conversation, and session filters plus opt-in archived/suppressed/deleted inclusion flags. `/admin/changefeed` accepts tenant, namespace, `after_sequence`, and `limit` query parameters.
+Use `/admin/traces` for recent request history, `/admin/runtime` for live fairness/retention state, `/admin/changefeed` for append-only memory mutation events, `/admin/synthesize` for reviewable summary-record proposals, and `/admin/graph` for read-only inspection of scoped episode, chronology, causal, related, lineage, and conflict edges. `/admin/graph` accepts tenant, namespace, actor, conversation, and session filters plus opt-in archived/suppressed/deleted inclusion flags. `/admin/changefeed` accepts tenant, namespace, `after_sequence`, and `limit` query parameters.
 
 ## Deployment guidance
 

@@ -80,6 +80,12 @@ inspectable-memory position without making the core product application-specific
       as additive `TimeTravelRecallRequest`, `MemoryStore::recall_as_of`,
       `/memory/recall-as-of`, gRPC `RecallAsOf`, and JavaScript/Python SDK
       helpers.
+- [x] inspectable memory summarization workbench that proposes consolidation
+      rollups with source records, preserved facts, confidence, provenance, and
+      review state. Shipped first as deterministic synthesis proposals that
+      create draft `Summary` records with source lineage, dry-run defaults,
+      HTTP `/admin/synthesize`, gRPC `Synthesize`, maintenance opt-in, and
+      JavaScript/Python SDK helpers.
 
 ## Future Candidates
 
@@ -99,9 +105,6 @@ inspectable-memory position without making the core product application-specific
 - [ ] schema migration and compatibility reports covering store schema version,
       record contract version distribution, deprecated feature usage, migration
       dry-runs, and target-version compatibility
-- [ ] inspectable memory summarization workbench that proposes consolidation
-      rollups with source records, preserved facts, omitted facts, conflicts,
-      confidence, provenance, and suggested lifecycle changes
 - [ ] capability-limited daemon tokens with tenant, namespace, read/write/admin,
       lifecycle-operation, expiration, and audit-identity constraints
 

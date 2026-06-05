@@ -39,7 +39,7 @@ let request = RecallRequest {
 - intended for Rust gRPC clients and servers that need the wire-level schema
 - the schema includes additive episodic memory fields such as episode context, recurrence, boundary cues, historical state, and lineage
 - recall filters cover historical and continuity-aware retrieval controls such as `episode_id`, `continuity_states`, `unresolved_only`, `temporal_order`, `historical_mode`, and `lineage_record_id`
-- lifecycle RPCs cover archive, suppress, recover, stats, integrity, repair, trace lookup, export, and import flows in addition to upsert, recall, compact, snapshot, and delete
+- lifecycle and admin RPCs cover archive, suppress, recover, stats, integrity, repair, synthesis proposals, trace lookup, export, and import flows in addition to upsert, recall, compact, snapshot, and delete
 - pairs with `mnemara-server` for the reference daemon implementation
 - embedded applications that only need the domain model should depend on `mnemara-core` or the `mnemara` facade instead
 

@@ -7,7 +7,7 @@ use crate::model::{
     MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryTrustLevel,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum RecallTemporalOrder {
@@ -167,6 +167,62 @@ pub struct CompactionReport {
     pub superseded_records: u64,
     pub lineage_links_created: u64,
     pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct SynthesisRequest {
+    pub tenant_id: String,
+    pub namespace: Option<String>,
+    pub actor_id: Option<String>,
+    pub conversation_id: Option<String>,
+    pub session_id: Option<String>,
+    pub from_unix_ms: Option<u64>,
+    pub to_unix_ms: Option<u64>,
+    pub min_source_records: usize,
+    pub max_source_records: usize,
+    pub max_proposals: usize,
+    pub dry_run: bool,
+    pub reason: String,
+}
+
+impl Default for SynthesisRequest {
+    fn default() -> Self {
+        Self {
+            tenant_id: String::new(),
+            namespace: None,
+            actor_id: None,
+            conversation_id: None,
+            session_id: None,
+            from_unix_ms: None,
+            to_unix_ms: None,
+            min_source_records: 2,
+            max_source_records: 12,
+            max_proposals: 16,
+            dry_run: true,
+            reason: "memory synthesis proposal".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SynthesisProposal {
+    pub proposed_record: MemoryRecord,
+    pub source_record_ids: Vec<String>,
+    pub confidence: f32,
+    pub rationale: String,
+    pub metadata: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SynthesisReport {
+    pub dry_run: bool,
+    pub scanned_records: u64,
+    pub eligible_records: u64,
+    pub proposed_records: u64,
+    pub persisted_records: u64,
+    pub lineage_links_created: u64,
+    pub proposals: Vec<SynthesisProposal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -554,6 +610,7 @@ pub struct MaintenanceRunRequest {
     pub run_integrity_check: bool,
     pub run_repair: bool,
     pub run_compaction: bool,
+    pub run_synthesis: bool,
     pub remove_stale_idempotency_keys: bool,
     pub rebuild_missing_idempotency_keys: bool,
 }
@@ -568,18 +625,20 @@ impl Default for MaintenanceRunRequest {
             run_integrity_check: true,
             run_repair: true,
             run_compaction: true,
+            run_synthesis: false,
             remove_stale_idempotency_keys: true,
             rebuild_missing_idempotency_keys: true,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MaintenanceRunReport {
     pub dry_run: bool,
     pub integrity_before: Option<IntegrityCheckReport>,
     pub repair: Option<RepairReport>,
     pub compaction: Option<CompactionReport>,
+    pub synthesis: Option<SynthesisReport>,
     pub integrity_after: Option<IntegrityCheckReport>,
 }
 
@@ -640,6 +699,7 @@ pub enum TraceOperationKind {
     MaintenanceRun,
     SnapshotShip,
     Changefeed,
+    Synthesis,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]

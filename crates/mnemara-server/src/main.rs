@@ -373,6 +373,11 @@ where
                 "MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION",
                 true,
             )?,
+            run_synthesis: parse_bool(
+                get("MNEMARA_BACKGROUND_MAINTENANCE_SYNTHESIS"),
+                "MNEMARA_BACKGROUND_MAINTENANCE_SYNTHESIS",
+                false,
+            )?,
             remove_stale_idempotency_keys: parse_bool(
                 get("MNEMARA_BACKGROUND_MAINTENANCE_REMOVE_STALE_IDEMPOTENCY_KEYS"),
                 "MNEMARA_BACKGROUND_MAINTENANCE_REMOVE_STALE_IDEMPOTENCY_KEYS",

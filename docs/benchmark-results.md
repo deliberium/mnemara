@@ -4,6 +4,8 @@ The current published artifacts are:
 
 - `docs/benchmark-artifacts/benchmark-report-v1.json`
 - `docs/benchmark-artifacts/benchmark-report-v1.md`
+- `docs/benchmark-artifacts/synthesis-benchmark-report-v1.json`
+- `docs/benchmark-artifacts/synthesis-benchmark-report-v1.md`
 
 They were generated with:
 
@@ -184,6 +186,33 @@ measured while dry-run maintenance work is running, and both integrity-repair
 and import-based recovery timings are published alongside the qualitative
 scenario tables.
 
+## Synthesis proposal timings
+
+The synthesis feature has separate release-mode benchmark evidence from:
+
+```bash
+cargo run --release -p mnemara-store-sled --example publish_benchmarks -- \
+  --synthesis-only \
+  --output docs/benchmark-artifacts/synthesis-benchmark-report-v1.json \
+  --summary docs/benchmark-artifacts/synthesis-benchmark-report-v1.md
+```
+
+Results from the published synthesis run on macOS aarch64 with 10 logical CPUs:
+
+| Backend | Records | Groups | Dry-run rec/s | Dry-run mean ms | Filtered dry-run mean ms | Apply rec/s | Apply mean ms |
+| ------- | ------: | -----: | ------------: | --------------: | -----------------------: | ----------: | ------------: |
+| sled    |   `100` |    `5` |   `470680.71` |          `0.21` |                   `0.16` |  `20568.90` |        `4.86` |
+| file    |   `100` |    `5` |    `79548.55` |          `1.26` |                   `1.22` |  `42562.62` |        `2.35` |
+| sled    |   `500` |   `25` |   `486213.65` |          `1.03` |                   `0.80` |  `47537.18` |       `10.52` |
+| file    |   `500` |   `25` |    `78879.78` |          `6.34` |                   `6.14` |  `30911.26` |       `16.18` |
+| sled    | `1,000` |   `50` |   `280760.86` |          `3.56` |                   `2.77` |  `62648.22` |       `15.96` |
+| file    | `1,000` |   `50` |    `76928.38` |         `13.00` |                  `12.79` |  `23291.03` |       `42.94` |
+
+The main bottleneck is scan/group/sort work for dry-runs, plus proposal,
+version, and changefeed writes for apply mode. Actor filtering currently still
+scans the store before filtering, so indexing or scoped iteration would be the
+next optimization if synthesis becomes a high-frequency operation.
+
 ## Portability and admin status
 
 The release evidence now includes:
@@ -204,7 +233,6 @@ explanation fidelity, transport behavior, and lifecycle semantics.
 
 Current repository evidence includes:
 
-- the expanded ranked corpus in `data/evaluation/ranking-corpus-v1.json`, including chronology, unresolved continuity, contradiction, preference-change, drift, and long-horizon task slices
 - the expanded ranked corpus in `data/evaluation/ranking-corpus-v1.json`, including chronology, recurrence-pattern, duration-boundary, unresolved continuity, contradiction, preference-change, drift, and long-horizon task slices
 - published planner-profile and scenario-stratified benchmark artifacts in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
 - published engine-config versus shared-embedder seam comparisons using the same deterministic local provider in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
@@ -212,6 +240,7 @@ Current repository evidence includes:
 - published planner-stage timing slices for candidate generation, graph expansion, and total planning in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
 - published provenance-policy comparisons with semantic mode held constant in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
 - published lifecycle maintenance timings for consolidation throughput, recall during maintenance, integrity checks, repair rebuilds, and import-based recovery in `docs/benchmark-artifacts/benchmark-report-v1.json` and `docs/benchmark-artifacts/benchmark-report-v1.md`
+- published synthesis-only benchmark evidence for dry-run, filtered dry-run, and apply proposal paths in `docs/benchmark-artifacts/synthesis-benchmark-report-v1.json` and `docs/benchmark-artifacts/synthesis-benchmark-report-v1.md`
 - episodic and salience score reporting in `mnemara-core` unit tests
 - continuity-aware planner expansion and fast-path regression coverage in `mnemara-core`
 - bounded multi-hop hop-limit and scope-boundary coverage in `mnemara-core`
@@ -227,6 +256,6 @@ cargo test --manifest-path /Users/kabudu/projex/deliberium-group/mnemara/Cargo.t
 
 That means the current public claim boundary is:
 
-- shipped: episodic fields, planner traces, historical recall controls, lineage-preserving lifecycle behavior
-- published in checked-in benchmark artifacts: planner-profile latency comparison, shared-embedder seam comparison, salience-isolated quality and latency comparison, planner-stage timing slices, provenance-policy comparisons, lifecycle-specific quantitative scenario tables, and lifecycle maintenance timings
+- shipped: episodic fields, planner traces, historical recall controls, lineage-preserving lifecycle behavior, and reviewable synthesis proposals
+- published in checked-in benchmark artifacts: planner-profile latency comparison, shared-embedder seam comparison, salience-isolated quality and latency comparison, planner-stage timing slices, provenance-policy comparisons, lifecycle-specific quantitative scenario tables, lifecycle maintenance timings, and synthesis proposal dry-run/apply timings
 - still validated separately by focused suites: explanation payload stability, transport trace behavior, backend lifecycle parity, and restart-safe repair behavior

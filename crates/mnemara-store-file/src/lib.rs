@@ -5,13 +5,14 @@ use mnemara_core::{
     ConfiguredRecallScorer, DeleteReceipt, DeleteRequest, EngineConfig, Error, ExportRequest,
     GraphInspectionReport, GraphInspectionRequest, ImportFailure, ImportMode, ImportReport,
     ImportRequest, IntegrityCheckReport, IntegrityCheckRequest, LineageLink, LineageRelationKind,
-    MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryScope,
-    MemoryStore, MemoryTrustLevel, NamespaceStats, PlannedRecallCandidate, PortableRecord,
-    PortableStorePackage, RecallExplanation, RecallHistoricalMode, RecallHit, RecallPlanner,
-    RecallPlanningProfile, RecallPlanningTrace, RecallQuery, RecallResult, RecallScorer,
-    RecallTemporalOrder, RecallTraceCandidate, RecoverReceipt, RecoverRequest, RepairReport,
-    RepairRequest, Result, SemanticEmbedder, SnapshotManifest, StoreStatsReport, StoreStatsRequest,
-    SuppressReceipt, SuppressRequest, TimeTravelRecallRequest, UpsertReceipt, UpsertRequest,
+    MaintenanceStats, MemoryHistoricalState, MemoryQualityState, MemoryRecord, MemoryRecordKind,
+    MemoryScope, MemoryStore, MemoryTrustLevel, NamespaceStats, PlannedRecallCandidate,
+    PortableRecord, PortableStorePackage, RecallExplanation, RecallHistoricalMode, RecallHit,
+    RecallPlanner, RecallPlanningProfile, RecallPlanningTrace, RecallQuery, RecallResult,
+    RecallScorer, RecallTemporalOrder, RecallTraceCandidate, RecoverReceipt, RecoverRequest,
+    RepairReport, RepairRequest, Result, SemanticEmbedder, SnapshotManifest, StoreStatsReport,
+    StoreStatsRequest, SuppressReceipt, SuppressRequest, SynthesisProposal, SynthesisReport,
+    SynthesisRequest, TimeTravelRecallRequest, UpsertReceipt, UpsertRequest,
     build_graph_inspection_report,
 };
 use serde::{Deserialize, Serialize};
@@ -1395,6 +1396,132 @@ impl FileMemoryStore {
             .collect())
     }
 
+    fn synthesis_group_key(record: &MemoryRecord) -> String {
+        format!(
+            "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
+            record.scope.namespace,
+            record.scope.actor_id,
+            record.scope.conversation_id.as_deref().unwrap_or(""),
+            record.scope.session_id.as_deref().unwrap_or(""),
+            record.scope.source
+        )
+    }
+
+    fn synthesis_record_id(source_ids: &[String]) -> String {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        for source_id in source_ids {
+            source_id.hash(&mut hasher);
+        }
+        format!("synthesis-proposal-{:016x}", hasher.finish())
+    }
+
+    fn synthesis_content(group: &[StoredRecord]) -> String {
+        let snippets = group
+            .iter()
+            .take(5)
+            .map(|stored| {
+                stored
+                    .record
+                    .summary
+                    .clone()
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| stored.record.content.clone())
+            })
+            .map(|value| {
+                let value = value.trim();
+                let truncated = value.chars().take(160).collect::<String>();
+                if truncated.len() < value.len() {
+                    format!("{truncated}...")
+                } else {
+                    truncated
+                }
+            })
+            .collect::<Vec<_>>();
+        format!(
+            "Synthesized {} source memories into a reviewable summary: {}",
+            group.len(),
+            snippets.join("; ")
+        )
+    }
+
+    fn synthesis_proposal_from_group(
+        group: &[StoredRecord],
+        reason: &str,
+        now_unix_ms: u64,
+    ) -> SynthesisProposal {
+        let canonical = &group[0].record;
+        let source_record_ids = group
+            .iter()
+            .map(|stored| stored.record.id.clone())
+            .collect::<Vec<_>>();
+        let max_importance_score = group
+            .iter()
+            .map(|stored| stored.record.importance_score)
+            .fold(canonical.importance_score, f32::max);
+        let mut labels = canonical.scope.labels.clone();
+        for label in ["synthesized", "review-required"] {
+            if !labels.iter().any(|existing| existing == label) {
+                labels.push(label.to_string());
+            }
+        }
+        let content = Self::synthesis_content(group);
+        let mut metadata = BTreeMap::new();
+        metadata.insert("synthesis_reason".to_string(), reason.to_string());
+        metadata.insert(
+            "synthesis_strategy".to_string(),
+            "deterministic_scope_rollup".to_string(),
+        );
+        metadata.insert(
+            "synthesis_source_count".to_string(),
+            group.len().to_string(),
+        );
+        metadata.insert("review_state".to_string(), "proposed".to_string());
+        let confidence = (0.55 + (group.len().min(9) as f32 * 0.05)).min(0.95);
+        let proposed_record = MemoryRecord {
+            id: Self::synthesis_record_id(&source_record_ids),
+            scope: MemoryScope {
+                tenant_id: canonical.scope.tenant_id.clone(),
+                namespace: canonical.scope.namespace.clone(),
+                actor_id: canonical.scope.actor_id.clone(),
+                conversation_id: canonical.scope.conversation_id.clone(),
+                session_id: canonical.scope.session_id.clone(),
+                source: canonical.scope.source.clone(),
+                labels,
+                trust_level: MemoryTrustLevel::Derived,
+            },
+            kind: MemoryRecordKind::Summary,
+            content: content.clone(),
+            summary: Some(content),
+            source_id: None,
+            metadata: metadata.clone(),
+            quality_state: MemoryQualityState::Draft,
+            created_at_unix_ms: now_unix_ms,
+            updated_at_unix_ms: now_unix_ms,
+            expires_at_unix_ms: None,
+            importance_score: max_importance_score,
+            artifact: None,
+            episode: canonical.episode.clone(),
+            historical_state: MemoryHistoricalState::Current,
+            lineage: source_record_ids
+                .iter()
+                .map(|record_id| LineageLink {
+                    record_id: record_id.clone(),
+                    relation: LineageRelationKind::DerivedFrom,
+                    confidence,
+                })
+                .collect(),
+            conflict: None,
+        };
+        SynthesisProposal {
+            proposed_record,
+            source_record_ids,
+            confidence,
+            rationale: "records share tenant, namespace, actor, conversation, session, and source"
+                .to_string(),
+            metadata,
+        }
+    }
+
     fn build_explanations(
         &self,
         scorer: ConfiguredRecallScorer,
@@ -2006,6 +2133,157 @@ impl MemoryStore for FileMemoryStore {
             superseded_records,
             lineage_links_created,
             dry_run: request.dry_run,
+        })
+    }
+
+    async fn synthesize(&self, request: SynthesisRequest) -> Result<SynthesisReport> {
+        if request.tenant_id.trim().is_empty() {
+            return Err(Error::InvalidRequest(
+                "synthesis tenant_id is required".to_string(),
+            ));
+        }
+        if request.min_source_records == 0 {
+            return Err(Error::InvalidRequest(
+                "synthesis min_source_records must be greater than zero".to_string(),
+            ));
+        }
+        if request.max_source_records < request.min_source_records {
+            return Err(Error::InvalidRequest(
+                "synthesis max_source_records must be greater than or equal to min_source_records"
+                    .to_string(),
+            ));
+        }
+
+        let mut scanned_records = 0u64;
+        let mut groups: HashMap<String, Vec<StoredRecord>> = HashMap::new();
+        for stored in self.iterate_records()? {
+            scanned_records += 1;
+            let record = &stored.record;
+            if record.scope.tenant_id != request.tenant_id {
+                continue;
+            }
+            if let Some(namespace) = &request.namespace
+                && record.scope.namespace != *namespace
+            {
+                continue;
+            }
+            if let Some(actor_id) = &request.actor_id
+                && record.scope.actor_id != *actor_id
+            {
+                continue;
+            }
+            if let Some(conversation_id) = &request.conversation_id
+                && record.scope.conversation_id.as_deref() != Some(conversation_id.as_str())
+            {
+                continue;
+            }
+            if let Some(session_id) = &request.session_id
+                && record.scope.session_id.as_deref() != Some(session_id.as_str())
+            {
+                continue;
+            }
+            if request
+                .from_unix_ms
+                .is_some_and(|from| record.updated_at_unix_ms < from)
+                || request
+                    .to_unix_ms
+                    .is_some_and(|to| record.updated_at_unix_ms > to)
+            {
+                continue;
+            }
+            if record.kind == MemoryRecordKind::Summary
+                || matches!(
+                    record.quality_state,
+                    MemoryQualityState::Archived
+                        | MemoryQualityState::Deleted
+                        | MemoryQualityState::Suppressed
+                )
+            {
+                continue;
+            }
+            groups
+                .entry(Self::synthesis_group_key(record))
+                .or_default()
+                .push(stored);
+        }
+
+        let now_unix_ms = Self::now_unix_ms()?;
+        let mut eligible_records = 0u64;
+        let mut proposals = Vec::new();
+        for group in groups.values_mut() {
+            if group.len() < request.min_source_records {
+                continue;
+            }
+            group.sort_by(|left, right| {
+                right
+                    .record
+                    .updated_at_unix_ms
+                    .cmp(&left.record.updated_at_unix_ms)
+                    .then_with(|| {
+                        right
+                            .record
+                            .importance_score
+                            .total_cmp(&left.record.importance_score)
+                    })
+                    .then_with(|| left.record.id.cmp(&right.record.id))
+            });
+            group.truncate(request.max_source_records);
+            eligible_records += group.len() as u64;
+            proposals.push(Self::synthesis_proposal_from_group(
+                group,
+                &request.reason,
+                now_unix_ms,
+            ));
+        }
+        proposals.sort_by(|left, right| {
+            right
+                .proposed_record
+                .importance_score
+                .total_cmp(&left.proposed_record.importance_score)
+                .then_with(|| left.proposed_record.id.cmp(&right.proposed_record.id))
+        });
+        if request.max_proposals > 0 {
+            proposals.truncate(request.max_proposals);
+        }
+
+        let mut persisted_records = 0u64;
+        let lineage_links_created = proposals
+            .iter()
+            .map(|proposal| proposal.source_record_ids.len() as u64)
+            .sum();
+        if !request.dry_run {
+            for proposal in &proposals {
+                let stored = StoredRecord {
+                    record: proposal.proposed_record.clone(),
+                    idempotency_key: None,
+                };
+                self.persist_record(&stored)?;
+                self.persist_record_version(
+                    &stored.record.id,
+                    stored.record.updated_at_unix_ms,
+                    Some(&stored),
+                )?;
+                self.append_changefeed_event(
+                    ChangefeedEventKind::Upserted,
+                    Some(&stored.record),
+                    &stored.record.scope.tenant_id,
+                    &stored.record.scope.namespace,
+                    Some(&stored.record.id),
+                    Some("synthesis proposal persisted".to_string()),
+                    stored.record.updated_at_unix_ms,
+                )?;
+                persisted_records += 1;
+            }
+        }
+
+        Ok(SynthesisReport {
+            dry_run: request.dry_run,
+            scanned_records,
+            eligible_records,
+            proposed_records: proposals.len() as u64,
+            persisted_records,
+            lineage_links_created,
+            proposals,
         })
     }
 

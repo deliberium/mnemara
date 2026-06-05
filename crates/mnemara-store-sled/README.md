@@ -33,7 +33,7 @@ let store = SledMemoryStore::open(SledStoreConfig::new("./data/mnemara-sled"))?;
 - depends on `mnemara-core` for memory types, queries, and traits
 - used by the standalone `mnemara-server` daemon
 - indexes episodic context, historical state, lineage, and replay-safe idempotent writes for richer recall behavior
-- supports archive, suppress, recover, compaction, retention, stats, integrity checks, repair flows, and portable import or export
+- supports archive, suppress, recover, compaction, synthesis proposals, retention, stats, integrity checks, repair flows, and portable import or export
 - exposes the same backend-neutral store contract as the file backend while favoring stronger embedded runtime characteristics
 
 Project documentation: <https://github.com/deliberium/mnemara>

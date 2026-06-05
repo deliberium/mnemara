@@ -256,6 +256,39 @@ message CompactReply {
   uint64 lineage_links_created = 7;
 }
 
+message SynthesisRequest {
+  string tenant_id = 1;
+  optional string namespace = 2;
+  optional string actor_id = 3;
+  optional string conversation_id = 4;
+  optional string session_id = 5;
+  optional uint64 from_unix_ms = 6;
+  optional uint64 to_unix_ms = 7;
+  uint32 min_source_records = 8;
+  uint32 max_source_records = 9;
+  uint32 max_proposals = 10;
+  bool dry_run = 11;
+  string reason = 12;
+}
+
+message SynthesisProposal {
+  MemoryRecord proposed_record = 1;
+  repeated string source_record_ids = 2;
+  float confidence = 3;
+  string rationale = 4;
+  map<string, string> metadata = 5;
+}
+
+message SynthesisReply {
+  bool dry_run = 1;
+  uint64 scanned_records = 2;
+  uint64 eligible_records = 3;
+  uint64 proposed_records = 4;
+  uint64 persisted_records = 5;
+  uint64 lineage_links_created = 6;
+  repeated SynthesisProposal proposals = 7;
+}
+
 message SnapshotRequest {}
 
 message SnapshotReply {
@@ -471,6 +504,7 @@ message MaintenanceRunRequest {
   bool run_compaction = 7;
   bool remove_stale_idempotency_keys = 8;
   bool rebuild_missing_idempotency_keys = 9;
+  bool run_synthesis = 10;
 }
 
 message MaintenanceRunReply {
@@ -479,6 +513,7 @@ message MaintenanceRunReply {
   optional RepairReply repair = 3;
   optional CompactReply compaction = 4;
   optional IntegrityCheckReply integrity_after = 5;
+  optional SynthesisReply synthesis = 6;
 }
 
 enum TraceOperationKind {
@@ -500,6 +535,7 @@ enum TraceOperationKind {
   TRACE_OPERATION_KIND_MAINTENANCE_RUN = 15;
   TRACE_OPERATION_KIND_SNAPSHOT_SHIP = 16;
   TRACE_OPERATION_KIND_CHANGEFEED = 17;
+  TRACE_OPERATION_KIND_SYNTHESIS = 18;
 }
 
 enum TraceStatus {
@@ -633,6 +669,7 @@ service MemoryService {
   rpc Recall(RecallRequest) returns (RecallReply);
   rpc RecallAsOf(TimeTravelRecallRequest) returns (RecallReply);
   rpc Compact(CompactRequest) returns (CompactReply);
+  rpc Synthesize(SynthesisRequest) returns (SynthesisReply);
   rpc Snapshot(SnapshotRequest) returns (SnapshotReply);
   rpc Delete(DeleteRequest) returns (DeleteReply);
   rpc Archive(ArchiveRequest) returns (ArchiveReply);

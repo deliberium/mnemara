@@ -98,6 +98,7 @@ Each published report should break out at least:
 - planner-stage latency for candidate generation, bounded graph expansion, and total planning
 - provenance-policy comparisons with embedding mode held constant
 - consolidation throughput on the fixed corpus
+- synthesis proposal dry-run and apply throughput on synthetic scoped corpora
 - recall latency while maintenance work is running
 - archival and recovery timings for compaction and repair/import flows
 
@@ -120,6 +121,15 @@ cargo run -p mnemara-store-sled --example publish_benchmarks -- \
   --summary docs/benchmark-artifacts/benchmark-report-v1.md
 ```
 
+For synthesis-only proposal evidence, run:
+
+```bash
+cargo run --release -p mnemara-store-sled --example publish_benchmarks -- \
+  --synthesis-only \
+  --output docs/benchmark-artifacts/synthesis-benchmark-report-v1.json \
+  --summary docs/benchmark-artifacts/synthesis-benchmark-report-v1.md
+```
+
 The runner publishes:
 
 - scorer family comparisons: `Profile` and `Curated`
@@ -130,6 +140,7 @@ The runner publishes:
 - planner-stage timings for candidate generation, graph expansion, and total planning
 - fixed policy-profile comparisons with semantic mode held constant
 - lifecycle maintenance timings for consolidation throughput, recall during maintenance, integrity checks, repair rebuilds, and recovery imports
+- synthesis proposal timings for dry-run, filtered dry-run, and apply paths across synthetic scoped corpora
 - backend comparisons: `sled` and `file`
 - stratified quality output per scenario slice
 - operational timings for ingest, recall, snapshot, stats, export, dry-run compaction, and replace import
@@ -149,6 +160,10 @@ The current measurement profile is intentionally simple and reproducible:
 | Admin-operation runs | `4`                                                         |
 | Embedding mode       | `DeterministicLocal`                                        |
 | Corpus export scope  | `tenant=default`, `namespace=evaluation`, archived included |
+
+The synthesis-only slice uses synthetic scoped corpora with `100`, `500`, and
+`1,000` records so dry-run scan/group/sort behavior and apply-path writes can be
+measured without coupling the result to ranking quality scenarios.
 
 Latency summaries are published as mean, p50, p95, and max. Ingest throughput is recorded as records per second.
 Lifecycle maintenance summaries now also publish consolidation throughput as

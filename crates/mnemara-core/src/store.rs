@@ -5,7 +5,7 @@ use crate::query::{
     GraphInspectionReport, GraphInspectionRequest, ImportReport, ImportRequest,
     IntegrityCheckReport, IntegrityCheckRequest, MaintenanceRunReport, MaintenanceRunRequest,
     RecallQuery, RecallResult, RepairReport, RepairRequest, SnapshotManifest, StoreStatsReport,
-    StoreStatsRequest, TimeTravelRecallRequest,
+    StoreStatsRequest, SynthesisReport, SynthesisRequest, TimeTravelRecallRequest,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -124,6 +124,8 @@ pub trait MemoryStore: Send + Sync {
 
     async fn compact(&self, request: CompactionRequest) -> Result<CompactionReport>;
 
+    async fn synthesize(&self, request: SynthesisRequest) -> Result<SynthesisReport>;
+
     async fn delete(&self, request: DeleteRequest) -> Result<DeleteReceipt>;
 
     async fn archive(&self, request: ArchiveRequest) -> Result<ArchiveReceipt>;
@@ -195,6 +197,25 @@ pub trait MemoryStore: Send + Sync {
             None
         };
 
+        let synthesis = if request.run_synthesis {
+            if let Some(tenant_id) = &request.tenant_id {
+                Some(
+                    self.synthesize(crate::query::SynthesisRequest {
+                        tenant_id: tenant_id.clone(),
+                        namespace: request.namespace.clone(),
+                        dry_run: request.dry_run,
+                        reason: request.reason.clone(),
+                        ..crate::query::SynthesisRequest::default()
+                    })
+                    .await?,
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         let integrity_after = if request.run_integrity_check {
             Some(
                 self.integrity_check(IntegrityCheckRequest {
@@ -212,6 +233,7 @@ pub trait MemoryStore: Send + Sync {
             integrity_before,
             repair,
             compaction,
+            synthesis,
             integrity_after,
         })
     }

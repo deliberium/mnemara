@@ -19,6 +19,7 @@ cargo add mnemara-core
 - `RecallQuery`, `RecallFilters`, `RecallResult`, recall explanations, and continuity-aware planning trace types
 - `ChangefeedRequest`, `ChangefeedEvent`, and `ChangefeedReport` for append-only mutation reads
 - `BatchUpsertRequest`, `UpsertRequest`, `DeleteRequest`, `ArchiveRequest`, `SuppressRequest`, `RecoverRequest`, and admin operation reports
+- `SynthesisRequest`, `SynthesisProposal`, and `SynthesisReport` for reviewable memory synthesis proposals
 - `SnapshotManifest`, portable export or import package types, integrity or repair reports, and maintenance stats
 - `EngineConfig`, scorer kinds, scoring and policy profiles, planning profiles, embedding-provider configuration, and evaluation helpers
 - `MemoryStore`, the async trait implemented by the file and sled backends
@@ -49,7 +50,7 @@ let query = RecallQuery {
 ## Notes
 
 - additive schema evolution keeps missing episodic or lifecycle fields backward compatible for existing JSON records and portable packages
-- embedded callers can keep record-only usage, or opt into episodic recall, planner traces, lineage-aware retrieval, and lifecycle controls as needed
+- embedded callers can keep record-only usage, or opt into episodic recall, planner traces, lineage-aware retrieval, synthesis proposals, and lifecycle controls as needed
 - custom semantic providers can integrate through the public embedding seam without changing the domain model
 
 ## Related crates

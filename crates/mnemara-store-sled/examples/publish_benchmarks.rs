@@ -8,7 +8,7 @@ use mnemara_core::{
     MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope, MemoryStore, MemoryTrustLevel,
     RecallFilters, RecallHistoricalMode, RecallPlanner, RecallPlanningProfile, RecallPolicyProfile,
     RecallQuery, RecallScorerKind, RecallScoringProfile, RecallTemporalOrder, RepairRequest,
-    StoreStatsRequest, UpsertRequest, evaluate_rankings_at_k,
+    StoreStatsRequest, SynthesisRequest, UpsertRequest, evaluate_rankings_at_k,
 };
 use mnemara_store_file::{FileMemoryStore, FileStoreConfig};
 use mnemara_store_sled::{SledMemoryStore, SledStoreConfig};
@@ -23,6 +23,7 @@ use uuid::Uuid;
 const UPSERT_RUNS: usize = 6;
 const RECALL_LOOPS: usize = 6;
 const ADMIN_RUNS: usize = 4;
+const SYNTHESIS_RECORD_COUNTS: [usize; 3] = [100, 500, 1_000];
 
 #[derive(Debug, Deserialize)]
 struct Corpus {
@@ -195,6 +196,7 @@ struct BenchmarkReport {
     planner_stage_profiles: Vec<PlannerStageBenchmark>,
     provenance_policy_profiles: Vec<PolicyProfileBenchmark>,
     maintenance_profiles: Vec<MaintenanceBenchmark>,
+    synthesis_profiles: Vec<SynthesisBenchmark>,
 }
 
 #[derive(Debug, Serialize)]
@@ -290,6 +292,18 @@ struct MaintenanceBenchmark {
 }
 
 #[derive(Debug, Serialize)]
+struct SynthesisBenchmark {
+    backend: String,
+    records_benchmarked: usize,
+    source_groups: usize,
+    dry_run_all: DurationSummary,
+    dry_run_filtered_actor: DurationSummary,
+    apply: DurationSummary,
+    mean_proposals: f64,
+    mean_lineage_links: f64,
+}
+
+#[derive(Debug, Serialize)]
 struct BackendBenchmark {
     backend: String,
     quality_overall: ScenarioMetrics,
@@ -379,12 +393,16 @@ fn temp_dir(label: &str) -> PathBuf {
     path
 }
 
-fn parse_args() -> (PathBuf, PathBuf) {
+fn parse_args() -> (PathBuf, PathBuf, bool) {
     let mut output = PathBuf::from("docs/benchmark-artifacts/benchmark-report-v1.json");
     let mut summary = PathBuf::from("docs/benchmark-artifacts/benchmark-report-v1.md");
+    let mut synthesis_only = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--synthesis-only" => {
+                synthesis_only = true;
+            }
             "--output" => {
                 if let Some(path) = args.next() {
                     output = PathBuf::from(path);
@@ -398,7 +416,7 @@ fn parse_args() -> (PathBuf, PathBuf) {
             _ => {}
         }
     }
-    (output, summary)
+    (output, summary, synthesis_only)
 }
 
 fn load_corpus() -> PreparedCorpus {
@@ -519,6 +537,69 @@ fn load_corpus() -> PreparedCorpus {
         records,
         requests,
         cases,
+        export_request: ExportRequest {
+            tenant_id: Some("default".to_string()),
+            namespace: Some("evaluation".to_string()),
+            include_archived: true,
+        },
+    }
+}
+
+fn synthetic_synthesis_corpus(records: usize) -> PreparedCorpus {
+    let source_groups = (records / 20).clamp(1, 250);
+    let mut memory_records = Vec::with_capacity(records);
+    let mut requests = Vec::with_capacity(records);
+    for index in 0..records {
+        let group = index % source_groups;
+        let actor = group % 10;
+        let record = MemoryRecord {
+            id: format!("synthesis-scale-{records}-{index}"),
+            scope: MemoryScope {
+                tenant_id: "default".to_string(),
+                namespace: "evaluation".to_string(),
+                actor_id: format!("actor-{actor}"),
+                conversation_id: Some(format!("thread-{group}")),
+                session_id: Some(format!("session-{group}")),
+                source: "benchmark-synthesis".to_string(),
+                labels: vec!["benchmark".to_string(), "synthesis-scale".to_string()],
+                trust_level: MemoryTrustLevel::Verified,
+            },
+            kind: if index % 17 == 0 {
+                MemoryRecordKind::Fact
+            } else {
+                MemoryRecordKind::Episodic
+            },
+            content: format!(
+                "Source memory {index} in synthesis group {group}. User preference and operational context fragment {index}."
+            ),
+            summary: Some(format!("synthesis source {index} for group {group}")),
+            source_id: Some(format!("synthetic-source-{index}")),
+            metadata: BTreeMap::from([
+                ("scenario".to_string(), "synthesis_scale".to_string()),
+                ("group".to_string(), group.to_string()),
+            ]),
+            quality_state: MemoryQualityState::Active,
+            created_at_unix_ms: 1_700_000_000_000 + index as u64,
+            updated_at_unix_ms: 1_700_000_000_000 + index as u64,
+            expires_at_unix_ms: None,
+            importance_score: 0.25 + ((index % 50) as f32 / 100.0),
+            artifact: None,
+            episode: None,
+            historical_state: MemoryHistoricalState::Current,
+            lineage: Vec::new(),
+            conflict: None,
+        };
+        requests.push(UpsertRequest {
+            idempotency_key: Some(format!("synthesis-scale-key-{records}-{index}")),
+            record: record.clone(),
+        });
+        memory_records.push(record);
+    }
+
+    PreparedCorpus {
+        records: memory_records,
+        requests,
+        cases: Vec::new(),
         export_request: ExportRequest {
             tenant_id: Some("default".to_string()),
             namespace: Some("evaluation".to_string()),
@@ -777,11 +858,13 @@ async fn seed_store<S: MemoryStore>(
     store: &S,
     corpus: &PreparedCorpus,
 ) -> mnemara_core::Result<()> {
-    store
-        .batch_upsert(BatchUpsertRequest {
-            requests: corpus.requests.clone(),
-        })
-        .await?;
+    for chunk in corpus.requests.chunks(250) {
+        store
+            .batch_upsert(BatchUpsertRequest {
+                requests: chunk.to_vec(),
+            })
+            .await?;
+    }
     Ok(())
 }
 
@@ -1158,6 +1241,113 @@ where
     })
 }
 
+async fn benchmark_synthesis_backend<S, F>(
+    backend: &str,
+    config: EngineConfig,
+    corpus: &PreparedCorpus,
+    make_store: F,
+) -> mnemara_core::Result<SynthesisBenchmark>
+where
+    S: MemoryStore,
+    F: Fn(&Path, EngineConfig) -> mnemara_core::Result<S>,
+{
+    let mut dry_run_all_ms = Vec::new();
+    let mut dry_run_filtered_ms = Vec::new();
+    let mut proposals = Vec::new();
+    let mut lineage_links = Vec::new();
+
+    let dry_run_dir = temp_dir(&format!("{backend}-synthesis-dry-run"));
+    let dry_run_store = make_store(&dry_run_dir, config.clone())?;
+    seed_store(&dry_run_store, corpus).await?;
+    for _ in 0..ADMIN_RUNS {
+        let started = Instant::now();
+        let report = dry_run_store
+            .synthesize(SynthesisRequest {
+                tenant_id: "default".to_string(),
+                namespace: Some("evaluation".to_string()),
+                min_source_records: 2,
+                max_source_records: 12,
+                max_proposals: usize::MAX,
+                dry_run: true,
+                reason: "benchmark-synthesis-dry-run".to_string(),
+                ..SynthesisRequest::default()
+            })
+            .await?;
+        dry_run_all_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+        assert!(
+            report.proposed_records > 0,
+            "synthesis dry-run should produce proposals"
+        );
+        proposals.push(report.proposed_records as usize);
+        lineage_links.push(report.lineage_links_created as usize);
+
+        let started = Instant::now();
+        let filtered = dry_run_store
+            .synthesize(SynthesisRequest {
+                tenant_id: "default".to_string(),
+                namespace: Some("evaluation".to_string()),
+                actor_id: Some("actor-0".to_string()),
+                min_source_records: 2,
+                max_source_records: 12,
+                max_proposals: usize::MAX,
+                dry_run: true,
+                reason: "benchmark-synthesis-filtered".to_string(),
+                ..SynthesisRequest::default()
+            })
+            .await?;
+        dry_run_filtered_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+        assert!(
+            filtered.proposed_records > 0,
+            "filtered synthesis dry-run should produce proposals"
+        );
+    }
+    fs::remove_dir_all(dry_run_dir).ok();
+
+    let mut apply_ms = Vec::new();
+    for _ in 0..ADMIN_RUNS {
+        let dir = temp_dir(&format!("{backend}-synthesis-apply"));
+        let store = make_store(&dir, config.clone())?;
+        seed_store(&store, corpus).await?;
+        let started = Instant::now();
+        let report = store
+            .synthesize(SynthesisRequest {
+                tenant_id: "default".to_string(),
+                namespace: Some("evaluation".to_string()),
+                min_source_records: 2,
+                max_source_records: 12,
+                max_proposals: usize::MAX,
+                dry_run: false,
+                reason: "benchmark-synthesis-apply".to_string(),
+                ..SynthesisRequest::default()
+            })
+            .await?;
+        apply_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+        assert_eq!(report.persisted_records, report.proposed_records);
+        fs::remove_dir_all(dir).ok();
+    }
+
+    let records = corpus.requests.len() as f64;
+    Ok(SynthesisBenchmark {
+        backend: backend.to_string(),
+        records_benchmarked: corpus.requests.len(),
+        source_groups: mean_usize(&proposals).round() as usize,
+        dry_run_all: summarize_ms(
+            &dry_run_all_ms,
+            Some(
+                records
+                    / (dry_run_all_ms.iter().sum::<f64>() / dry_run_all_ms.len() as f64 / 1000.0),
+            ),
+        ),
+        dry_run_filtered_actor: summarize_ms(&dry_run_filtered_ms, None),
+        apply: summarize_ms(
+            &apply_ms,
+            Some(records / (apply_ms.iter().sum::<f64>() / apply_ms.len() as f64 / 1000.0)),
+        ),
+        mean_proposals: mean_usize(&proposals),
+        mean_lineage_links: mean_usize(&lineage_links),
+    })
+}
+
 fn markdown_summary(report: &BenchmarkReport) -> String {
     let mut output = String::new();
     output.push_str("# Benchmark report v1\n\n");
@@ -1301,6 +1491,25 @@ fn markdown_summary(report: &BenchmarkReport) -> String {
             profile.recovery_import_replace.mean_ms,
         ));
     }
+
+    output.push_str("\n## Synthesis proposal timings\n\n");
+    output.push_str("| backend | records | groups | dry-run rec/s | dry-run mean ms | filtered dry-run mean ms | apply rec/s | apply mean ms | proposals | lineage links |\n");
+    output.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+    for profile in &report.synthesis_profiles {
+        output.push_str(&format!(
+            "| {} | {} | {} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} | {:.2} |\n",
+            profile.backend,
+            profile.records_benchmarked,
+            profile.source_groups,
+            profile.dry_run_all.throughput_per_sec.unwrap_or_default(),
+            profile.dry_run_all.mean_ms,
+            profile.dry_run_filtered_actor.mean_ms,
+            profile.apply.throughput_per_sec.unwrap_or_default(),
+            profile.apply.mean_ms,
+            profile.mean_proposals,
+            profile.mean_lineage_links,
+        ));
+    }
     output
 }
 
@@ -1311,9 +1520,70 @@ fn ensure_parent(path: &Path) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (output_path, summary_path) = parse_args();
+    let (output_path, summary_path, synthesis_only) = parse_args();
     let runtime = tokio::runtime::Runtime::new()?;
     let corpus = load_corpus();
+
+    if synthesis_only {
+        let synthesis_profiles = runtime.block_on(async {
+            let config = engine_config(
+                RecallScorerKind::Profile,
+                RecallScoringProfile::Balanced,
+                RecallPlanningProfile::ContinuityAware,
+                RecallPolicyProfile::General,
+            );
+            let mut benchmarks = Vec::new();
+            for records in SYNTHESIS_RECORD_COUNTS {
+                let corpus = synthetic_synthesis_corpus(records);
+                benchmarks.push(
+                    benchmark_synthesis_backend("sled", config.clone(), &corpus, |path, engine| {
+                        SledMemoryStore::open(SledStoreConfig::new(path).with_engine_config(engine))
+                    })
+                    .await?,
+                );
+                benchmarks.push(
+                    benchmark_synthesis_backend("file", config.clone(), &corpus, |path, engine| {
+                        FileMemoryStore::open(FileStoreConfig::new(path).with_engine_config(engine))
+                    })
+                    .await?,
+                );
+            }
+            Ok::<_, mnemara_core::Error>(benchmarks)
+        })?;
+
+        let report = BenchmarkReport {
+            report_version: 1,
+            generated_at_unix_ms: now_unix_ms(),
+            corpus_path: corpus_path().display().to_string(),
+            environment: BenchmarkEnvironment {
+                os: std::env::consts::OS.to_string(),
+                arch: std::env::consts::ARCH.to_string(),
+                logical_cpus: std::thread::available_parallelism()
+                    .map(usize::from)
+                    .unwrap_or(1),
+            },
+            measurement: MeasurementConfig {
+                upsert_runs: UPSERT_RUNS,
+                recall_loops: RECALL_LOOPS,
+                admin_runs: ADMIN_RUNS,
+            },
+            profiles: Vec::new(),
+            salience_profiles: Vec::new(),
+            shared_embedder_profiles: Vec::new(),
+            planner_stage_profiles: Vec::new(),
+            provenance_policy_profiles: Vec::new(),
+            maintenance_profiles: Vec::new(),
+            synthesis_profiles,
+        };
+
+        ensure_parent(&output_path);
+        ensure_parent(&summary_path);
+        fs::write(&output_path, serde_json::to_vec_pretty(&report)?)?;
+        fs::write(&summary_path, markdown_summary(&report))?;
+        println!("wrote {}", output_path.display());
+        println!("wrote {}", summary_path.display());
+        return Ok(());
+    }
 
     let profiles = runtime.block_on(async {
         let configs = [
@@ -1591,6 +1861,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok::<_, mnemara_core::Error>(vec![sled, file])
     })?;
 
+    let synthesis_profiles = runtime.block_on(async {
+        let config = engine_config(
+            RecallScorerKind::Profile,
+            RecallScoringProfile::Balanced,
+            RecallPlanningProfile::ContinuityAware,
+            RecallPolicyProfile::General,
+        );
+        let mut benchmarks = Vec::new();
+        for records in SYNTHESIS_RECORD_COUNTS {
+            let corpus = synthetic_synthesis_corpus(records);
+            benchmarks.push(
+                benchmark_synthesis_backend("sled", config.clone(), &corpus, |path, engine| {
+                    SledMemoryStore::open(SledStoreConfig::new(path).with_engine_config(engine))
+                })
+                .await?,
+            );
+            benchmarks.push(
+                benchmark_synthesis_backend("file", config.clone(), &corpus, |path, engine| {
+                    FileMemoryStore::open(FileStoreConfig::new(path).with_engine_config(engine))
+                })
+                .await?,
+            );
+        }
+        Ok::<_, mnemara_core::Error>(benchmarks)
+    })?;
+
     let report = BenchmarkReport {
         report_version: 1,
         generated_at_unix_ms: now_unix_ms(),
@@ -1613,6 +1909,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         planner_stage_profiles,
         provenance_policy_profiles,
         maintenance_profiles,
+        synthesis_profiles,
     };
 
     ensure_parent(&output_path);

@@ -1,7 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use mnemara_core::{
     BatchUpsertRequest, MemoryQualityState, MemoryRecord, MemoryRecordKind, MemoryScope,
-    MemoryStore, MemoryTrustLevel, RecallFilters, RecallQuery, UpsertRequest,
+    MemoryStore, MemoryTrustLevel, RecallFilters, RecallQuery, SynthesisRequest, UpsertRequest,
 };
 use mnemara_store_file::{FileMemoryStore, FileStoreConfig};
 use mnemara_store_sled::{SledMemoryStore, SledStoreConfig};
@@ -84,6 +84,58 @@ fn temp_dir(label: &str) -> PathBuf {
     dir
 }
 
+fn synthetic_synthesis_requests(records: usize) -> Vec<UpsertRequest> {
+    let groups = (records / 20).clamp(1, 100);
+    (0..records)
+        .map(|index| {
+            let group = index % groups;
+            let record = MemoryRecord {
+                id: format!("synthesis-bench-{records}-{index}"),
+                scope: MemoryScope {
+                    tenant_id: "default".to_string(),
+                    namespace: "conversation".to_string(),
+                    actor_id: format!("actor-{}", group % 10),
+                    conversation_id: Some(format!("thread-{group}")),
+                    session_id: Some(format!("session-{group}")),
+                    source: "bench-synthesis".to_string(),
+                    labels: vec!["benchmark".to_string(), "synthesis".to_string()],
+                    trust_level: MemoryTrustLevel::Verified,
+                },
+                kind: MemoryRecordKind::Episodic,
+                content: format!("Synthetic synthesis source record {index} in group {group}."),
+                summary: Some(format!("synthetic synthesis source {index}")),
+                source_id: Some(format!("synthetic-{index}")),
+                metadata: BTreeMap::new(),
+                quality_state: MemoryQualityState::Active,
+                created_at_unix_ms: 1_700_000_000_000 + index as u64,
+                updated_at_unix_ms: 1_700_000_000_000 + index as u64,
+                expires_at_unix_ms: None,
+                importance_score: 0.5,
+                artifact: None,
+                episode: None,
+                historical_state: Default::default(),
+                lineage: Vec::new(),
+                conflict: None,
+            };
+            UpsertRequest {
+                record,
+                idempotency_key: Some(format!("synthesis-bench-key-{records}-{index}")),
+            }
+        })
+        .collect()
+}
+
+async fn seed_requests<S: MemoryStore>(store: &S, requests: &[UpsertRequest]) {
+    for chunk in requests.chunks(250) {
+        store
+            .batch_upsert(BatchUpsertRequest {
+                requests: chunk.to_vec(),
+            })
+            .await
+            .unwrap();
+    }
+}
+
 fn benchmark_backends(c: &mut Criterion) {
     let fixtures = load_fixtures();
     let ingest_requests = fixtures
@@ -116,6 +168,7 @@ fn benchmark_backends(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
     let sled_recall_query = recall_query.clone();
     let file_recall_query = recall_query.clone();
+    let synthesis_requests = synthetic_synthesis_requests(100);
 
     c.bench_function("sled_batch_upsert", |b| {
         b.to_async(&runtime).iter(|| async {
@@ -178,6 +231,110 @@ fn benchmark_backends(c: &mut Criterion) {
                     .await
                     .unwrap();
                 store.recall(query).await.unwrap();
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+
+    c.bench_function("sled_synthesis_dry_run_100", |b| {
+        b.to_async(&runtime).iter_batched(
+            || {
+                let store =
+                    SledMemoryStore::open(SledStoreConfig::new(temp_dir("sled-synthesis-dry-run")))
+                        .unwrap();
+                (store, synthesis_requests.clone())
+            },
+            |(store, requests)| async move {
+                seed_requests(&store, &requests).await;
+                store
+                    .synthesize(SynthesisRequest {
+                        tenant_id: "default".to_string(),
+                        namespace: Some("conversation".to_string()),
+                        max_proposals: usize::MAX,
+                        dry_run: true,
+                        reason: "criterion".to_string(),
+                        ..SynthesisRequest::default()
+                    })
+                    .await
+                    .unwrap();
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+
+    c.bench_function("file_synthesis_dry_run_100", |b| {
+        b.to_async(&runtime).iter_batched(
+            || {
+                let store =
+                    FileMemoryStore::open(FileStoreConfig::new(temp_dir("file-synthesis-dry-run")))
+                        .unwrap();
+                (store, synthesis_requests.clone())
+            },
+            |(store, requests)| async move {
+                seed_requests(&store, &requests).await;
+                store
+                    .synthesize(SynthesisRequest {
+                        tenant_id: "default".to_string(),
+                        namespace: Some("conversation".to_string()),
+                        max_proposals: usize::MAX,
+                        dry_run: true,
+                        reason: "criterion".to_string(),
+                        ..SynthesisRequest::default()
+                    })
+                    .await
+                    .unwrap();
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+
+    c.bench_function("sled_synthesis_apply_100", |b| {
+        b.to_async(&runtime).iter_batched(
+            || {
+                let store =
+                    SledMemoryStore::open(SledStoreConfig::new(temp_dir("sled-synthesis-apply")))
+                        .unwrap();
+                (store, synthesis_requests.clone())
+            },
+            |(store, requests)| async move {
+                seed_requests(&store, &requests).await;
+                store
+                    .synthesize(SynthesisRequest {
+                        tenant_id: "default".to_string(),
+                        namespace: Some("conversation".to_string()),
+                        max_proposals: usize::MAX,
+                        dry_run: false,
+                        reason: "criterion".to_string(),
+                        ..SynthesisRequest::default()
+                    })
+                    .await
+                    .unwrap();
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
+
+    c.bench_function("file_synthesis_apply_100", |b| {
+        b.to_async(&runtime).iter_batched(
+            || {
+                let store =
+                    FileMemoryStore::open(FileStoreConfig::new(temp_dir("file-synthesis-apply")))
+                        .unwrap();
+                (store, synthesis_requests.clone())
+            },
+            |(store, requests)| async move {
+                seed_requests(&store, &requests).await;
+                store
+                    .synthesize(SynthesisRequest {
+                        tenant_id: "default".to_string(),
+                        namespace: Some("conversation".to_string()),
+                        max_proposals: usize::MAX,
+                        dry_run: false,
+                        reason: "criterion".to_string(),
+                        ..SynthesisRequest::default()
+                    })
+                    .await
+                    .unwrap();
             },
             criterion::BatchSize::SmallInput,
         );

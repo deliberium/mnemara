@@ -151,6 +151,7 @@ HTTP surfaces:
 - `POST /admin/repair`
 - `POST /admin/maintenance/run`
 - `POST /admin/compact`
+- `POST /admin/synthesize`
 - `POST /admin/delete`
 - `GET /admin/traces`
 - `GET /admin/traces/{trace_id}`
@@ -175,11 +176,17 @@ Portable import supports:
 
 Import reports now disclose package compatibility, validated/imported/skipped counts, and structured failures.
 
+`POST /admin/synthesize` produces reviewable summary-record proposals from
+scoped source memories. Proposals are ordinary `Summary` records with source
+lineage, `Draft` quality, derived trust, and `review_state=proposed` metadata.
+Use `dry_run=true` to inspect proposals without writing them.
+
 `POST /admin/maintenance/run` orchestrates integrity checks, idempotency-key
-repair, and tenant-scoped compaction in one admin operation. Its JSON payload
-matches the individual operation scopes and supports `dry_run`, `reason`,
-`run_integrity_check`, `run_repair`, `run_compaction`,
-`remove_stale_idempotency_keys`, and `rebuild_missing_idempotency_keys`.
+repair, tenant-scoped compaction, and opt-in synthesis in one admin operation.
+Its JSON payload matches the individual operation scopes and supports `dry_run`,
+`reason`, `run_integrity_check`, `run_repair`, `run_compaction`,
+`run_synthesis`, `remove_stale_idempotency_keys`, and
+`rebuild_missing_idempotency_keys`.
 
 `POST /admin/replication/ship` exports a portable package from the local daemon
 and posts it to a remote daemon's `/admin/import` endpoint. Snapshot shipping
@@ -194,8 +201,8 @@ where scheduled admin work is expected:
 - `MNEMARA_BACKGROUND_MAINTENANCE_ENABLED=true`
 - `MNEMARA_BACKGROUND_MAINTENANCE_INTERVAL_SECONDS=3600`
 - `MNEMARA_BACKGROUND_MAINTENANCE_TENANT` and `MNEMARA_BACKGROUND_MAINTENANCE_NAMESPACE` to scope work
-- `MNEMARA_BACKGROUND_MAINTENANCE_DRY_RUN=false` to apply repairs and compaction
-- `MNEMARA_BACKGROUND_MAINTENANCE_INTEGRITY`, `MNEMARA_BACKGROUND_MAINTENANCE_REPAIR`, and `MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION` to enable or disable phases
+- `MNEMARA_BACKGROUND_MAINTENANCE_DRY_RUN=false` to apply repairs, compaction, and opt-in synthesis
+- `MNEMARA_BACKGROUND_MAINTENANCE_INTEGRITY`, `MNEMARA_BACKGROUND_MAINTENANCE_REPAIR`, `MNEMARA_BACKGROUND_MAINTENANCE_COMPACTION`, and `MNEMARA_BACKGROUND_MAINTENANCE_SYNTHESIS` to enable or disable phases
 - `MNEMARA_BACKGROUND_MAINTENANCE_REMOVE_STALE_IDEMPOTENCY_KEYS` and `MNEMARA_BACKGROUND_MAINTENANCE_REBUILD_MISSING_IDEMPOTENCY_KEYS` for repair behavior
 
 ## Lifecycle-aware operations
@@ -205,6 +212,7 @@ Compaction and retention now preserve more than archive state alone.
 Operationally:
 
 - compaction can emit summary records with lineage links back to source records
+- synthesis can propose draft summary records with lineage links back to source records
 - duplicate consolidation can mark records as `superseded` instead of treating
   them as opaque archived entries
 - cold archival and namespace-cap enforcement can preserve records as

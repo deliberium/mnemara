@@ -216,7 +216,7 @@ pub unsafe extern "C" fn mnemara_ffi_import_json(
 }
 
 #[unsafe(no_mangle)]
-/// Run integrity, repair, and compaction phases using a JSON maintenance request.
+/// Run integrity, repair, compaction, and opt-in synthesis phases using a JSON maintenance request.
 ///
 /// # Safety
 ///

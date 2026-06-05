@@ -94,6 +94,9 @@ class MnemaraHttpClient:
     def compact(self, request: JsonObject) -> Any:
         return self._request("/admin/compact", method="POST", body=request)
 
+    def synthesize(self, request: JsonObject) -> Any:
+        return self._request("/admin/synthesize", method="POST", body=request)
+
     def delete(self, request: JsonObject) -> Any:
         return self._request("/admin/delete", method="POST", body=request)
 

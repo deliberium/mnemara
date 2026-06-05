@@ -219,7 +219,42 @@ export interface CompactionReport {
   archived_records: number;
   summarized_clusters: number;
   pruned_graph_edges: number;
+  superseded_records: number;
+  lineage_links_created: number;
   dry_run: boolean;
+}
+
+export interface SynthesisRequest {
+  tenant_id: string;
+  namespace?: string | null;
+  actor_id?: string | null;
+  conversation_id?: string | null;
+  session_id?: string | null;
+  from_unix_ms?: number | null;
+  to_unix_ms?: number | null;
+  min_source_records?: number;
+  max_source_records?: number;
+  max_proposals?: number;
+  dry_run?: boolean;
+  reason?: string;
+}
+
+export interface SynthesisProposal {
+  proposed_record: MemoryRecord;
+  source_record_ids: string[];
+  confidence: number;
+  rationale: string;
+  metadata: Record<string, string>;
+}
+
+export interface SynthesisReport {
+  dry_run: boolean;
+  scanned_records: number;
+  eligible_records: number;
+  proposed_records: number;
+  persisted_records: number;
+  lineage_links_created: number;
+  proposals: SynthesisProposal[];
 }
 
 export interface DeleteRequest {
@@ -534,6 +569,7 @@ export interface MaintenanceRunRequest {
   run_integrity_check?: boolean;
   run_repair?: boolean;
   run_compaction?: boolean;
+  run_synthesis?: boolean;
   remove_stale_idempotency_keys?: boolean;
   rebuild_missing_idempotency_keys?: boolean;
 }
@@ -543,6 +579,7 @@ export interface MaintenanceRunReport {
   integrity_before?: IntegrityCheckReport | null;
   repair?: RepairReport | null;
   compaction?: CompactionReport | null;
+  synthesis?: SynthesisReport | null;
   integrity_after?: IntegrityCheckReport | null;
 }
 
@@ -610,6 +647,7 @@ export class MnemaraHttpClient {
     request?: MaintenanceRunRequest,
   ): Promise<MaintenanceRunReport>;
   compact(request: CompactionRequest): Promise<CompactionReport>;
+  synthesize(request: SynthesisRequest): Promise<SynthesisReport>;
   delete(request: DeleteRequest): Promise<DeleteReceipt>;
   listTraces(request?: TraceListRequest): Promise<OperationTrace[]>;
   getTrace(traceId: string): Promise<OperationTrace>;

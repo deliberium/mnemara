@@ -10,7 +10,32 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Added
 
+- reviewable memory synthesis proposal model in `mnemara-core`, including
+  `SynthesisRequest`, `SynthesisProposal`, `SynthesisReport`, and
+  `MemoryStore::synthesize`
+- deterministic synthesis support in both file and sled stores for deriving
+  draft `Summary` records from scoped source memories while preserving source
+  lineage, review metadata, derived trust, and dry-run-first workflows
+- HTTP `/admin/synthesize` and gRPC `Synthesize` surfaces, including protobuf
+  request/reply messages, server mappings, request traces, and synthesis
+  metrics
+- JavaScript and Python SDK helpers for calling `/admin/synthesize`
+- maintenance-run synthesis integration through `run_synthesis`, synthesis
+  reports in maintenance responses, and scheduled dry-run synthesis via
+  `MNEMARA_BACKGROUND_MAINTENANCE_SYNTHESIS`
+- backend, transport, and SDK regression coverage for synthesis proposal
+  generation, dry-run behavior, persisted proposal lineage, and maintenance
+  orchestration
+- synthesis proposal benchmark slices and checked-in artifacts covering
+  dry-run, filtered dry-run, and apply paths for file and sled stores
+
 ### Changed
+
+- Repository docs, benchmark methodology/results, and crate READMEs now describe
+  synthesis as reviewable summary proposal generation rather than autonomous
+  memory rewriting.
+- Marketing-site copy now mentions reviewable synthesis proposals alongside the
+  shipped lifecycle, changefeed, SDK, and daemon capabilities.
 
 ### Fixed
 

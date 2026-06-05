@@ -35,13 +35,13 @@ Useful environment variables include:
 - `MNEMARA_AUTH_TOKEN`, `MNEMARA_AUTH_TOKENS`, and `MNEMARA_AUTH_PROTECT_METRICS` for bearer-token auth policy
 - `MNEMARA_MAX_*` limits and `MNEMARA_TRACE_RETENTION` for request sizing, admission, and trace retention controls
 - `MNEMARA_RECALL_*` and embedding-related environment variables for scorer, planning, policy, and semantic-provider tuning
-- `MNEMARA_BACKGROUND_MAINTENANCE_*` variables for scheduled integrity, repair, and compaction orchestration
+- `MNEMARA_BACKGROUND_MAINTENANCE_*` variables for scheduled integrity, repair, compaction, and opt-in synthesis orchestration
 
 ## Notes
 
 - uses `mnemara-store-sled` as the backing store
 - exposes health, readiness, memory, lifecycle, admin, metrics, runtime-status, and trace endpoints over HTTP and gRPC
-- serves episodic memory records, continuity-aware recall filters, time-travel recall, planning traces, lifecycle controls, changefeed reads, portable import/export, snapshot shipping, maintenance runs, and repair or integrity operations
+- serves episodic memory records, continuity-aware recall filters, time-travel recall, planning traces, lifecycle controls, synthesis proposals, changefeed reads, portable import/export, snapshot shipping, maintenance runs, and repair or integrity operations
 - supports bearer-token auth with role-scoped read, write, admin, and metrics permissions
 - includes bounded admission control, request limits, correlation IDs, and metrics or trace observability for daemon deployments
 - supports TCP, Unix domain sockets, TLS, and mutual TLS deployment profiles

@@ -41,7 +41,8 @@ pub use query::{
     RecallHistoricalMode, RecallHit, RecallPlannerStage, RecallPlanningTrace, RecallQuery,
     RecallResult, RecallScoreBreakdown, RecallTemporalOrder, RecallTraceCandidate, RepairReport,
     RepairRequest, SnapshotManifest, SnapshotShipReport, SnapshotShipRequest, StoreStatsReport,
-    StoreStatsRequest, TimeTravelRecallRequest, TraceListRequest, TraceOperationKind, TraceStatus,
+    StoreStatsRequest, SynthesisProposal, SynthesisReport, SynthesisRequest,
+    TimeTravelRecallRequest, TraceListRequest, TraceOperationKind, TraceStatus,
     build_graph_inspection_report,
 };
 pub use scorer::{

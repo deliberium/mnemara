@@ -18,7 +18,8 @@ use mnemara_protocol::v1::{
     LineageLink as ProtoLineageLink, MaintenanceRunRequest, MemoryRecord, MemoryScope,
     RecallFilters, RecallPolicyProfile, RecallRequest, RecallScorerKind, RecallScoringProfile,
     RecoverRequest as ProtoRecoverRequest, RepairRequest, SnapshotRequest, StoreStatsRequest,
-    SuppressRequest as ProtoSuppressRequest, UpsertMemoryRecordRequest,
+    SuppressRequest as ProtoSuppressRequest, SynthesisRequest as ProtoSynthesisRequest,
+    UpsertMemoryRecordRequest,
 };
 use mnemara_server::{
     AuthConfig, AuthPermission, GrpcMemoryService, ServerLimits, ServerMetrics, TokenPolicy,
@@ -104,6 +105,36 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
 
     assert_eq!(upsert_reply.record_id, "record-1");
 
+    let second_upsert_reply = service
+        .upsert_memory_record(Request::new(UpsertMemoryRecordRequest {
+            record: Some(MemoryRecord {
+                id: "record-2".to_string(),
+                scope: Some(test_scope()),
+                kind: "episodic".to_string(),
+                content:
+                    "Prompt: Which memory backend is durable?\nAnswer: The sled backend is durable."
+                        .to_string(),
+                summary: Some("The sled backend is durable".to_string()),
+                metadata: HashMap::new(),
+                quality_state: "active".to_string(),
+                created_at_unix_ms: 2,
+                updated_at_unix_ms: 2,
+                expires_at_unix_ms: None,
+                importance_score: 0.8,
+                source_id: Some("interaction-2".to_string()),
+                artifact: None,
+                episode: None,
+                historical_state: Some("current".to_string()),
+                lineage: Vec::new(),
+                conflict: None,
+            }),
+            idempotency_key: Some("record-2".to_string()),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(second_upsert_reply.record_id, "record-2");
+
     let recall_reply = service
         .recall(Request::new(RecallRequest {
             scope: Some(test_scope()),
@@ -161,7 +192,7 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
         .unwrap()
         .into_inner();
 
-    assert_eq!(snapshot_reply.record_count, 1);
+    assert_eq!(snapshot_reply.record_count, 2);
     assert!(
         snapshot_reply
             .namespaces
@@ -196,6 +227,37 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
 
     assert!(compact_reply.dry_run);
 
+    let synthesis_reply = service
+        .synthesize(Request::new(ProtoSynthesisRequest {
+            tenant_id: "default".to_string(),
+            namespace: Some("conversation".to_string()),
+            actor_id: None,
+            conversation_id: None,
+            session_id: None,
+            from_unix_ms: None,
+            to_unix_ms: None,
+            min_source_records: 2,
+            max_source_records: 12,
+            max_proposals: 16,
+            dry_run: true,
+            reason: "test synthesis".to_string(),
+        }))
+        .await
+        .unwrap()
+        .into_inner();
+    assert!(synthesis_reply.dry_run);
+    assert_eq!(synthesis_reply.proposed_records, 1);
+    assert_eq!(synthesis_reply.persisted_records, 0);
+    assert_eq!(synthesis_reply.proposals[0].source_record_ids.len(), 2);
+    assert_eq!(
+        synthesis_reply.proposals[0]
+            .proposed_record
+            .as_ref()
+            .unwrap()
+            .kind,
+        "summary"
+    );
+
     let maintenance_reply = service
         .run_maintenance(Request::new(MaintenanceRunRequest {
             tenant_id: Some("default".to_string()),
@@ -205,6 +267,7 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
             run_integrity_check: true,
             run_repair: true,
             run_compaction: true,
+            run_synthesis: true,
             remove_stale_idempotency_keys: true,
             rebuild_missing_idempotency_keys: true,
         }))
@@ -216,6 +279,7 @@ async fn upsert_recall_snapshot_and_compact_round_trip() {
     assert!(maintenance_reply.integrity_before.is_some());
     assert!(maintenance_reply.repair.is_some());
     assert!(maintenance_reply.compaction.is_some());
+    assert!(maintenance_reply.synthesis.is_some());
     assert!(maintenance_reply.integrity_after.is_some());
 }
 
@@ -1090,6 +1154,30 @@ async fn http_health_snapshot_and_compact_routes_round_trip() {
         .await
         .unwrap();
     assert_eq!(compact.status(), StatusCode::OK);
+
+    let synthesis = app
+        .clone()
+        .oneshot(
+            HttpRequest::builder()
+                .method("POST")
+                .uri("/admin/synthesize")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenant_id":"default","namespace":"conversation","min_source_records":1,"dry_run":true,"reason":"test"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(synthesis.status(), StatusCode::OK);
+    let synthesis_body = to_bytes(synthesis.into_body(), usize::MAX).await.unwrap();
+    let synthesis_body: serde_json::Value = serde_json::from_slice(&synthesis_body).unwrap();
+    assert_eq!(synthesis_body["proposed_records"], 1);
+    assert_eq!(synthesis_body["persisted_records"], 0);
+    assert_eq!(
+        synthesis_body["proposals"][0]["proposed_record"]["kind"],
+        "Summary"
+    );
 
     let delete = app
         .clone()
