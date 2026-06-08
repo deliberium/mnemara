@@ -10,6 +10,14 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.6.0] - 2026-06-08
+
+### Added
+
 - reviewable memory synthesis proposal model in `mnemara-core`, including
   `SynthesisRequest`, `SynthesisProposal`, `SynthesisReport`, and
   `MemoryStore::synthesize`
@@ -36,8 +44,6 @@ The format is based on Keep a Changelog and this project aims to follow Semantic
   memory rewriting.
 - Marketing-site copy now mentions reviewable synthesis proposals alongside the
   shipped lifecycle, changefeed, SDK, and daemon capabilities.
-
-### Fixed
 
 ## [0.5.0] - 2026-05-31
 
